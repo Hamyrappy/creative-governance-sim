@@ -2,10 +2,10 @@
 
 # --- Основные параметры симуляции ---
 SIMULATION_CONFIG = {
-    "total_steps": 100,
+    "total_steps": 1000,
     "economic_model_type": "LinearStochasticSystem",
     "government_agent_type":  "IntelligentLLMAgent", # TestPoliciesAgent, IntelligentLLMAgent, StaticPolicyAgent
-    "agent_decision_frequency": 50,
+    "agent_decision_frequency": 200,
     "log_level": "INFO",
     "decision_schedule_method": "INTERVAL" # Можно использовать для ясности, что частота задана
 }
@@ -47,7 +47,7 @@ GOVERNMENT_AGENT_PARAMS = {
         "prompt_template_path": "prompts/linear_system_prompt.md",
         "temperature": 0.5,
         "max_history_steps_for_prompt": 10,
-        "performance_window": 10, # Окно для расчета KPI
+        "performance_window": 30, # Окно для расчета KPI
         "verbose_llm": 1,
         "llm_style": "default"
     },

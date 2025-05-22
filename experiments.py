@@ -250,7 +250,7 @@ if __name__ == "__main__":
         "parameter_to_change": "param_B",
         "new_parameter_value": 0.2
     }
-    run_simulation_experiment(exp_id=6, custom_config_updates=exp3_updates)
+    # run_simulation_experiment(exp_id=3, custom_config_updates=exp3_updates)
 
     # --- Эксперимент 4: Изменение цели target_x ---
     exp4_updates = {
@@ -264,6 +264,6 @@ if __name__ == "__main__":
         "parameter_to_change": "param_target_x",
         "new_parameter_value": 1.0
     }
-    run_simulation_experiment(exp_id=9, custom_config_updates=exp4_updates)
+    run_simulation_experiment(exp_id=4, custom_config_updates=exp4_updates)
 
     print("\n--- Все эксперименты завершены ---")

@@ -298,7 +298,7 @@ def plot_linear_system_results(results_data: Dict[str, Any]):
 
 if __name__ == "__main__":
     script_dir = Path(__file__).resolve().parent
-    filename_to_load = "simulation_results.json" # DEFAULT_RESULTS_FILENAME задается сверху файла
+    filename_to_load = "simulation_results_exp4.json" # DEFAULT_RESULTS_FILENAME задается сверху файла
     results_file_path = script_dir.parent / "logs" / filename_to_load
 
     results = load_results(results_file_path)
