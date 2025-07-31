@@ -26,7 +26,9 @@ class DefaultMapping(dict):
         # Возвращает сам ключ в фигурных скобках, чтобы было видно в промпте
         # Или можно вернуть пустую строку: return ""
         return f'{{{key}}}'
-    # --- Универсальный дефолтный промпт ---
+    
+# --- Универсальный дефолтный промпт ---
+# ! Возможно стоит целиком удалить, т.к. он не должен вообще использоваться по хорошему. Разве что для тестов
 
 DEFAULT_PROMPT_TEMPLATE = """Ты — AI-агент, управляющий экономической моделью.
 Твоя цель: Улучшить состояние системы согласно метрикам, таким как общественное благосостояние или стабильность ключевых показателей.
@@ -64,7 +66,7 @@ DEFAULT_PROMPT_TEMPLATE = """Ты — AI-агент, управляющий эк
 """
 
 
-# --- Обновленный IntelligentLLMAgent ---
+# --- Обновленный IntelligentLLMAgent, предназначен для линейной стохастической модели мира ---
 class IntelligentLLMAgent(BaseGovernmentAgent):
     """
     Агент-правительство на основе LLM, использующий gemini.py.
@@ -72,10 +74,10 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
     """
     def __init__(self, params: Dict[str, Any]):
         super().__init__(params)
-        self.llm_model_name = params.get("model_name", "gemini-1.5-flash-latest")
+        self.llm_model_name = params.get("model_name", "gemini-2.5-flash-lite")
         self.api_call_delay = params.get("api_call_delay", 4.1)
         self.prompt_template_path = params.get("prompt_template_path", None) # Путь необязателен
-        self.temperature = params.get("temperature", 0.5)
+        self.temperature = params.get("temperature", 0.9)
         self.max_history_steps_for_prompt = params.get("max_history_steps_for_prompt", 10)
         # Новый параметр: окно для расчета KPI
         self.performance_window = params.get("performance_window", 20)

@@ -22,8 +22,8 @@ from google.api_core.exceptions import InvalidArgument, ServiceUnavailable, Reso
 
 
 # --- ENV и константы ---
-DEFAULT_FAST_MODEL = "models/gemini-2.0-flash-exp"
-DEFAULT_STRUCTURED_MODEL = "models/gemini-1.5-flash-latest"
+DEFAULT_MODEL = "models/gemini-2.5-flash-lite"
+DEFAULT_STRUCTURED_MODEL = "models/gemini-2.5-flash-lite"
 DEFAULT_MAX_ATTEMPTS = 3
 # Уровни детализации вывода
 # 0: Только финальные результаты демо
@@ -38,6 +38,7 @@ if not API_KEY:
 
 genai.configure(api_key=API_KEY)
 
+
 LOW_SAFETY = {
     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -48,21 +49,22 @@ LOW_SAFETY = {
 # --- Выбор модели --- 
 def select_model(structured_output_required: bool = False, verbose: int = 0) -> str:
     """Выбирает подходящую модель Gemini."""
-    prefs_fast = [
-         'gemini-2.0-flash-thinking-exp', 'gemini-2.0-flash-exp',
-         'gemini-2.0-pro-exp', 'gemini-1.5-pro', 'gemini-1.5-flash',
+    # Можно еще лучше оптимизировать, во первых поискать экспериментальные модели и неофициальные лимиты на них
+    prefs_smart = [ 
+         'gemini-2.5-pro', 'gemini-2.5-flash',
+         'gemini-2.0-flash-exp', 'gemini-2.5-flash-lite',
     ]
-    prefs_structured = [
-        'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash',
+    prefs_structured = [ 
+         'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
     ]
-    preferred_list = prefs_structured if structured_output_required else prefs_fast
-    default_fallback = DEFAULT_STRUCTURED_MODEL if structured_output_required else DEFAULT_FAST_MODEL
+    preferred_list = prefs_structured if structured_output_required else prefs_smart
+    default_fallback = DEFAULT_STRUCTURED_MODEL if structured_output_required else DEFAULT_MODEL
 
     try:
         available_models = {m.name.split('/')[-1]: m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods}
         prefs_with_latest = []
         for p in preferred_list:
-            prefs_with_latest.append(p + "-latest")
+            #prefs_with_latest.append(p + "-latest")
             prefs_with_latest.append(p)
 
         for pref in prefs_with_latest:
@@ -71,7 +73,7 @@ def select_model(structured_output_required: bool = False, verbose: int = 0) -> 
                  best_match_short = sorted(matching_models.keys(), key=len, reverse=True)[0]
                  return available_models[best_match_short]
 
-        fallback_prefs_category = ['gemini-1.5-pro', 'gemini-1.5-flash'] if structured_output_required else ['gemini-1.5-flash']
+        fallback_prefs_category = [DEFAULT_STRUCTURED_MODEL] if structured_output_required else [DEFAULT_MODEL]
         for fallback_pref in fallback_prefs_category:
              for short_name, full_name in available_models.items():
                   if short_name.startswith(fallback_pref):
@@ -82,6 +84,59 @@ def select_model(structured_output_required: bool = False, verbose: int = 0) -> 
         if verbose >= 1:
             warnings.warn(f"Ошибка при выборе модели: {e}. Используется fallback: {default_fallback}")
         return default_fallback
+
+
+# --- Выбор модели ---
+def select_model(structured_output_required: bool = False, verbose: int = 0) -> str:
+    """
+    Выбирает первую доступную модель из предопределенного списка.
+    """
+    # Списки предпочитаемых моделей. Порядок имеет значение: будет выбрана первая найденная модель.
+    prefs_smart = [
+         'gemini-2.5-pro',
+         'gemini-2.5-flash',
+         'gemini-2.5-flash-lite',
+    ]
+    prefs_structured = [
+         'gemini-2.5-pro',
+         'gemini-2.5-flash',
+         'gemini-2.5-flash-lite',
+    ]
+    
+    preferred_list = prefs_structured if structured_output_required else prefs_smart
+    default_fallback = DEFAULT_STRUCTURED_MODEL if structured_output_required else DEFAULT_MODEL
+
+    try:
+        # 1. Получаем словарь {короткое_имя: полное_имя} всех доступных моделей
+        available_models = {
+            m.name.split('/')[-1]: m.name
+            for m in genai.list_models()
+            if 'generateContent' in m.supported_generation_methods
+        }
+    except Exception as e:
+        # Если API не ответил, используем модель по умолчанию
+        if verbose >= 1:
+            warnings.warn(f"Не удалось получить список моделей от API: {e}. Используется fallback: {default_fallback}")
+        return default_fallback
+
+    # 2. Идем по нашему списку и ищем первое совпадение
+    for model_short_name in preferred_list:
+        if model_short_name in available_models:
+            # 3. Нашли! Возвращаем полное имя модели.
+            full_model_name = available_models[model_short_name]
+            if verbose >= 2: # Сообщаем, только если включен подробный лог
+                print(f"Найдена доступная модель: {full_model_name}")
+            return full_model_name
+
+    # 4. Если цикл завершился, значит ни одна модель из списка не найдена.
+    # Это ошибка конфигурации, и о ней нужно сообщить.
+    error_message = (
+        f"Ни одна из предпочитаемых моделей в списке {preferred_list} не найдена среди "
+        f"реально доступных: {list(available_models.keys())}. "
+        "Пожалуйста, обновите списки 'prefs_smart'/'prefs_structured' в коде."
+    )
+    raise ValueError(error_message)
+
 
 # --- ОБЕРТКА ДЛЯ ПОВТОРНЫХ ПОПЫТОК ---
 def _wrap_with_retry(llm: BaseLanguageModel, enable_retry: bool, max_attempts: int = DEFAULT_MAX_ATTEMPTS) -> BaseLanguageModel:

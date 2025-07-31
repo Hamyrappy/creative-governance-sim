@@ -42,8 +42,8 @@ GOVERNMENT_AGENT_PARAMS = {
         "change_probability": 0.05
     },
     "IntelligentLLMAgent": {
-        "model_name": "models/gemini-2.5-flash-preview-04-17-thinking", #"gemini-1.5-flash-latest", 
-        "api_call_delay": 10.0, #4.1,
+        "model_name": "models/gemini-2.5-flash", #"models/gemini-2.5-flash-lite", 
+        "api_call_delay": 6.1, #4.1,
         "prompt_template_path": "prompts/linear_system_prompt.md",
         "temperature": 0.5,
         "max_history_steps_for_prompt": 10,
