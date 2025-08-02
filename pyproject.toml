@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "creative-governance-sim"
+version = "0.1.0"
+description = "Simulating creative government policy generation in agent-based economic models using LLMs."
+authors = ["Hamyrappy <k.v.t10@mail.ru>"]
+license = "MIT"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.3.1"
+numpy = "^2.3.2"
+matplotlib = "^3.10.5"
+google-generativeai = "^0.8.5"
+langchain = "^0.3.27"
+langchain-google-genai = "<2.1.8"
+google-api-core = "^2.25.1"
+python-dotenv = "^1.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
