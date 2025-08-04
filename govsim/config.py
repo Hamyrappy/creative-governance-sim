@@ -8,8 +8,17 @@ SIMULATION_CONFIG = {
     "government_agent_type":  "IntelligentLLMAgent", # TestPoliciesAgent, IntelligentLLMAgent, StaticPolicyAgent
     "agent_decision_frequency": 200,
     "log_level": "INFO",
-    "decision_schedule_method": "INTERVAL" # Можно использовать для ясности, что частота задана
+    "decision_schedule_method": "INTERVAL", # Можно использовать для ясности, что частота задана
+    "logs_filename": "simulation_results.json"
 }
+
+# --- Основные пути для поиска файлов ---
+# менять при изменении структуры проекта
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = PACKAGE_ROOT.parent
+LOGS_DIR = PROJECT_ROOT / "logs"
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+PROMPTS_DIR = PACKAGE_ROOT / "prompts"
 
 # --- Параметры для экономических моделей ---
 ECONOMIC_MODEL_PARAMS = {
@@ -45,7 +54,7 @@ GOVERNMENT_AGENT_PARAMS = {
     "IntelligentLLMAgent": {
         "model_name": "models/gemini-2.5-flash", #"models/gemini-2.5-flash-lite", 
         "api_call_delay": 6.1, #4.1,
-        "prompt_template_path": "../prompts/linear_system_prompt.md",
+        "prompt_template_path": PROMPTS_DIR / "linear_system_prompt.md",
         "temperature": 0.5,
         "max_history_steps_for_prompt": 10,
         "performance_window": 30, # Окно для расчета KPI
@@ -61,7 +70,3 @@ GOVERNMENT_AGENT_PARAMS = {
     },
 }
 
-# Основные пути для поиска файлов
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-LOGS_DIR = PROJECT_ROOT / "logs"

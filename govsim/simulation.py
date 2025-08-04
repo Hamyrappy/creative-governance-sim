@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Type, Optional, Dict, Any
 import traceback
+import numpy as np
 
 # Импортируем базовые классы и фабрики
 from govsim.utils.interfaces import BaseEconomicSystem, BaseGovernmentAgent
@@ -86,7 +87,8 @@ def run_simulation():
 
     for current_step in range(total_steps):
         step_start_time = time.time()
-        print(f"--- Шаг {current_step + 1}/{total_steps} ---")
+        if (current_step + 1) % 50 == 0:
+            print(f"--- Шаг {current_step + 1}/{total_steps} ---")
 
         policy_decision_this_step = None # Сбрасываем решение на этом шаге
 
@@ -165,18 +167,18 @@ def run_simulation():
         "simulation_log": simulation_log
     }
 
-    results_filename = "simulation_results.json"
-    script_dir = Path(__file__).resolve().parent
-    results_filepath = script_dir / "logs" / results_filename
+    results_filename =sim_config["logs_filename"]
+    results_filepath = config.LOGS_DIR / results_filename
+
+    # TODO Оценить код ниже
     try:
         # Используем обработчик для несериализуемых объектов, если вдруг они появятся
         def default_serializer(o):
-            if isinstance(o, (np.int_, np.intc, np.intp, np.int8,
+            if isinstance(o, (np.intc, np.intp, np.int8,
                               np.int16, np.int32, np.int64, np.uint8,
                               np.uint16, np.uint32, np.uint64)):
                 return int(o)
-            elif isinstance(o, (np.float_, np.float16, np.float32,
-                                np.float64)):
+            elif isinstance(o, (np.float16, np.float32, np.float64)):
                 return float(o)
             elif isinstance(o, (np.ndarray,)): # Конвертируем массивы в списки
                 return o.tolist()
