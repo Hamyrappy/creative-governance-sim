@@ -3,8 +3,8 @@ import random
 from typing import Dict, Any, List, Optional, Set, Tuple
 
 # Импортируем базовый класс, интерфейс Policy и утилиту выполнения
-from interfaces import BaseEconomicSystem, Policy, AgentId, PolicyDescriptor
-from policy_utils import evaluate_safe_policy_code
+from govsim.utils.interfaces import BaseEconomicSystem, Policy, AgentId, PolicyDescriptor
+from govsim.utils.policy_utils import evaluate_safe_policy_code
 
 
 class SimpleGrowthModel(BaseEconomicSystem):
@@ -380,7 +380,7 @@ class LinearStochasticSystem(BaseEconomicSystem):
         self.history.append(self.state)
 
         # Вывод информации о шаге
-        print(f"Шаг {self.current_step}: x={self.current_x:.3f}, u={self.current_u:.3f} (Шок={shock:.3f})")
+        # print(f"Шаг {self.current_step}: x={self.current_x:.3f}, u={self.current_u:.3f} (Шок={shock:.3f})")
 
     def emulate_policy(self, policy: Policy, duration: int, agents_subset: Optional[List[AgentId]] = None) -> Dict[str, Any]:
         """Заглушка для абстрактного метода эмуляции."""

@@ -3,8 +3,8 @@ import random
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 
-from interfaces import BaseEconomicSystem, Policy, AgentId, PolicyDescriptor
-from policy_utils import evaluate_safe_policy_code
+from govsim.utils.interfaces import BaseEconomicSystem, Policy, AgentId, PolicyDescriptor
+from govsim.utils.policy_utils import evaluate_safe_policy_code
 
 
 class SMM_Consumer:

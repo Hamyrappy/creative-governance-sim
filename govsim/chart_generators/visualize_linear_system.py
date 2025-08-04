@@ -1,9 +1,13 @@
 # visualize_linear_system.py
+# Запускать как poetry run python -m govsim.chart_generators.visualize_linear_system
+
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+
+from govsim.utils.visualize_utils import get_log_file_path
 
 # Keep only constants relevant to the remaining functions
 DEFAULT_RESULTS_FILENAME = "simulation_results.json"
@@ -295,11 +299,9 @@ def plot_linear_system_results(results_data: Dict[str, Any]):
     fig2.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
-
-if __name__ == "__main__":
-    script_dir = Path(__file__).resolve().parent
+def main():
     filename_to_load = "simulation_results.json" # DEFAULT_RESULTS_FILENAME задается сверху файла
-    results_file_path = script_dir.parent / "logs" / filename_to_load
+    results_file_path = get_log_file_path(filename_to_load)
 
     results = load_results(results_file_path)
     if results:
@@ -314,3 +316,6 @@ if __name__ == "__main__":
 
     else:
         print(f"Не удалось загрузить данные из {results_file_path}.")
+
+if __name__ == "__main__":
+    main()

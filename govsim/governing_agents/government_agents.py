@@ -7,11 +7,11 @@ import json
 import numpy as np
 
 # Импортируем интерфейсы и утилиты
-from interfaces import BaseGovernmentAgent, Policy, PolicyDescriptor, BaseEconomicSystem
-from policy_utils import validate_and_compile_policy_expression, PolicyValidationError
+from govsim.utils.interfaces import BaseGovernmentAgent, Policy, PolicyDescriptor, BaseEconomicSystem
+from govsim.utils.policy_utils import validate_and_compile_policy_expression, PolicyValidationError
 
 try:
-    from .gemini_with_demonstrations import create_agent, BaseAgent as GeminiBaseAgent
+    from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent
 except ImportError as e:
     print(f"ПРЕДУПРЕЖДЕНИЕ из government_agents.py: Не удалось импортировать .gemini_with_demonstrations. Ошибка: {e}. IntelligentLLMAgent может не работать.")
     GeminiBaseAgent = None
@@ -238,6 +238,7 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
     """
     Агент-правительство на основе LLM, использующий gemini.py.
     """
+    
     def __init__(self, params: Dict[str, Any]):
         super().__init__(params) # Вызов инициализатора базового класса
         self.llm_model_name = params.get("model_name", "gemini-1.5-flash-latest")
@@ -297,8 +298,7 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
 {history_text}
 
 Твое решение (JSON-объект с "policy_type_id", "value_expression", "reasoning"):
-```json
-""" # Подсказка LLM начать с JSON
+"""
 
     def _format_policy_descriptors_for_prompt(self, policy_descriptors: List[PolicyDescriptor]) -> str:
         text_parts = []

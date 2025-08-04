@@ -6,14 +6,14 @@ from typing import Type, Optional, Dict, Any
 import traceback
 
 # Импортируем базовые классы и фабрики
-from interfaces import BaseEconomicSystem, BaseGovernmentAgent
-from economic_models.economic_models import SimpleGrowthModel, LinearStochasticSystem
-from economic_models.single_market_model import SingleMarketModel
-from governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
-from governing_agents.gov_agent_linear import IntelligentLLMAgent
+from govsim.utils.interfaces import BaseEconomicSystem, BaseGovernmentAgent
+from govsim.economic_models.economic_models import SimpleGrowthModel, LinearStochasticSystem
+from govsim.economic_models.single_market_model import SingleMarketModel
+from govsim.governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
+from govsim.governing_agents.gov_agent_linear import IntelligentLLMAgent
 
 # Импортируем конфиг
-import config
+from govsim import config
 
 # --- Фабрики (остаются без изменений) ---
 def create_economic_model(model_type: str, params: Dict[str, Any]) -> BaseEconomicSystem:
@@ -86,7 +86,7 @@ def run_simulation():
 
     for current_step in range(total_steps):
         step_start_time = time.time()
-        print(f"\n--- Шаг {current_step + 1}/{total_steps} ---")
+        print(f"--- Шаг {current_step + 1}/{total_steps} ---")
 
         policy_decision_this_step = None # Сбрасываем решение на этом шаге
 
@@ -151,7 +151,7 @@ def run_simulation():
         simulation_log.append(current_log_entry)
 
         step_end_time = time.time()
-        print(f"Шаг {current_step + 1} выполнен за {step_end_time - step_start_time:.3f} сек.")
+        # print(f"Шаг {current_step + 1} выполнен за {step_end_time - step_start_time:.3f} сек.")
 
 
     end_time = time.time()

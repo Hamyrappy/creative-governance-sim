@@ -5,6 +5,9 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
+from govsim.utils.visualize_utils import get_log_file_path
+
+
 DEFAULT_RESULTS_FILENAME = "simulation_results.json"
 HIGH_ITERATION_THRESHOLD = 100
 
@@ -558,10 +561,9 @@ def plot_single_market_results(results_data: Dict[str, Any]):
     plt.show()
 
 
-if __name__ == "__main__":
-    script_dir = Path(__file__).resolve().parent
-    filename_to_load = DEFAULT_RESULTS_FILENAME
-    results_file_path = script_dir.parent / "logs" / filename_to_load
+def main():
+    filename_to_load = "simulation_results.json" # DEFAULT_RESULTS_FILENAME задается сверху файла
+    results_file_path = get_log_file_path(filename_to_load)
 
     results = load_results(results_file_path)
     if results:
@@ -579,3 +581,6 @@ if __name__ == "__main__":
 
     else:
         print(f"Не удалось загрузить данные из {results_file_path}.")
+
+if __name__ == "__main__":
+    main()

@@ -1,4 +1,5 @@
 # config.py
+from pathlib import Path
 
 # --- Основные параметры симуляции ---
 SIMULATION_CONFIG = {
@@ -44,7 +45,7 @@ GOVERNMENT_AGENT_PARAMS = {
     "IntelligentLLMAgent": {
         "model_name": "models/gemini-2.5-flash", #"models/gemini-2.5-flash-lite", 
         "api_call_delay": 6.1, #4.1,
-        "prompt_template_path": "prompts/linear_system_prompt.md",
+        "prompt_template_path": "../prompts/linear_system_prompt.md",
         "temperature": 0.5,
         "max_history_steps_for_prompt": 10,
         "performance_window": 30, # Окно для расчета KPI
@@ -59,3 +60,8 @@ GOVERNMENT_AGENT_PARAMS = {
         }
     },
 }
+
+# Основные пути для поиска файлов
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+LOGS_DIR = PROJECT_ROOT / "logs"

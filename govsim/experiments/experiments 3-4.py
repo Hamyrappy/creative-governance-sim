@@ -7,13 +7,13 @@ import traceback
 import copy # Для глубокого копирования конфигов
 import numpy as np # Для сериализатора
 
-from interfaces import BaseEconomicSystem, BaseGovernmentAgent, Policy
-from economic_models.economic_models import SimpleGrowthModel, LinearStochasticSystem
-from governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
-from governing_agents.gov_agent_linear import IntelligentLLMAgent
+from govsim.utils.interfaces import BaseEconomicSystem, BaseGovernmentAgent, Policy
+from govsim.economic_models.economic_models import SimpleGrowthModel, LinearStochasticSystem
+from govsim.governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
+from govsim.governing_agents.gov_agent_linear import IntelligentLLMAgent
 
 # Импорт базового конфига
-import config
+from govsim import config
 
 # --- Фабрики ---
 def create_economic_model(model_type: str, params: Dict[str, Any]) -> BaseEconomicSystem:

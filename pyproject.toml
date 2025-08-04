@@ -5,7 +5,8 @@ description = "Simulating creative government policy generation in agent-based e
 authors = ["Hamyrappy <k.v.t10@mail.ru>"]
 license = "MIT"
 readme = "README.md"
-package-mode = false
+
+packages = [{include = "govsim"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -25,3 +26,7 @@ pytest = "^8.4.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+visualize-linear = "govsim.chart_generators.visualize_linear_system:main"
+simulation = "govsim.simulation:run_simulation"

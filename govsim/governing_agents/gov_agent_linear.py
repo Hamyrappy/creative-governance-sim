@@ -8,11 +8,11 @@ import numpy as np # Для расчета MSE/MSU
 import traceback
 
 # Импортируем интерфейсы и утилиты
-from interfaces import BaseGovernmentAgent, Policy, PolicyDescriptor, BaseEconomicSystem
-from policy_utils import validate_and_compile_policy_expression, PolicyValidationError
+from govsim.utils.interfaces import BaseGovernmentAgent, Policy, PolicyDescriptor, BaseEconomicSystem
+from govsim.utils.policy_utils import validate_and_compile_policy_expression, PolicyValidationError
 
 try:
-    from .gemini_with_demonstrations import create_agent, BaseAgent as GeminiBaseAgent
+    from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent
 except ImportError as e:
     print(f"ПРЕДУПРЕЖДЕНИЕ из gov_agent_linear.py: Не удалось импортировать .gemini_with_demonstrations. Ошибка: {e}. IntelligentLLMAgent может не работать.")
     GeminiBaseAgent = None

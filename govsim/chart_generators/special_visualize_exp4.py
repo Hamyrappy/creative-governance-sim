@@ -5,7 +5,9 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-# Keep only constants relevant to the remaining functions
+from govsim.utils.visualize_utils import get_log_file_path
+
+# Константы
 DEFAULT_RESULTS_FILENAME = "simulation_results.json"
 HIGH_ITERATION_THRESHOLD = 100
 SHOCK_STEP_EXPERIMENT_4 = 500 # Define the shock step for clarity
@@ -305,18 +307,10 @@ def plot_linear_system_results(results_data: Dict[str, Any]):
     fig2.tight_layout()
     plt.show()
 
-
-if __name__ == "__main__":
-    script_dir = Path(__file__).resolve().parent
+def main():
     filename_to_load = "simulation_results_exp4.json"
-    possible_log_paths = [script_dir.parent / "logs", script_dir / "logs", Path.cwd() / "logs"]
-    logs_dir = next((path for path in possible_log_paths if path.exists() and path.is_dir()), None)
-    
-    if not logs_dir:
-        print(f"Error: 'logs' directory not found.")
-        exit()
 
-    results_file_path = logs_dir / filename_to_load
+    results_file_path = get_log_file_path(filename_to_load)
     results = load_results(results_file_path)
     if results:
         model_type = results.get('config', {}).get('economic_model_type')
@@ -327,3 +321,6 @@ if __name__ == "__main__":
             print(f"Error: Script for 'LinearStochasticSystem' only, found '{model_type}'.")
     else:
         print(f"Failed to load data from {results_file_path}.")
+
+if __name__ == "__main__":
+    main()
