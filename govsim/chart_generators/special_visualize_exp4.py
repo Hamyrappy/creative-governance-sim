@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-from govsim.utils.visualize_utils import get_log_file_path
+from govsim.utils.file_utils import get_log_file_path
 
 # Константы
 DEFAULT_RESULTS_FILENAME = "simulation_results.json"

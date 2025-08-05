@@ -6,17 +6,18 @@ from typing import Type, Optional, Dict, Any
 import traceback
 import numpy as np
 
-# Импортируем базовые классы и фабрики
+# Конфиг и утилиты проекта
+from govsim import config
+from govsim.utils.file_utils import default_serializer
 from govsim.utils.interfaces import BaseEconomicSystem, BaseGovernmentAgent
+# Экономические модели
 from govsim.economic_models.economic_models import SimpleGrowthModel, LinearStochasticSystem
 from govsim.economic_models.single_market_model import SingleMarketModel
+# Управляющие агенты
 from govsim.governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
 from govsim.governing_agents.gov_agent_linear import IntelligentLLMAgent
 
-# Импортируем конфиг
-from govsim import config
-
-# --- Фабрики (остаются без изменений) ---
+# --- Фабрики ---
 def create_economic_model(model_type: str, params: Dict[str, Any]) -> BaseEconomicSystem:
     """Создает экземпляр экономической модели по типу и параметрам."""
     model_classes: Dict[str, Type[BaseEconomicSystem]] = {
@@ -173,22 +174,7 @@ def run_simulation():
     # TODO Оценить код ниже
     try:
         # Используем обработчик для несериализуемых объектов, если вдруг они появятся
-        def default_serializer(o):
-            if isinstance(o, (np.intc, np.intp, np.int8,
-                              np.int16, np.int32, np.int64, np.uint8,
-                              np.uint16, np.uint32, np.uint64)):
-                return int(o)
-            elif isinstance(o, (np.float16, np.float32, np.float64)):
-                return float(o)
-            elif isinstance(o, (np.ndarray,)): # Конвертируем массивы в списки
-                return o.tolist()
-            elif isinstance(o, (np.bool_)):
-                return bool(o)
-            elif isinstance(o, (np.void)): # Обработка void (если встретится)
-                return None
-            # TODO Можно добавить обработку datetime и т.д.
-            print(f"Предупреждение: Не удалось сериализовать объект типа {type(o)}. Заменен на None.")
-            return None # Заменяем несериализуемое на None
+        # Используем для этого default_serializer из file_utils.py
 
         with open(results_filepath, 'w', encoding='utf-8') as f:
             json.dump(results_data, f, ensure_ascii=False, indent=4, default=default_serializer)

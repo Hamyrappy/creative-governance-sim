@@ -14,7 +14,7 @@ from govsim.utils.policy_utils import validate_and_compile_policy_expression, Po
 try:
     from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent
 except ImportError as e:
-    print(f"ПРЕДУПРЕЖДЕНИЕ из gov_agent_linear.py: Не удалось импортировать .gemini_with_demonstrations. Ошибка: {e}. IntelligentLLMAgent может не работать.")
+    print(f"ПРЕДУПРЕЖДЕНИЕ из gov_agent_linear.py: Не удалось импортировать .gemini_utils. Ошибка: {e}. IntelligentLLMAgent может не работать.")
     GeminiBaseAgent = None
     import traceback
     traceback.print_exc()
@@ -372,7 +372,8 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
 
         try:
             # Очистка JSON строки (замена кавычек, удаление комментариев, хвостовых запятых)
-            cleaned_json_str = json_str.replace("'", '"')
+            cleaned_json_str = json_str
+            #cleaned_json_str = json_str.replace("'", '"')
             # Удаляем однострочные комментарии // и /* ... */ (если вдруг LLM их добавит)
             cleaned_json_str = re.sub(r"//.*?\n", "\n", cleaned_json_str)
             cleaned_json_str = re.sub(r"/\*.*?\*/", "", cleaned_json_str, flags=re.DOTALL)

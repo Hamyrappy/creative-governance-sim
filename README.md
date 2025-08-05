@@ -45,9 +45,13 @@ A research prototype for studying government agents that use Large Language Mode
       ```
 
 ## Запуск эксперимента
+Простейший способ запуска стандартной симуляции, подчиняющейся исключительно настройкам из `config.py`:
 
-Проект запускается как Python-модуль из командной строки, которому передается имя нужного эксперимента.
+```bash
+poetry run simulation
+```
 
+Для специфичных экспериментов проект запускается как Python-модуль из командной строки, которому передается имя нужного эксперимента.
 ```bash
 poetry run python -m govsim <ИМЯ_ЭКСПЕРИМЕНТА>
 ```
@@ -68,6 +72,8 @@ poetry run python -m govsim adaptive
 poetry run python -m govsim --help
 ```
 
+
+- Модуль для работы с LLM Gemini реализован в `govsim/utils/gemini_utils.py` 
 - Необработанные данные симуляций сохраняются в директорию `/logs`.
 - Модули для визуализации результатов находятся в `govsim/chart_generators/`.
 

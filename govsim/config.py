@@ -3,7 +3,7 @@ from pathlib import Path
 
 # --- Основные параметры симуляции ---
 SIMULATION_CONFIG = {
-    "total_steps": 1000,
+    "total_steps": 300,
     "economic_model_type": "LinearStochasticSystem",
     "government_agent_type":  "IntelligentLLMAgent", # TestPoliciesAgent, IntelligentLLMAgent, StaticPolicyAgent
     "agent_decision_frequency": 200,
