@@ -1,6 +1,7 @@
 # Project-specific files
 simulation_results*.json
 logs/
+combined_code.txt
 
 
 

@@ -10,63 +10,13 @@ import traceback
 # Импортируем интерфейсы и утилиты
 from govsim.utils.interfaces import BaseGovernmentAgent, Policy, PolicyDescriptor, BaseEconomicSystem
 from govsim.utils.policy_utils import validate_and_compile_policy_expression, PolicyValidationError
+from govsim.utils.prompts_utils import DefaultMapping, DEFAULT_PROMPT_TEMPLATE, load_prompt_template, format_policy_descriptors_for_prompt
 
-try:
-    from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent
-except ImportError as e:
-    print(f"ПРЕДУПРЕЖДЕНИЕ из gov_agent_linear.py: Не удалось импортировать .gemini_utils. Ошибка: {e}. IntelligentLLMAgent может не работать.")
-    GeminiBaseAgent = None
-    import traceback
-    traceback.print_exc()
-
-# --- Класс для безопасного форматирования ---
-class DefaultMapping(dict):
-    """Словарь, который возвращает '{key_name}' если ключ отсутствует."""
-    def __missing__(self, key):
-        # Возвращает сам ключ в фигурных скобках, чтобы было видно в промпте
-        # Или можно вернуть пустую строку: return ""
-        return f'{{{key}}}'
+# ! С импортом модуля Gemini бывают проблемы при отсутствии соединения с API GoogleAI, например при отсутствии API ключа или блокировке
+from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent 
     
-# --- Универсальный дефолтный промпт ---
-# ! Возможно стоит целиком удалить, т.к. он не должен вообще использоваться по хорошему. Разве что для тестов
 
-DEFAULT_PROMPT_TEMPLATE = """Ты — AI-агент, управляющий экономической моделью.
-Твоя цель: Улучшить состояние системы согласно метрикам, таким как общественное благосостояние или стабильность ключевых показателей.
-
-Доступные типы политик для управления:
-{policy_descriptors_text}
-
-Инструкции по формированию выражения для `value_expression`:
-- Это должна быть одна строка валидного Python кода.
-- Используй ТОЛЬКО переменные из `available_context_vars` для выбранного типа политики.
-- Глобально доступны (проверяй `available_context_vars`!): {all_available_context_vars_global}
-- Доступные функции: abs(), min(), max(), round(), pow(), math.*, np.clip().
-- Результат должен соответствовать `value_type` и `value_range` (если указаны).
-- Для 'set_price_ceiling'/'set_price_floor' можно вернуть `None` для отключения.
-
-Текущее состояние экономики (шаг {current_step}):
-{current_metrics_text}
-
-История недавних состояний и политик (последние {history_limit} шагов):
-{history_text}
-
-Дополнительный контекст (если доступен):
-{extra_context_text}
-
-Твое решение (JSON объект):
-Проанализируй ситуацию и историю. Предложи ОДНО изменение политики.
-Верни JSON объект с ключами "policy_type_id", "value_expression", "reasoning".
-
-Пример JSON ответа:
-{{
-  "policy_type_id": "ID_типа_политики",
-  "value_expression": "выражение_на_python",
-  "reasoning": "Краткое объяснение твоего выбора."
-}}
-"""
-
-
-# --- Обновленный IntelligentLLMAgent, предназначен для линейной стохастической модели мира ---
+# --- IntelligentLLMAgent, предназначен для линейной стохастической модели мира ---
 class IntelligentLLMAgent(BaseGovernmentAgent):
     """
     Агент-правительство на основе LLM, использующий gemini.py.
@@ -76,10 +26,9 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
         super().__init__(params)
         self.llm_model_name = params.get("model_name", "gemini-2.5-flash-lite")
         self.api_call_delay = params.get("api_call_delay", 4.1)
-        self.prompt_template_path = params.get("prompt_template_path", None) # Путь необязателен
+        self.prompt_template_path = params.get("prompt_template_path") # Путь обязателен
         self.temperature = params.get("temperature", 0.9)
         self.max_history_steps_for_prompt = params.get("max_history_steps_for_prompt", 10)
-        # Новый параметр: окно для расчета KPI
         self.performance_window = params.get("performance_window", 20)
         self.verbose_llm = params.get("verbose_llm", 1)
         self.llm_style = params.get("llm_style", "default")
@@ -102,27 +51,9 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
         else:
             print("КРИТИЧЕСКАЯ ОШИБКА: Модуль gemini.py не импортирован, IntelligentLLMAgent не будет работать.")
 
-        self.prompt_template_content = self._load_prompt_template()
-        print(self.prompt_template_content )
+        self.prompt_template_content = load_prompt_template(self.prompt_template_path)
+        print(self.prompt_template_content)
         self.policy_counter = 0
-
-
-    def _load_prompt_template(self) -> str:
-        """Загружает шаблон промпта из файла или использует дефолтный."""
-        if self.prompt_template_path:
-            try:
-                with open(self.prompt_template_path, 'r', encoding='utf-8') as f:
-                    print(f"Загрузка шаблона промпта из: {self.prompt_template_path}")
-                    return f.read()
-            except FileNotFoundError:
-                print(f"ПРЕДУПРЕЖДЕНИЕ: Файл шаблона промпта не найден: {self.prompt_template_path}. Будет использован дефолтный промпт.")
-                return DEFAULT_PROMPT_TEMPLATE
-            except Exception as e:
-                 print(f"Ошибка при чтении файла промпта {self.prompt_template_path}: {e}. Будет использован дефолтный промпт.")
-                 return DEFAULT_PROMPT_TEMPLATE
-        else:
-             print("Путь к шаблону промпта не указан. Будет использован дефолтный промпт.")
-             return DEFAULT_PROMPT_TEMPLATE
 
     def _calculate_performance_kpis(self, history: List[Dict[str, Any]]) -> Dict[str, Optional[float]]:
         """Рассчитывает KPI (MSE, MSU) по последним N шагам истории."""
@@ -152,8 +83,6 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
 
         return {"current_mse": mse, "current_msu": msu}
 
-    # Методы _format_policy_descriptors_for_prompt и _format_history_for_prompt остаются без изменений
-
     def _format_policy_descriptors_for_prompt(self, policy_descriptors: List[PolicyDescriptor]) -> str:
         text_parts = []
         for desc in policy_descriptors:
@@ -168,6 +97,7 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
             text_parts.append(part)
         return "\n".join(text_parts)
 
+    # TODO Улучшить эту функцию, она слишком примитивна. Малоэффективно выводить историю в таком виде
     def _format_history_for_prompt(self, history: List[Dict[str, Any]]) -> str:
         text_parts = []
         # Берем последние N шагов из истории
@@ -200,16 +130,18 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
                    history: List[Dict[str, Any]],
                    policy_descriptors: List[PolicyDescriptor]
                    ) -> str:
-        """Формирует промпт, безопасно обрабатывая форматирование."""
+        """Сердце агента, формирует промпт из данных контекста.
+        Форматирование безопасное, при проблемах с вставляемой переменной не выводит ошибку"""
+
+        # TODO Сделать аргумент для дебага, чтобы выводило ошибку при отсутствии 
 
         current_metrics = current_state_for_agent.get("metrics", {})
         model_params = current_state_for_agent.get("model_params", {}) # Параметры модели (могут отсутствовать)
         current_step = current_metrics.get("step", "N/A")
 
-        # --- Подготовка данных для форматирования ---
-
+        # --- Подготовка данных контекста для форматирования ---
         # 1. Текст дескрипторов политик
-        policy_descriptors_text = self._format_policy_descriptors_for_prompt(policy_descriptors)
+        policy_descriptors_text = format_policy_descriptors_for_prompt(policy_descriptors)
 
         # 2. Глобально доступные переменные
         all_vars_global = set(current_metrics.keys())
@@ -326,8 +258,6 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
             print(traceback.format_exc())
             return self.prompt_template_content.format(**DefaultMapping(prompt_data)) # Попытка отдать хоть что-то
 
-
-    # Метод _parse_llm_response остается без изменений
 
     def _parse_llm_response(self, response_text: str) -> Optional[Dict[str, str]]:
         # Пытаемся извлечь JSON блок из ответа LLM
