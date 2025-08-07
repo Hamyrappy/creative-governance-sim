@@ -11,7 +11,8 @@ from govsim import config
 from govsim.utils.file_utils import default_serializer
 from govsim.utils.interfaces import BaseEconomicSystem, BaseGovernmentAgent
 # Экономические модели
-from govsim.economic_models.economic_models import SimpleGrowthModel, LinearStochasticSystem
+from govsim.economic_models.economic_models import SimpleGrowthModel
+from govsim.economic_models.linear_stochastic_system import LinearStochasticSystem
 from govsim.economic_models.single_market_model import SingleMarketModel
 # Управляющие агенты
 from govsim.governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
