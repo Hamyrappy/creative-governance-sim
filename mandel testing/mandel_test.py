@@ -1,4 +1,4 @@
-# abm_model.py
+# mandel_test.py
 import random
 import numpy as np
 import matplotlib.pyplot as plt

@@ -18,6 +18,7 @@ langchain = "^0.3.27"
 langchain-google-genai = "<2.1.8"
 google-api-core = "^2.25.1"
 python-dotenv = "^1.1.1"
+mesa = "^3.2.0"
 
 
 [tool.poetry.group.dev.dependencies]
