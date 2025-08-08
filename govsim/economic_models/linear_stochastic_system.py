@@ -138,6 +138,13 @@ class LinearStochasticSystem(BaseEconomicSystem):
         }
         if self.param_target_x is not None:
              metrics["target_x"] = self.param_target_x # Добавляем цель, если она задана
+
+        if len(self.history) >= 2:
+            # В начале шага k в history[-1] уже лежит x_k, так что previous = x_{k-1} = history[-2]
+            prev_metrics = self.history[-2].get("metrics", {})
+            metrics["previous_x"] = prev_metrics.get("current_x", self.current_x)
+        else:
+            metrics["previous_x"] = self.current_x
         return metrics
 
     def get_state_for_agent(self) -> LinearSystemAgentContext:
