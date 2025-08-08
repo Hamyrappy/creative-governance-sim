@@ -9,6 +9,7 @@ import traceback
 
 # Импортируем интерфейсы и утилиты
 from govsim.utils.interfaces import BaseGovernmentAgent, Policy, PolicyDescriptor, BaseEconomicSystem
+from govsim.economic_models.linear_stochastic_system import LinearSystemAgentContext
 from govsim.utils.policy_utils import validate_and_compile_policy_expression, PolicyValidationError
 from govsim.utils.prompts_utils import DefaultMapping, DEFAULT_PROMPT_TEMPLATE, load_prompt_template, format_policy_descriptors_for_prompt
 
@@ -125,138 +126,17 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
         return "\n".join(text_parts) if text_parts else "История пуста."
 
 
-    def _format_prompt(self,
-                   current_state_for_agent: Dict[str, Any],
-                   history: List[Dict[str, Any]],
-                   policy_descriptors: List[PolicyDescriptor]
-                   ) -> str:
-        """Сердце агента, формирует промпт из данных контекста.
-        Форматирование безопасное, при проблемах с вставляемой переменной не выводит ошибку"""
+    def _format_prompt(self, context: LinearSystemAgentContext) -> str:
+        """
+        Сердце агента. Принимает один 
+        типизированный объект контекста.
+        """
+        prompt_data = context.model_dump()
 
-        # TODO Сделать аргумент для дебага, чтобы выводило ошибку при отсутствии 
-
-        current_metrics = current_state_for_agent.get("metrics", {})
-        model_params = current_state_for_agent.get("model_params", {}) # Параметры модели (могут отсутствовать)
-        current_step = current_metrics.get("step", "N/A")
-
-        # --- Подготовка данных контекста для форматирования ---
-        # 1. Текст дескрипторов политик
-        policy_descriptors_text = format_policy_descriptors_for_prompt(policy_descriptors)
-
-        # 2. Глобально доступные переменные
-        all_vars_global = set(current_metrics.keys())
-        for desc in policy_descriptors:
-            all_vars_global.update(desc.available_context_vars)
-        all_available_context_vars_global = sorted(list(all_vars_global))
-
-        # 3. Текст текущих метрик (безопасное форматирование чисел)
-        current_metrics_lines = []
-        for k, v in current_metrics.items():
-            if isinstance(v, (int, float)):
-                # Пытаемся форматировать с 3 знаками после запятой
-                try:
-                    current_metrics_lines.append(f"  - {k}: {v:.3f}")
-                except (TypeError, ValueError): # Если v это None или что-то неформатируемое
-                    current_metrics_lines.append(f"  - {k}: {v}") # Выводим как есть
-            else:
-                current_metrics_lines.append(f"  - {k}: {v}") # Выводим как есть
-        current_metrics_text = "\n".join(current_metrics_lines)
-
-        # 4. Текст истории (используем существующий метод)
-        history_text = self._format_history_for_prompt(history)
-
-        # 5. Дополнительный контекст (KPI, параметры модели) - форматируем безопасно
-        extra_context_lines = []
-        # KPI
-        performance_kpis = self._calculate_performance_kpis(history)
-        mse = performance_kpis.get("current_mse")
-        msu = performance_kpis.get("current_msu")
-        if mse is not None:
-            try:
-                extra_context_lines.append(f"  - Производительность (MSE за {self.performance_window} шагов): {mse:.4f}")
-            except (TypeError, ValueError):
-                extra_context_lines.append(f"  - Производительность (MSE за {self.performance_window} шагов): {mse}")
-        if msu is not None:
-            try:
-                extra_context_lines.append(f"  - Стоимость управления (MSU за {self.performance_window} шагов): {msu:.4f}")
-            except (TypeError, ValueError):
-                extra_context_lines.append(f"  - Стоимость управления (MSU за {self.performance_window} шагов): {msu}")
-
-        # Параметры модели (если они есть в state_for_agent)
-        if model_params:
-            extra_context_lines.append("  - Параметры модели:")
-            for k, v in model_params.items():
-                if isinstance(v, (int, float)):
-                    try:
-                        extra_context_lines.append(f"    * {k}: {v:.3f}")
-                    except (TypeError, ValueError):
-                        extra_context_lines.append(f"    * {k}: {v}")
-                else:
-                    extra_context_lines.append(f"    * {k}: {v}") # Выводим как есть (например, u_range)
-
-        extra_context_text = "\n".join(extra_context_lines) if extra_context_lines else "N/A"
-
-
-        # --- Создание словаря для format_map ---
-        # Используем только те ключи, что реально есть в ШАБЛОНЕ промпта
-        def safe_format_float(value, default_val=0.0, precision=3):
-            if isinstance(value, (int, float)):
-                return f"{value:.{precision}f}"
-            return str(value) # Возвращаем как строку, если не число (или None)
-
-        def get_safe(data_dict, key, default_val=None):
-            return data_dict.get(key, default_val)
-
-        # Создаем словарь для форматирования промпта
-        prompt_data = {
-            "policy_descriptors_text": self._format_policy_descriptors_for_prompt(policy_descriptors),
-            "all_available_context_vars_global": str(sorted(list(all_vars_global))), # Преобразуем список в строку
-            "current_step": str(current_step), # Явно в строку
-            "current_metrics_text": "\n".join([f"  - {k}: {safe_format_float(v, precision=3) if isinstance(v, (int,float)) else v}"
-                                            for k,v in current_metrics.items()]),
-            "history_limit": str(self.max_history_steps_for_prompt),
-            "history_text": self._format_history_for_prompt(history),
-
-            # Параметры модели с безопасным форматированием
-            "param_A": safe_format_float(get_safe(model_params, 'A'), precision=3),
-            "param_B": safe_format_float(get_safe(model_params, 'B'), precision=3),
-            "param_C": safe_format_float(get_safe(model_params, 'C'), precision=3),
-            "sigma_epsilon": safe_format_float(get_safe(model_params, 'sigma_epsilon'), precision=3),
-            "target_x": safe_format_float(get_safe(model_params, 'target_x'), precision=3), # target_x тоже должен быть числом для :.3f
-            "u_range": str(get_safe(model_params, 'u_range', "N/A")), # u_range это кортеж, делаем строкой
-
-            # KPI с безопасным форматированием
-            "perf_window": str(self.performance_window),
-            "current_mse": safe_format_float(performance_kpis.get("current_mse"), precision=4),
-            "current_msu": safe_format_float(performance_kpis.get("current_msu"), precision=4),
-
-            # Переменные из current_metrics напрямую (для шаблона, если он их ожидает)
-            # Их тоже нужно безопасно форматировать, если шаблон предполагает числовой формат
-            "current_x": safe_format_float(current_metrics.get("current_x"), precision=4),
-            "previous_x": safe_format_float(current_metrics.get("previous_x"), precision=4),
-            "current_u": safe_format_float(current_metrics.get("current_u"), precision=4),
-            # Если есть другие метрики, которые шаблон использует с числовым форматированием, их тоже нужно обработать
-        }
-
-        # Добавляем остальные метрики, которые могут быть просто строками или неформатируемыми числами
-        for k, v in current_metrics.items():
-            if k not in prompt_data: # Добавляем, только если еще не добавлено с форматированием
-                prompt_data[k] = str(v)
-
-
-        # Используем DefaultMapping для обработки только тех КЛЮЧЕЙ, которые могут отсутствовать в prompt_data,
-        # но значения которых УЖЕ подготовлены и безопасны для простого str.format() без спецификаторов типа
-        try:
-            safe_prompt_data = DefaultMapping(prompt_data)
-            formatted_prompt = self.prompt_template_content.format_map(safe_prompt_data)
-            # Заменяем "{ключ}", если DefaultMapping сработал, на что-то вроде "N/A"
-            formatted_prompt = re.sub(r'\{[a-zA-Z0-9_]+\}', 'N/A', formatted_prompt)
-            return formatted_prompt
-        except Exception as e:
-            print(f"КРИТИЧЕСКАЯ ОШИБКА при финальном форматировании промпта: {e}. Возвращен неформатированный шаблон.")
-            print(f"Данные для форматирования: {prompt_data}")
-            print(traceback.format_exc())
-            return self.prompt_template_content.format(**DefaultMapping(prompt_data)) # Попытка отдать хоть что-то
+        # Используем DefaultMapping на случай, если в шаблоне есть лишние ключи
+        safe_prompt_data = DefaultMapping(prompt_data)
+        formatted_prompt = self.prompt_template_content.format_map(safe_prompt_data)
+        return formatted_prompt
 
 
     def _parse_llm_response(self, response_text: str) -> Optional[Dict[str, str]]:
@@ -348,27 +228,42 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
             print("IntelligentLLMAgent: LLM клиент не инициализирован, политика не может быть предложена.")
             return None
 
-        # Получаем дескрипторы от системы
-        try:
-             available_descriptors: List[PolicyDescriptor] = economic_system.get_policy_descriptors()
-        except Exception as e:
-             print(f"IntelligentLLMAgent: Ошибка при получении дескрипторов политик: {e}")
-             return None
-        if not available_descriptors:
-             print("IntelligentLLMAgent: Экономическая система не предоставила доступных политик.")
-             return None
+        # Проверяем, что нам пришел ожидаемый объект контекста
+        if not isinstance(current_state_for_agent, LinearSystemAgentContext):
+            print(f"ОШИБКА: IntelligentLLMAgent ожидал контекст типа LinearSystemAgentContext, "
+                  f"но получил {type(current_state_for_agent)}. Агент пропускает ход.")
+            return None
 
-        # 1. Формируем промпт с использованием актуальных данных и KPI
-        # _format_prompt теперь сам рассчитывает KPI и извлекает параметры
-        prompt_str = self._format_prompt(current_state_for_agent, history, available_descriptors)
-        # print(f"\nDEBUG: --- LLM Prompt for Step {current_state_for_agent.get('metrics',{}).get('step','N/A')} ---\n{prompt_str}\n--------------------\n")
+        # Теперь мы можем безопасно работать с current_state_for_agent как с context
+        context: LinearSystemAgentContext = current_state_for_agent
+
+        # 0. Заполняем контекст
+        # 0.1 Рассчитываем KPI
+        kpi_data = self._calculate_performance_kpis(history)
+        context.current_mse = kpi_data.get("current_mse")
+        context.current_msu = kpi_data.get("current_msu")
+        context.perf_window = self.performance_window
+
+        # 0.2 Форматируем историю и дескрипторы
+        descriptors = economic_system.get_policy_descriptors()
+        context.history_text = self._format_history_for_prompt(history)
+        context.policy_descriptors_text = self._format_policy_descriptors_for_prompt(descriptors)
+
+        # 0.3
+        all_vars_global = set(context.model_dump(exclude_none=True).keys())
+        for desc in descriptors:
+            all_vars_global.update(desc.available_context_vars)
+        context.all_available_context_vars_global = sorted(list(all_vars_global))
+        
+        # 1 Формируем промпт, передавая единый объект контекста
+        prompt_str = self._format_prompt(context)
 
         # 2. Вызываем LLM
         try:
             llm_response_text = self.llm_client(prompt_str) # Используем __call__
 
-            #print('ЗАПРОС:\n', prompt_str)
-            #print('ОТВЕТ:\n',llm_response_text)
+            # print('ЗАПРОС:\n', prompt_str)
+            # print('ОТВЕТ:\n',llm_response_text)
             time.sleep(self.api_call_delay) # Задержка после вызова API
         except Exception as e:
             print(f"Критическая ошибка при вызове LLM API: {e}")
@@ -385,10 +280,12 @@ class IntelligentLLMAgent(BaseGovernmentAgent):
         policy_type_id = parsed_llm_output["policy_type_id"]
         expression_string = parsed_llm_output["value_expression"]
         reasoning = parsed_llm_output["reasoning"]
-        step_info = current_state_for_agent.get('metrics',{}).get('step','N/A')
+        step_info = context.current_step
         print(f"IntelligentLLMAgent (Шаг {step_info}): LLM предложил: тип='{policy_type_id}', выражение='{expression_string}', обоснование='{reasoning}'")
 
         # 4. Валидация и компиляция
+        available_descriptors = economic_system.get_policy_descriptors()
+
         selected_descriptor = next((d for d in available_descriptors if d.policy_type_id == policy_type_id), None)
         if not selected_descriptor:
             print(f"ПРЕДУПРЕЖДЕНИЕ IntelligentLLMAgent: LLM предложил неизвестный policy_type_id '{policy_type_id}'. Отклонено.")

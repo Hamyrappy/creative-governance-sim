@@ -3,10 +3,10 @@ from pathlib import Path
 
 # --- Основные параметры симуляции ---
 SIMULATION_CONFIG = {
-    "total_steps": 300,
+    "total_steps": 1000,
     "economic_model_type": "LinearStochasticSystem",
     "government_agent_type":  "IntelligentLLMAgent", # TestPoliciesAgent, IntelligentLLMAgent, StaticPolicyAgent
-    "agent_decision_frequency": 200,
+    "agent_decision_frequency": 100,
     "log_level": "INFO",
     "decision_schedule_method": "INTERVAL", # Можно использовать для ясности, что частота задана
     "logs_filename": "simulation_results.json"
@@ -54,7 +54,7 @@ GOVERNMENT_AGENT_PARAMS = {
     "IntelligentLLMAgent": {
         "model_name": "models/gemini-2.5-flash", #"models/gemini-2.5-flash-lite", 
         "api_call_delay": 6.1, #4.1,
-        "prompt_template_path": PROMPTS_DIR / "linear_system_prompt.md",
+        "prompt_template_path": PROMPTS_DIR / "linear_system_prompt_obfuscated.md",
         "temperature": 0.5,
         "max_history_steps_for_prompt": 10,
         "performance_window": 30, # Окно для расчета KPI
