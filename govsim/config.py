@@ -3,10 +3,10 @@ from pathlib import Path
 
 # --- Основные параметры симуляции ---
 SIMULATION_CONFIG = {
-    "total_steps": 1000,
-    "economic_model_type": "LinearStochasticSystem",
+    "total_steps": 200,
+    "economic_model_type": "CoupledLinearStochasticSystem", #"LinearStochasticSystem",
     "government_agent_type":  "IntelligentLLMAgent", # TestPoliciesAgent, IntelligentLLMAgent, StaticPolicyAgent
-    "agent_decision_frequency": 100,
+    "agent_decision_frequency": 50,
     "log_level": "INFO",
     "decision_schedule_method": "INTERVAL", # Можно использовать для ясности, что частота задана
     "logs_filename": "simulation_results.json"
@@ -42,7 +42,39 @@ ECONOMIC_MODEL_PARAMS = {
         "sigma_epsilon": 0.1,
         "target_x": 0.0, # Цель стабилизации x=0
         "u_range": (-2.0, 2.0) # Ограничение на управление
+    },
+    "CoupledLinearStochasticSystem": {
+        "initial_x": 0.0,
+        "param_A": 0.96,
+        "param_B": 0.4,
+        "param_C": 0.0,
+        "sigma_epsilon": 0.12,
+        "target_x": 0.0,
+        "u_range": (-2.0, 2.0),
+
+        "a12": 0.20, "a13": -0.10,
+        "a21": 0.15, "a31": -0.10,
+        "gamma1": 0.92, "gamma2": 0.88,
+
+        "d1": 0.20, "d2": -0.15,
+        "sigma_aux1": 0.05, "sigma_aux2": 0.05,
+
+        "u_smoothing_rho": 0.70,
+        "param_B_drift_sigma": 0.01,
+        "param_C_drift_sigma": 0.002,
+        "target_drift_sigma": 0.0,
+
+        "shock_period": 150,
+        "shock_magnitude_aux1": 0.8,
+        "shock_magnitude_aux2": -0.6,
+
+        "param_B_bounds": (-1.5, 1.5),
+        "param_C_bounds": (-1.0, 1.0),
+
+        "initial_x_aux1": 0.0,
+        "initial_x_aux2": 0.0
     }
+
 }
 
 # --- Параметры для агентов-правительств ---
@@ -54,7 +86,7 @@ GOVERNMENT_AGENT_PARAMS = {
     "IntelligentLLMAgent": {
         "model_name": "models/gemini-2.5-flash", #"models/gemini-2.5-flash-lite", 
         "api_call_delay": 6.1, #4.1,
-        "prompt_template_path": PROMPTS_DIR / "linear_system_prompt_obfuscated.md",
+        "prompt_template_path": PROMPTS_DIR / 'coupled_system_prompt.md', #"linear_system_prompt_obfuscated.md",
         "temperature": 0.5,
         "max_history_steps_for_prompt": 10,
         "performance_window": 30, # Окно для расчета KPI

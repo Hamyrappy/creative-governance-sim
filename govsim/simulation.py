@@ -12,8 +12,9 @@ from govsim.utils.file_utils import default_serializer
 from govsim.utils.interfaces import BaseEconomicSystem, BaseGovernmentAgent
 # Экономические модели
 from govsim.economic_models.economic_models import SimpleGrowthModel
-from govsim.economic_models.linear_stochastic_system import LinearStochasticSystem
 from govsim.economic_models.single_market_model import SingleMarketModel
+from govsim.economic_models.linear_stochastic_system import LinearStochasticSystem
+from govsim.economic_models.coupled_linear_stochastic_system import CoupledLinearStochasticSystem
 # Управляющие агенты
 from govsim.governing_agents.government_agents import StaticPolicyAgent, RandomAgent, TestPoliciesAgent
 from govsim.governing_agents.gov_agent_linear import IntelligentLLMAgent
@@ -25,6 +26,7 @@ def create_economic_model(model_type: str, params: Dict[str, Any]) -> BaseEconom
         "SimpleGrowthModel": SimpleGrowthModel,
         "SingleMarketModel": SingleMarketModel,
         "LinearStochasticSystem": LinearStochasticSystem,
+        "CoupledLinearStochasticSystem": CoupledLinearStochasticSystem,
     }
     model_class = model_classes.get(model_type)
     if model_class:
