@@ -240,8 +240,10 @@ def evaluate_safe_policy_code(
         safe_globals["np"] = numpy_ns
 
     if config.expose_short_names:
-        for name, func in {**config.math_funcs, **config.numpy_funcs}.items():
-            if name not in safe_locals:
+        short = {**config.math_funcs, **config.numpy_funcs}
+        for name, func in short.items():
+            # не перезаписывать builtins
+            if name not in safe_locals and name not in config.allowed_builtins:
                 safe_globals[name] = func
 
     for k, v in config.extra_globals.items():
