@@ -23,7 +23,6 @@ import keyword
 import re
 import types as _types
 
-# RestrictedPython — модульные импорты (как ты просил)
 from RestrictedPython import compile_restricted_eval
 from RestrictedPython import safe_builtins, utility_builtins
 from RestrictedPython.Eval import (
@@ -32,14 +31,12 @@ from RestrictedPython.Eval import (
     default_guarded_getiter as _getiter_,
 )
 
-# --- то же имя исключения, которое ловят другие модули ---
 class PolicyValidationError(ValueError):
     pass
 
 
-# =========================
 # Конфиг песочницы
-# =========================
+
 
 @dataclass(frozen=True)
 class SandboxConfig:
@@ -88,9 +85,7 @@ class SandboxConfig:
 DEFAULT_CONFIG = SandboxConfig()
 
 
-# =========================
 # Внутренние утилиты
-# =========================
 
 def _build_safe_builtins(cfg: SandboxConfig) -> Dict[str, Any]:
     b: Dict[str, Any] = {}
@@ -126,9 +121,7 @@ def _extract_identifiers(expr: str) -> Set[str]:
     return {t for t in toks if not keyword.iskeyword(t)}
 
 
-# =========================
-# Публичный API (drop-in)
-# =========================
+# Публичный API
 
 def validate_and_compile_policy_expression(
     expression: str,
