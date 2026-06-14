@@ -1,15 +1,21 @@
 """
-Rollout-free harness components.
+Harness components.
 
-Both write into ``scratch`` keys the LLM prompt assembler reads (``trace``, ``memory``), so they
-upgrade an ``LLMRegent`` without the regent knowing they exist — and toggling ``enabled`` (the H3
-ablation switch) cleanly removes their effect. Neither needs ``clone()``/rollout, so they are sound
-on any system (the rollout-soundness gate does not apply).
+``TraceFeedback`` and ``EpisodicMemory`` are rollout-FREE: they write into ``scratch`` keys the LLM
+prompt assembler reads (``trace``, ``memory``), upgrading an ``LLMRegent`` without the regent knowing
+they exist — and toggling ``enabled`` (the H3 ablation switch) cleanly removes their effect. Neither
+needs ``clone()``/rollout, so they are sound on any system.
+
+``RolloutProbe`` is rollout-DEPENDENT (doc-09 §5.2): it scores candidate laws by cloning the system
+and rolling it forward, so it is gated behind the ``RollableSystem`` precondition — it is a pure
+pass-through unless the ``Runner`` injected a ``RolloutContext`` into ``scratch`` (which it does only
+for rollable systems). This is why the rollout-free components ship first and this one is gated.
 """
 
 from __future__ import annotations
 
 import math
+import statistics
 
 from govsim.core.action import ActionRequest, ActionSpace
 from govsim.core.harness import HarnessComponent, Outcome
@@ -74,3 +80,61 @@ class EpisodicMemory(HarnessComponent):
         if not shared:
             return math.inf
         return math.sqrt(sum((a[k] - b[k]) ** 2 for k in shared))
+
+
+class RolloutProbe(HarnessComponent):
+    """Variance-aware rollout selection (H2: experimentation > reasoning).
+
+    Ask the regent for up to ``n_candidates`` candidate laws (deduped), score each by cloning the
+    system and rolling it forward ``horizon`` ticks over a set of future ``seeds``, and keep the
+    candidate maximizing ``mean − λ·std`` (worst-case-aware; never select on the mean alone —
+    stats-protocol). Diversity is requested via ``scratch["_probe_seed_offset"]``: regents that honor
+    it (``LLMRegent`` perturbs its sampling seed) yield distinct candidates; deterministic baselines
+    ignore it, so the probe degrades to robustly *scoring* the single candidate (still useful, never
+    harmful).
+
+    ROLLOUT-DEPENDENT: a pure pass-through unless ``scratch["_rollout"]`` (a ``RolloutContext``) was
+    injected by the Runner — i.e. unless the System is a ``RollableSystem``. That absence is the
+    precondition gate (doc-09 §5.2): on a non-rollable world this component does nothing.
+    """
+
+    name = "rollout_probe"
+
+    def __init__(self, n_candidates: int = 4, horizon: int = 20, seeds: tuple[int, ...] = (0, 1, 2, 3),
+                 lam: float = 0.5) -> None:
+        self.n_candidates = n_candidates
+        self.horizon = horizon
+        self.seeds = tuple(seeds)
+        self.lam = lam
+
+    def propose_hook(self, regent, view, space, scratch, base):
+        ctx = scratch.get("_rollout")
+        if ctx is None:  # precondition not met (non-RollableSystem) ⇒ pure pass-through
+            return base(view, space, scratch)
+
+        candidates: list[list[ActionRequest]] = []
+        seen: set[tuple] = set()
+        for i in range(self.n_candidates):
+            scratch["_probe_seed_offset"] = i  # regents that support it diversify their proposal
+            reqs = base(view, space, scratch)
+            if not reqs:
+                continue
+            key = tuple((r.verb, str(r.payload)) for r in reqs)
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(reqs)
+        scratch.pop("_probe_seed_offset", None)
+
+        if not candidates:
+            return []
+
+        best, best_obj, scored = candidates[0], float("-inf"), []
+        for reqs in candidates:
+            futures = ctx.score(reqs, self.horizon, self.seeds)
+            obj = statistics.fmean(futures) - self.lam * (statistics.pstdev(futures) if len(futures) > 1 else 0.0)
+            scored.append(obj)
+            if obj > best_obj:
+                best_obj, best = obj, reqs
+        scratch["rollout_probe"] = {"n_candidates": len(candidates), "best_obj": best_obj, "scores": scored}
+        return best

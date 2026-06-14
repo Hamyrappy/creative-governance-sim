@@ -25,6 +25,8 @@ from typing import Any
 from govsim.core.experiment import Experiment, JurisdictionSpec, RunRecord
 from govsim.core.harness import Outcome
 from govsim.core.regent import Regent
+from govsim.core.rollout import RolloutContext
+from govsim.core.system import RollableSystem
 
 
 def _git_commit() -> str:
@@ -116,11 +118,17 @@ class Runner:
     def _decision_step(self, exp: Experiment, system: Any, scratch: dict[str, dict]) -> None:
         all_reqs = []
         per_regent: dict[str, tuple] = {}
+        rollable = isinstance(system, RollableSystem)
         for rid, regent in exp.regents.items():
             view = system.observe(rid)
             space = exp.action_interface.action_space(system, rid)
             space = self._scope(space, exp.jurisdictions.get(rid))
+            # Inject the rollout context ONLY when the system is rollable (the soundness gate):
+            # rollout-dependent components/regents read scratch["_rollout"]; its absence is the gate.
+            if rollable:
+                scratch[rid]["_rollout"] = RolloutContext(system, exp.action_interface, exp.objectives[rid], rid)
             reqs = exp.harness.act(regent, view, space, scratch[rid])
+            scratch[rid].pop("_rollout", None)  # ephemeral: never persist a live system handle
             per_regent[rid] = (view, reqs)
             all_reqs.extend(reqs)
 

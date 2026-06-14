@@ -133,8 +133,11 @@ class LLMRegent(Regent):
     def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
         messages = self.prompt_assembler(view, space, scratch)
         tools = space.as_tools()
+        # RolloutProbe asks for several distinct candidates per decision by bumping this offset;
+        # perturbing the seed gives a different sample (and a distinct cache key) per candidate.
+        seed = self.seed + int(scratch.get("_probe_seed_offset", 0))
         resp = self.llm.complete(
-            messages, tools=tools, model=self.model, temperature=self.temperature, seed=self.seed
+            messages, tools=tools, model=self.model, temperature=self.temperature, seed=seed
         )
         scratch.setdefault("_llm_calls", []).append(
             {

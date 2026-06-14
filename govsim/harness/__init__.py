@@ -11,6 +11,6 @@ Rollout-FREE components ship first (doc-09 §5.2): ``TraceFeedback`` (the cheape
 ``RollableSystem``/Generator precondition and land once a result justifies them.
 """
 
-from govsim.harness.components import TraceFeedback, EpisodicMemory
+from govsim.harness.components import TraceFeedback, EpisodicMemory, RolloutProbe
 
-__all__ = ["TraceFeedback", "EpisodicMemory"]
+__all__ = ["TraceFeedback", "EpisodicMemory", "RolloutProbe"]

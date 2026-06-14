@@ -42,6 +42,7 @@ from govsim.core.experiment import (
 )
 from govsim.core.runner import Runner
 from govsim.core.result_store import ResultStore
+from govsim.core.rollout import rollout, RolloutContext
 
 __all__ = [
     "System",
@@ -71,4 +72,6 @@ __all__ = [
     "JurisdictionSpec",
     "Runner",
     "ResultStore",
+    "rollout",
+    "RolloutContext",
 ]
