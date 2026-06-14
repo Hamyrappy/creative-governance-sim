@@ -83,16 +83,23 @@ uv sync                      # add `--group notebook` for jupyter/ipykernel
 #    OPENAI_API_KEY="..."           # or whichever api_key_env the client is configured with
 #    OPENAI_BASE_URL="..."          # optional: OpenRouter / vLLM / Ollama / a proxy
 
-# 3. Run the config-driven simulation (the only working entry point today)
-uv run simulation            # obeys govsim/config.py
+# 3. Run an experiment through the real CLI (Phase 0 — the primary entry point; key-free baselines)
+uv run govsim list                       # registered experiments
+uv run govsim run cubic_stabilization    # deterministic baseline, no API key
+uv run python -m govsim run cubic_nonlinear --seeds 0 1 2 --store logs/runs --plot
 
-# 4. Visualize a linear-system run
-uv run visualize-linear
+# 4. Tests (all key-free)
+uv run pytest
 ```
 
-⚠️ The README documents `python -m govsim <experiment>` with a `--help` list. **That CLI does not
-exist** (`govsim/__main__.py` is empty). Use `uv run simulation` and edit `config.py` to
-choose the world/agent, until the real CLI is built (refactor plan, step 6).
+> **Status update (Phase 0 done):** the real CLI now exists (`govsim/__main__.py` +
+> `govsim/experiments/` registry); `python -m govsim run <experiment>` reproduces a fixed trajectory
+> from `(spec, seed)` (golden-master). The new domain-agnostic stack — `govsim/core/` (six seams +
+> `Experiment`/`Runner`/`ResultStore` + `llm/` cache-replay), `govsim/domains/scalar/`,
+> `govsim/regents/`, `govsim/harness/`, `govsim/docs_gates/` — supersedes the config-driven
+> `simulation.py` path. The legacy `uv run simulation` path still imports (Gemini removed → inert)
+> but is deprecated; the legacy `economic_models`/`governing_agents` removal is deferred to Phase 4
+> (its replacement). See `agents/09-grand-plan.md` and `govsim/docs_gates/STATUS.md`.
 
 To choose what runs, edit `govsim/config.py`:
 - `SIMULATION_CONFIG.economic_model_type` ∈ {`LinearStochasticSystem`, `CoupledLinearStochasticSystem`, `SimpleGrowthModel`, `SingleMarketModel`}

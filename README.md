@@ -29,7 +29,7 @@ A research prototype for studying government agents that use Large Language Mode
 
 ## Быстрый старт
 
-Проект использует [Poetry](https://python-poetry.org/) для управления зависимостями.
+Проект использует [uv](https://docs.astral.sh/uv/) для управления зависимостями.
 
 1.  **Клонируйте репозиторий**
     ```bash
@@ -38,51 +38,64 @@ A research prototype for studying government agents that use Large Language Mode
     ```
 2.  **Установите проект и зависимости**
     ```bash
-    poetry install
+    uv sync               # добавьте `--group notebook` для jupyter/ipykernel
     ```
-3.  **Настройте API-ключ**
-    - **Как получить ключ:** Самый простой способ — через Google AI Studio.
-        1. Перейдите на сайт [Google AI Studio](https://aistudio.google.com/).
-        2. Войдите, используя ваш аккаунт Google.
-        3. Нажмите на кнопку «Get API Key» (Получить API-ключ) и создайте новый ключ.
-    - Создайте файл `.env` в корневой директории проекта.
-    - Добавьте в него ваш API-ключ:
+3.  **Настройте API-ключ** (только для LLM-регента; базовые эксперименты и тесты работают без ключа)
+    - Движок — **OpenAI-совместимый** (любой провайдер / локальная модель / прокси), выбирается
+      через `base_url` + `model`, ничего не захардкожено.
+    - Создайте файл `.env` в корневой директории проекта:
       ```
-      GOOGLE_API_KEY="ВАШ_API_КЛЮЧ"
+      OPENAI_API_KEY="ВАШ_КЛЮЧ"
+      OPENAI_BASE_URL="..."   # необязательно: OpenRouter / vLLM / Ollama / прокси
+      OPENAI_MODEL="..."      # модель для LLM-регента
       ```
 
 ## Запуск эксперимента
-Простейший способ запуска стандартной симуляции, подчиняющейся исключительно настройкам из `config.py`:
+
+Эксперименты запускаются через CLI; имя эксперимента берётся из реестра (`govsim/experiments/`).
 
 ```bash
-poetry run simulation
+uv run govsim list                       # список доступных экспериментов
+uv run govsim run cubic_stabilization    # детерминированный baseline (без ключа)
+uv run python -m govsim run cubic_nonlinear --seeds 0 1 2 --horizon 300 --store logs/runs --plot
 ```
 
-Для специфичных экспериментов проект запускается как Python-модуль из командной строки, которому передается имя нужного эксперимента.
+Базовые эксперименты (`cubic_stabilization`, `cubic_nonlinear`, `sir_lockdown`, `company_pricing`)
+используют детерминированные/скриптовые регенты и **не требуют API-ключа**. Эксперимент с
+LLM-регентом (`cubic_nonlinear_llm`) требует ключ для записи кэша (`cache`-режим) и затем может
+воспроизводиться бесплатно/детерминированно через `replay`:
+
 ```bash
-poetry run python -m govsim <ИМЯ_ЭКСПЕРИМЕНТА>
+OPENAI_API_KEY=... OPENAI_MODEL=<модель> uv run govsim run cubic_nonlinear_llm --store logs/runs
+GOVSIM_LLM_MODE=replay uv run govsim run cubic_nonlinear_llm --store logs/runs   # без сети
 ```
 
-Например, для запуска предопределенных экспериментов `linear` и `adaptive`:
-```bash
-# Запуск эксперимента с линейной моделью
-poetry run python -m govsim linear
-
-# Запуск эксперимента с адаптивной политикой
-poetry run python -m govsim adaptive
-```
-
-Код для каждого эксперимента находится в виде отдельного модуля в директории `govsim/experiments/`. Чтобы добавить новый эксперимент, создайте в ней новый файл и зарегистрируйте его в `govsim/__main__.py`.
-
-Чтобы увидеть список всех доступных экспериментов, выполните команду:
-```bash
-poetry run python -m govsim --help
-```
+Чтобы добавить эксперимент — одна функция + один декоратор `@register` в `govsim/experiments/`.
+Результаты (таблица прогонов + ряды метрик + сырой ввод/вывод LLM) сохраняются через `--store` в
+`ResultStore` (sqlite + артефакты).
 
 
-- Модуль для работы с LLM Gemini реализован в `govsim/utils/gemini_utils.py` 
-- Необработанные данные симуляций сохраняются в директорию `/logs`.
-- Модули для визуализации результатов находятся в `govsim/chart_generators/`.
+### Архитектура (см. `agents/09-grand-plan.md` — authoritative)
+
+Машина для экспериментов с LLM-«регентами» (контроллерами) над сложными системами; экономика — это
+*домен №1*, а не сам каркас. Доменно-нейтральное ядро (`govsim/core/`) — шесть «швов»: `System` /
+`ActionInterface` / `Regent` / `Harness` / `Objective` / `Schedule` плюс эксперимент-спайн
+(`Experiment`/`Runner`/`ResultStore`) и OpenAI-совместимый `LLMClient` с кэшем/replay-лентой.
+Домены живут в `govsim/domains/*` (единственный доменно-связанный шов — `ActionInterface`).
+
+| Где искать | Что |
+|---|---|
+| Доменно-нейтральное ядро (6 швов + спайн) | `govsim/core/` |
+| LLM-клиент (OpenAI-совместимый) + кэш/replay | `govsim/core/llm/` |
+| Скалярный домен (cubic / SIR / company, без леджера) | `govsim/domains/scalar/` |
+| Регенты (`LLMRegent`, `PIDRegent`, `LQRRegent`) | `govsim/regents/` |
+| Компоненты харнесса (`TraceFeedback`, `EpisodicMemory`) | `govsim/harness/` |
+| Реестр экспериментов | `govsim/experiments/` |
+| WHAT-first гейт-доки (гипотезы / objective / метрика креативности / статистика) | `govsim/docs_gates/` |
+| Песочница политик (RestrictedPython) | `govsim/utils/policy_utils.py` → `govsim/core/sandbox.py` |
+| Результаты прогонов | директория, переданная в `--store` (по умолчанию ничего не пишется) |
+
+Тесты: `uv run pytest` (всё работает без API-ключа). Планы и анализ — в [`agents/`](agents/).
 
 ## License
 
