@@ -16,7 +16,7 @@ from govsim.core.harness import Harness
 from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.schedule import EveryN
 from govsim.core.regent import ScriptedRegent
-from govsim.harness import EpisodicMemory, TraceFeedback
+from govsim.harness import Critic, EpisodicMemory, TraceFeedback
 from govsim.regents import LLMRegent, OPRORegent, make_obfuscated_assembler, suppliable_names
 from govsim.domains.scalar import (
     CompanyProfit,
@@ -318,6 +318,45 @@ def cubic_nonlinear_llm_obfuscated() -> Experiment:
             name="functional-novelty", kind="functional_novelty",
             description="infers and exploits the cubic term from history; conditionals/state-powers a PID cannot",
         ),
+    )
+
+
+@register("cubic_nonlinear_llm_critic")
+def cubic_nonlinear_llm_critic() -> Experiment:
+    """The H1 nonlinear arm with a Critic in the harness (2nd-LLM audit→revise) on top of trace +
+    memory — an H3 ablation arm (does the critic yield a separable gain?). The regent and critic
+    share one cache/replay client."""
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    max_tokens, extra = _llm_opts()
+    client = _replay_client()
+
+    def factory(seed: int) -> CubicSystem:
+        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
+                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
+                           "cubic_coeff": 0.05, "state_exponent": 3})
+        sys.reset(seed)
+        return sys
+
+    return Experiment(
+        name="cubic_nonlinear_llm_critic",
+        system_factory=factory,
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
+        regents={"regent:0": LLMRegent(llm=client, model=model, temperature=0.0,
+                                       max_tokens=max_tokens, extra=extra)},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        harness=Harness([TraceFeedback(), EpisodicMemory(k=3),
+                         Critic(client, model, max_tokens=max_tokens, extra=extra)]),
+        schedule=EveryN(25),
+        seeds=[0, 1, 2],
+        horizon=200,
+        hypothesis=Hypothesis(
+            id="H3-critic",
+            claim="adding a critic (audit→revise) yields a separable gain over trace+memory alone",
+            baseline="the same harness minus the Critic (leave-one-out, doc-09 §5.4)",
+            primary_metric="mse",
+            falsification="the critic's paired bootstrap CI does not exclude 0 in single-add AND LOO",
+        ),
+        creativity_metric=None,
     )
 
 

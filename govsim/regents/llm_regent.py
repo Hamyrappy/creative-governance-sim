@@ -44,6 +44,8 @@ def default_prompt_assembler(view: Observation, space: ActionSpace, scratch: dic
         user_parts.append(f"Feedback on your last action: {scratch['trace']}")
     if scratch.get("memory"):
         user_parts.append(f"Relevant past episodes:\n{scratch['memory']}")
+    if scratch.get("critic"):
+        user_parts.append(f"A critic flagged your previous control law: {scratch['critic']} Revise it.")
     user_parts.append("Choose the control law now.")
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(user_parts)}]
 

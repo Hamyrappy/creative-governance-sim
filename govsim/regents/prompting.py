@@ -26,7 +26,7 @@ from govsim.core.system import Observation
 _PLACEHOLDER_RE = re.compile(r"(?<!\{)\{([a-zA-Z_]\w*)\}")
 
 # The non-observable legs of the four-source contract the AGENT supplies (not the world's observables).
-AGENT_SUPPLIED = {"available_context_vars", "history_text", "trace", "memory", "current_step"}
+AGENT_SUPPLIED = {"available_context_vars", "history_text", "trace", "memory", "current_step", "critic"}
 
 
 def placeholders(template: str) -> set[str]:
@@ -87,6 +87,7 @@ class TemplatePromptAssembler:
         data["current_step"] = view.t
         data["history_text"] = scratch.get("memory") or "(no history yet)"
         data["trace"] = f"Feedback on your last action: {scratch['trace']}" if scratch.get("trace") else ""
+        data["critic"] = f"A critic flagged your previous law: {scratch['critic']} Revise it." if scratch.get("critic") else ""
         for v in space.verbs:
             if v.value_range:
                 data[f"{v.name}_range"] = v.value_range
@@ -115,6 +116,7 @@ Recent history (most-similar past situations: state -> control -> score), if any
 
 Current state (step {current_step}): current_x={current_x}, previous_x={previous_x}, current_u={current_u}.
 {trace}
+{critic}
 
 Return ONE Python expression for the control u_k (no statements, imports, or side effects), using only
 the allowed variables and safe math/np helpers. The system clips the result into its range for you, so

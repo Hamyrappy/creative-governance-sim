@@ -14,12 +14,34 @@ for rollable systems). This is why the rollout-free components ship first and th
 
 from __future__ import annotations
 
+import json
 import math
+import re
 import statistics
+from typing import Any
 
 from govsim.core.action import ActionRequest, ActionSpace
 from govsim.core.harness import HarnessComponent, Outcome
 from govsim.core.system import Observation
+
+
+def _extract_json_obj(text: str) -> dict:
+    """Best-effort parse of a JSON object from a possibly fenced/surrounded reply (self-contained,
+    so the harness layer does not import the regents layer)."""
+    if not text:
+        return {}
+    m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    candidate = m.group(1) if m else None
+    if candidate is None:
+        start, end = text.find("{"), text.rfind("}")
+        candidate = text[start: end + 1] if start != -1 and end > start else None
+    if candidate is None:
+        return {}
+    try:
+        obj = json.loads(candidate)
+        return obj if isinstance(obj, dict) else {}
+    except json.JSONDecodeError:
+        return {}
 
 
 class TraceFeedback(HarnessComponent):
@@ -138,3 +160,68 @@ class RolloutProbe(HarnessComponent):
                 best_obj, best = obj, reqs
         scratch["rollout_probe"] = {"n_candidates": len(candidates), "best_obj": best_obj, "scores": scored}
         return best
+
+
+class Critic(HarnessComponent):
+    """A second LLM audits the regent's proposed control law against the goal/constraints and either
+    approves it or returns a critique; on veto, the regent is asked to REVISE once with the critique
+    injected as ``scratch["critic"]`` (which the prompt assemblers surface). Rollout-FREE — a single
+    extra LLM call, no clone — so it is sound on any system. (doc-09 §5.2; an H3 ablation arm.)
+
+    The critic is deliberately conservative: it approves unless it can name a concrete problem, so it
+    cannot silently stall a run. Its audit calls are recorded into ``scratch["_llm_calls"]`` like the
+    regent's, so the Runner persists them in the RunRecord.
+    """
+
+    name = "critic"
+
+    def __init__(self, llm: Any, model: str, *, temperature: float = 0.0, max_revisions: int = 1,
+                 max_tokens: int | None = None, extra: dict[str, Any] | None = None) -> None:
+        self.llm = llm
+        self.model = model
+        self.temperature = temperature
+        self.max_revisions = max_revisions
+        self.max_tokens = max_tokens
+        self.extra = extra
+
+    def propose_hook(self, regent, view, space, scratch, base):
+        reqs = base(view, space, scratch)
+        revisions = 0
+        while reqs and revisions < self.max_revisions:
+            approve, critique = self._audit(view, space, reqs, scratch)
+            if approve:
+                break
+            scratch["critic"] = critique  # the assembler surfaces this so the regent revises
+            reqs = base(view, space, scratch)
+            revisions += 1
+        scratch.pop("critic", None)
+        scratch.setdefault("critic_log", []).append({"revisions": revisions})
+        return reqs
+
+    def _audit(self, view: Observation, space: ActionSpace, reqs: list[ActionRequest],
+               scratch: dict) -> tuple[bool, str]:
+        laws = "; ".join(f"{r.verb}: {r.payload.get('expr', r.payload)}" for r in reqs)
+        obs = ", ".join(f"{k}={v:.6g}" for k, v in view.vars.items())
+        messages = [
+            {"role": "system", "content":
+                "You are a control-policy critic. Decide whether the proposed control law is sensible "
+                "and safe for driving the state to target without excessive control effort or instability. "
+                "Respond with STRICT JSON only: {\"approve\": true|false, \"critique\": \"<one sentence>\"}. "
+                "Approve unless you can name a CONCRETE problem (e.g. wrong sign, unstable gain, ignores state)."},
+            {"role": "user", "content":
+                f"State: {obs}\nAllowed variables: {space.context_vars}\nProposed law(s): {laws}\nJudge it."},
+        ]
+        opt: dict[str, Any] = {}
+        if self.max_tokens is not None:
+            opt["max_tokens"] = self.max_tokens
+        if self.extra:
+            opt["extra"] = self.extra
+        resp = self.llm.complete(messages, model=self.model, temperature=self.temperature, **opt)
+        scratch.setdefault("_llm_calls", []).append({
+            "step": view.t, "regent": "critic", "messages": messages,
+            "response_text": getattr(resp, "text", ""), "tool_calls": getattr(resp, "tool_calls", []),
+            "model": getattr(resp, "model", self.model), "usage": getattr(resp, "usage", {}),
+            "cost_usd": getattr(resp, "cost_usd", None), "cached": getattr(resp, "cached", False),
+        })
+        obj = _extract_json_obj(getattr(resp, "text", "") or "")
+        return bool(obj.get("approve", True)), str(obj.get("critique", ""))
