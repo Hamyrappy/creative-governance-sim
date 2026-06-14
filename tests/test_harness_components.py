@@ -80,7 +80,8 @@ def test_harness_ablation_disables_component_effect():
 # --- end-to-end: LLMRegent + harness through the Runner (key-free) --------------------------
 
 class _ToolClient:
-    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None, response_format=None):
+    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None,
+                 response_format=None, max_tokens=None, extra=None):
         # echo back whether memory/trace reached the prompt, so we can assert the harness fired
         saw_mem = any("past episodes" in m["content"].lower() for m in messages)
         return LLMResponse(tool_calls=[{"id": "1", "name": "set_control_input", "arguments": '{"expr": "-0.9*current_x"}'}],

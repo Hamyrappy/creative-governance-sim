@@ -95,6 +95,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # Load .env so OPENAI_*/AIRI_KEY/GOVSIM_LLM_* reach os.environ for live/cache LLM runs.
+    # (No-op + harmless on CI: replay/scripted experiments never read a key.)
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except Exception:  # pragma: no cover - dotenv optional at runtime
+        pass
     args = build_parser().parse_args(argv)
     return args.func(args)
 

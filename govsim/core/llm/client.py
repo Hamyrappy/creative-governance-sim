@@ -45,6 +45,8 @@ class LLMClient(Protocol):
         seed: int | None = None,
         tools: list[dict[str, Any]] | None = None,
         response_format: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> LLMResponse: ...
 
 
@@ -100,6 +102,8 @@ class OpenAICompatClient:
         seed: int | None = None,
         tools: list[dict[str, Any]] | None = None,
         response_format: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> LLMResponse:
         client = self._ensure()
         chosen = model or self.default_model
@@ -112,6 +116,12 @@ class OpenAICompatClient:
             kwargs["tools"] = tools
         if response_format:
             kwargs["response_format"] = response_format
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if extra:
+            # Provider-specific top-level params (e.g. gpt-oss ``reasoning_effort="low"`` to stop it
+            # over-thinking and returning empty content). Verified as a direct kwarg on the AIRI vLLM.
+            kwargs.update(extra)
 
         resp = client.chat.completions.create(**kwargs)
         msg = resp.choices[0].message

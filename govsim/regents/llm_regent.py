@@ -121,7 +121,8 @@ def parse_action_requests(resp: Any, space: ActionSpace, regent_id: str) -> list
 class LLMRegent(Regent):
     def __init__(self, llm: Any, model: str, *, id: str = "regent:0", temperature: float = 0.0,
                  seed: int = 0, prompt_assembler: PromptAssembler | None = None,
-                 prompt_file: str | None = None) -> None:
+                 prompt_file: str | None = None, max_tokens: int | None = None,
+                 extra: dict[str, Any] | None = None) -> None:
         super().__init__(id)
         self.llm = llm
         self.model = model
@@ -129,6 +130,8 @@ class LLMRegent(Regent):
         self.seed = seed
         self.prompt_assembler = prompt_assembler or default_prompt_assembler
         self.prompt_file = prompt_file
+        self.max_tokens = max_tokens
+        self.extra = extra  # e.g. {"reasoning_effort": "low"} for gpt-oss
 
     def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
         messages = self.prompt_assembler(view, space, scratch)
@@ -136,8 +139,14 @@ class LLMRegent(Regent):
         # RolloutProbe asks for several distinct candidates per decision by bumping this offset;
         # perturbing the seed gives a different sample (and a distinct cache key) per candidate.
         seed = self.seed + int(scratch.get("_probe_seed_offset", 0))
+        # Pass max_tokens/extra only when set, so lean fake clients (tests) need not accept them.
+        opt: dict[str, Any] = {}
+        if self.max_tokens is not None:
+            opt["max_tokens"] = self.max_tokens
+        if self.extra:
+            opt["extra"] = self.extra
         resp = self.llm.complete(
-            messages, tools=tools, model=self.model, temperature=self.temperature, seed=seed
+            messages, tools=tools, model=self.model, temperature=self.temperature, seed=seed, **opt
         )
         scratch.setdefault("_llm_calls", []).append(
             {

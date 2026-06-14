@@ -26,7 +26,7 @@ from typing import Any
 
 from govsim.core.llm.client import LLMResponse
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"  # bumped: cache key now includes max_tokens + provider extra (e.g. reasoning_effort)
 
 
 class CachingReplayClient:
@@ -46,6 +46,8 @@ class CachingReplayClient:
         seed: int | None,
         tools: list[dict[str, Any]] | None,
         response_format: dict[str, Any] | None,
+        max_tokens: int | None,
+        extra: dict[str, Any] | None,
     ) -> str:
         blob = json.dumps(
             {
@@ -55,6 +57,8 @@ class CachingReplayClient:
                 "seed": seed,
                 "tools": tools,
                 "response_format": response_format,
+                "max_tokens": max_tokens,
+                "extra": extra,
                 "schema_version": SCHEMA_VERSION,
             },
             sort_keys=True,
@@ -75,8 +79,10 @@ class CachingReplayClient:
         seed: int | None = None,
         tools: list[dict[str, Any]] | None = None,
         response_format: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> LLMResponse:
-        key = self._key(messages, model, temperature, seed, tools, response_format)
+        key = self._key(messages, model, temperature, seed, tools, response_format, max_tokens, extra)
         path = self._path(key)
 
         if self.mode != "live" and path.exists():
@@ -97,6 +103,8 @@ class CachingReplayClient:
             seed=seed,
             tools=tools,
             response_format=response_format,
+            max_tokens=max_tokens,
+            extra=extra,
         )
         stored = asdict(resp)
         stored.pop("cached", None)  # never persist the cached flag

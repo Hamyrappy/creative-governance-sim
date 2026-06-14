@@ -17,7 +17,7 @@ from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.schedule import EveryN
 from govsim.core.regent import ScriptedRegent
 from govsim.harness import EpisodicMemory, TraceFeedback
-from govsim.regents import LLMRegent
+from govsim.regents import LLMRegent, OPRORegent
 from govsim.domains.scalar import (
     CompanyProfit,
     CompanySystem,
@@ -103,12 +103,24 @@ def cubic_nonlinear() -> Experiment:
 
 def _replay_client() -> CachingReplayClient:
     """An OpenAI-compatible client wrapped in the cache/replay tape, configured purely by env
-    (no vendor/model hardcoded): OPENAI_BASE_URL, OPENAI_MODEL, GOVSIM_LLM_MODE (live|cache|replay),
-    GOVSIM_LLM_CACHE. Construction is lazy/key-free, so registering + listing this experiment needs
-    no API key; only ``govsim run`` of it calls the model (or replays a recorded tape)."""
-    inner = OpenAICompatClient(base_url=os.environ.get("OPENAI_BASE_URL"))
+    (no vendor/model hardcoded): OPENAI_BASE_URL, OPENAI_API_KEY_ENV, OPENAI_MODEL,
+    GOVSIM_LLM_MODE (live|cache|replay), GOVSIM_LLM_CACHE. Construction is lazy/key-free, so
+    registering + listing this experiment needs no API key; only ``govsim run`` of it calls the
+    model (or replays a recorded tape)."""
+    inner = OpenAICompatClient(
+        base_url=os.environ.get("OPENAI_BASE_URL"),
+        api_key_env=os.environ.get("OPENAI_API_KEY_ENV", "OPENAI_API_KEY"),
+    )
     return CachingReplayClient(inner, os.environ.get("GOVSIM_LLM_CACHE", "logs/llm_cache"),
                                mode=os.environ.get("GOVSIM_LLM_MODE", "cache"))
+
+
+def _llm_opts() -> tuple[int | None, dict | None]:
+    """Per-provider knobs from env: GOVSIM_LLM_MAX_TOKENS and GOVSIM_LLM_REASONING_EFFORT
+    (e.g. ``low`` for gpt-oss, so it does not over-think and return empty content)."""
+    mt = os.environ.get("GOVSIM_LLM_MAX_TOKENS")
+    eff = os.environ.get("GOVSIM_LLM_REASONING_EFFORT")
+    return (int(mt) if mt else None), ({"reasoning_effort": eff} if eff else None)
 
 
 @register("cubic_nonlinear_llm")
@@ -121,6 +133,7 @@ def cubic_nonlinear_llm() -> Experiment:
         OPENAI_API_KEY=... OPENAI_MODEL=<model> govsim run cubic_nonlinear_llm --store logs/runs
     """
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    max_tokens, extra = _llm_opts()
 
     def factory(seed: int) -> CubicSystem:
         sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
@@ -133,7 +146,8 @@ def cubic_nonlinear_llm() -> Experiment:
         name="cubic_nonlinear_llm",
         system_factory=factory,
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
-        regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0)},
+        regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0,
+                                       max_tokens=max_tokens, extra=extra)},
         objectives={"regent:0": StabilizationLoss(lam=0.1)},
         harness=Harness([TraceFeedback(), EpisodicMemory(k=3)]),  # the cheapest upgrades (doc-09 §5.2)
         schedule=EveryN(25),
@@ -219,6 +233,44 @@ def coupled_regime_shift() -> Experiment:
             name="functional-novelty", kind="functional_novelty",
             description="regime-detecting / state-history-using law a fixed-gain PID structurally cannot express",
         ),
+    )
+
+
+@register("cubic_nonlinear_opro")
+def cubic_nonlinear_opro() -> Experiment:
+    """The trace-LESS OPRO baseline on the H1 nonlinear arm — the named rival the harnessed LLM must
+    beat (doc-09 §6.4). Same system/objective/seeds as ``cubic_nonlinear_llm``; the difference is the
+    regent (OPRO archive, no trace channel) — so a paired comparison isolates the trace side-channel."""
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    max_tokens, extra = _llm_opts()
+
+    def factory(seed: int) -> CubicSystem:
+        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
+                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
+                           "cubic_coeff": 0.05, "state_exponent": 3})
+        sys.reset(seed)
+        return sys
+
+    return Experiment(
+        name="cubic_nonlinear_opro",
+        system_factory=factory,
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
+        regents={"regent:0": OPRORegent("set_control_input", _replay_client(), model, temperature=0.8,
+                                        probe_horizon=40, probe_seeds=(0, 1, 2),
+                                        max_tokens=max_tokens, extra=extra)},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        harness=Harness([]),  # trace-LESS by construction: no components
+        schedule=EveryN(25),
+        seeds=[0, 1, 2],
+        horizon=200,
+        hypothesis=Hypothesis(
+            id="H1-adaptation",
+            claim="trace-less OPRO is the baseline the harnessed LLM regent must beat on the nonlinear arm",
+            baseline="this IS the named baseline (trace-less OPRO)",
+            primary_metric="mse",
+            falsification="the harnessed LLM does NOT lower post-shock regret vs this baseline over seeds",
+        ),
+        creativity_metric=None,
     )
 
 

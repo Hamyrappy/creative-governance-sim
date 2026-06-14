@@ -125,7 +125,8 @@ class _FakeClient:
     def __init__(self):
         self.n_calls = 0
 
-    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None, response_format=None):
+    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None,
+                 response_format=None, max_tokens=None, extra=None):
         self.n_calls += 1
         return LLMResponse(text=f"resp#{self.n_calls}", model=model or "fake", usage={"total_tokens": 1})
 

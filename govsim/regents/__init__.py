@@ -9,10 +9,13 @@ All are domain-BLIND: they see an ``Observation`` + an ``ActionSpace`` and retur
   - ``PIDRegent``    — a tuned PD/PID control law (the "tuned controller" the creativity metric
                        must beat on un-tuned regimes).
   - ``LQRRegent``    — the analytic LQR ground-truth ceiling for the linear scalar plant.
+  - ``OPRORegent``   — the trace-less Optimization-by-PROmpting rival H1 must beat (archive of
+                       (law, score) + rollout scoring).
 """
 
 from govsim.regents.llm_regent import LLMRegent, default_prompt_assembler, parse_action_requests
 from govsim.regents.baselines import PIDRegent, LQRRegent
+from govsim.regents.opro import OPRORegent
 
 __all__ = [
     "LLMRegent",
@@ -20,4 +23,5 @@ __all__ = [
     "parse_action_requests",
     "PIDRegent",
     "LQRRegent",
+    "OPRORegent",
 ]

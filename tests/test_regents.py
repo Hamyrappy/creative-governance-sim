@@ -52,7 +52,8 @@ def test_lqr_regent_stabilizes_linear_plant():
 # --- LLMRegent parsing ----------------------------------------------------------------------
 
 class _ToolClient:
-    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None, response_format=None):
+    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None,
+                 response_format=None, max_tokens=None, extra=None):
         return LLMResponse(tool_calls=[{"id": "1", "name": "set_control_input", "arguments": '{"expr": "-0.8 * current_x"}'}], model=model or "fake")
 
 
@@ -60,7 +61,8 @@ class _JSONClient:
     def __init__(self, text):
         self.text = text
 
-    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None, response_format=None):
+    def complete(self, messages, *, model=None, temperature=0.0, seed=None, tools=None,
+                 response_format=None, max_tokens=None, extra=None):
         return LLMResponse(text=self.text, model=model or "fake")
 
 
