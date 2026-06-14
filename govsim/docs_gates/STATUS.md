@@ -35,6 +35,28 @@
 > `govsim compare`) is the author's remaining call (seed count + objective sign-off — see the ☐ AUTHOR
 > items below).
 
+### H1 experiment kit (ready to run)
+
+All bind to the **same shocked plant** (`_cubic_h1_factory`: cubic + an unseen structural shock at
+`t=100` + a state kick), so a paired `govsim compare` isolates the regent:
+
+| Experiment | Regent | Key-free? |
+|---|---|---|
+| `cubic_nonlinear_lqr` | frozen pre-shock-optimal LQR (the named rival) | ✅ |
+| `cubic_nonlinear_opro` | trace-less OPRO, **realized**-feedback (the fair rival) | needs LLM |
+| `cubic_nonlinear_llm_obfuscated` | harnessed LLM (trace+memory), partial-info prompt | needs LLM |
+| `cubic_nonlinear_llm_critic` | + Critic (H3 ablation arm) | needs LLM |
+
+Run, e.g.: `govsim compare cubic_nonlinear_llm_obfuscated cubic_nonlinear_opro --seeds 0..N`.
+
+> **☐ AUTHOR — the regime-severity knob.** The default shock (`scalar_experiments._cubic_h1_factory`,
+> `param_A`→1.03, `cubic_coeff`→0.10, kick 0.8) is dialed to run **bounded + measurable** (the shock
+> ~doubles the loss; nobody diverges). Empirically, milder ⇒ frozen-LQR ≈ adaptive (a likely **null**,
+> as doc-08 §3.5 predicted); much harsher ⇒ *everyone* collapses. Finding a regime with genuine
+> **post-shock headroom** (frozen baseline stressed, adaptive recovers) — or concluding the scalar arm
+> is null and the advantage only lives in richer/partial-info regimes — **is the research question**,
+> not a number I should pick. The collapse detector + `govsim compare` quantify whatever you dial.
+
 ## What "Phase 0 DONE" means here (the doc-09 §7.1 gate)
 
 - ✅ green deterministic CI **without an API key** (`uv run pytest`)
