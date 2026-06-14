@@ -16,7 +16,7 @@ Three systems ship here:
 """
 
 from govsim.domains.scalar.interface import Lever, ScalarLeverInterface
-from govsim.domains.scalar.systems import CubicSystem, SIRSystem, CompanySystem, LeverSystem
+from govsim.domains.scalar.systems import CubicSystem, SIRSystem, CompanySystem, CoupledSystem, LeverSystem
 from govsim.domains.scalar.objectives import StabilizationLoss, EpidemicLoss, CompanyProfit
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "CubicSystem",
     "SIRSystem",
     "CompanySystem",
+    "CoupledSystem",
     "StabilizationLoss",
     "EpidemicLoss",
     "CompanyProfit",

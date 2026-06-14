@@ -21,6 +21,7 @@ from govsim.regents import LLMRegent
 from govsim.domains.scalar import (
     CompanyProfit,
     CompanySystem,
+    CoupledSystem,
     CubicSystem,
     EpidemicLoss,
     Lever,
@@ -149,6 +150,74 @@ def cubic_nonlinear_llm() -> Experiment:
         creativity_metric=CreativityMetric(
             name="functional-novelty", kind="functional_novelty",
             description="residual of the best-fit PID; conditionals/state-history a PID cannot use",
+        ),
+    )
+
+
+def _coupled_factory(extra: dict | None = None):
+    base = {"param_A": 0.95, "param_B": 0.4, "param_C": 0.0, "sigma_epsilon": 0.10,
+            "target_x": 0.0, "u_range": (-2.0, 2.0), "u_smoothing_rho": 0.70}
+    base.update(extra or {})
+
+    def factory(seed: int) -> CoupledSystem:
+        sys = CoupledSystem(base)
+        sys.reset(seed)
+        return sys
+
+    return factory
+
+
+@register("coupled_stabilization")
+def coupled_stabilization() -> Experiment:
+    """Coupled multi-state plant, (near-)stationary sanity arm: shocks effectively off, mild drift.
+
+    Control inertia (rho_u) + cross-coupling already make this a non-trivial control problem that a
+    single fixed gain only partly solves; it is the coupled analogue of ``cubic_stabilization``."""
+    return Experiment(
+        name="coupled_stabilization",
+        system_factory=_coupled_factory({"shock_period": 0, "param_B_drift_sigma": 0.005}),
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "u_commanded")]),
+        regents={"regent:0": ScriptedRegent(verb="set_control_input", expr="-1.2 * current_x")},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        schedule=EveryN(25),
+        seeds=[0, 1, 2, 3, 4],
+        horizon=300,
+        hypothesis=Hypothesis(
+            id="H0-coupled-sanity",
+            claim="a proportional code-as-policy regent keeps the coupled plant bounded near target (sanity)",
+            baseline="no-control (StaticRegent) + tuned PID",
+            primary_metric="mse",
+            falsification="MSE no better than no-control over seeds",
+        ),
+        creativity_metric=None,
+    )
+
+
+@register("coupled_regime_shift")
+def coupled_regime_shift() -> Experiment:
+    """The coupled H1 arm: periodic external regime shocks (every 60 steps) kick the hidden aux
+    states, breaking a worked-out policy — the multi-state analogue of the cubic adaptation arm."""
+    return Experiment(
+        name="coupled_regime_shift",
+        system_factory=_coupled_factory({"shock_period": 60, "shock_magnitude_aux1": 1.0,
+                                          "shock_magnitude_aux2": -0.8, "param_B_drift_sigma": 0.01}),
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "u_commanded")]),
+        regents={"regent:0": ScriptedRegent(verb="set_control_input", expr="-1.2 * current_x")},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        schedule=EveryN(20),
+        seeds=[0, 1, 2, 3, 4],
+        horizon=300,
+        hypothesis=Hypothesis(
+            id="H1-coupled-adaptation",
+            claim="a code-as-policy regent recovers from periodic unseen regime shocks with lower "
+                  "post-shock regret than a frozen pre-shock-optimal controller and trace-less OPRO",
+            baseline="frozen LQR for the main-state linearization + trace-less OPRO",
+            primary_metric="mse",
+            falsification="no lower post-shock regret than the frozen-optimal baseline over seeds",
+        ),
+        creativity_metric=CreativityMetric(
+            name="functional-novelty", kind="functional_novelty",
+            description="regime-detecting / state-history-using law a fixed-gain PID structurally cannot express",
         ),
     )
 

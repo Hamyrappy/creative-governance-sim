@@ -289,3 +289,156 @@ class CompanySystem(LeverSystem):
 
     def metrics(self) -> dict[str, float]:
         return {"profit": self.last_profit, "cash": self.cash, "price": self.price, "demand": self.last_demand, "t": float(self._t)}
+
+
+class CoupledSystem(LeverSystem):
+    """A multi-dimensional linear-stochastic plant with control inertia, cross-coupling, parameter
+    drift, and periodic regime shocks — the migrated ``CoupledLinearStochasticSystem`` on the new core.
+
+    The regent controls the *commanded* input ``u_commanded`` (the lever attr); the plant applies it
+    with first-order inertia ``u_eff = rho_u·u_eff_prev + (1-rho_u)·u_cmd``, exposed as ``current_u``
+    (so ``StabilizationLoss``'s MSU on ``current_u`` measures the *effective* control, as in the
+    legacy world). The visible main state is ``current_x`` (== x_main); two auxiliary states
+    ``x_aux1``/``x_aux2`` cross-couple into it. ``param_B``/``param_C`` random-walk (drift), and every
+    ``shock_period`` steps an external shock kicks the aux states — an UNSEEN structural regime change
+    that breaks a learned policy (the coupled analogue of the cubic's H1 adaptation arm).
+
+    Reproducibility: all randomness (drift + per-state noise) draws from ``self.rng`` (the legacy world
+    used bare ``random.gauss``); ``clone()`` carries the Generator → faithful rollout.
+    """
+
+    def __init__(self, params: dict[str, Any] | None = None) -> None:
+        super().__init__()
+        p = params or {}
+        # -- params kept name-compatible with the linear world (prompt/observable continuity) --
+        self.initial_x: float = float(p.get("initial_x", 0.0))
+        self.param_A: float = float(p.get("param_A", 0.95))
+        self.param_B_init: float = float(p.get("param_B", 0.4))  # drifts during a run
+        self.param_C_init: float = float(p.get("param_C", 0.0))  # drifts during a run
+        self.sigma_epsilon: float = float(p.get("sigma_epsilon", 0.10))
+        tx = p.get("target_x", 0.0)
+        self.target_x_init: float | None = None if tx is None else float(tx)
+        lo, hi = p.get("u_range", (-2.0, 2.0))
+        self.u_range: tuple[float, float] = (float(lo), float(hi))
+        if self.u_range[0] == self.u_range[1]:
+            raise ValueError("u_range bounds must differ (lo != hi)")
+        # -- cross-coupling + auxiliary self-dynamics --
+        self.a12: float = float(p.get("a12", 0.20))   # x_aux1 -> x_main
+        self.a13: float = float(p.get("a13", -0.10))  # x_aux2 -> x_main
+        self.a21: float = float(p.get("a21", 0.15))   # x_main -> x_aux1
+        self.a31: float = float(p.get("a31", -0.10))  # x_main -> x_aux2
+        self.gamma1: float = float(p.get("gamma1", 0.92))
+        self.gamma2: float = float(p.get("gamma2", 0.88))
+        self.d1: float = float(p.get("d1", 0.20))     # control -> x_aux1
+        self.d2: float = float(p.get("d2", -0.15))    # control -> x_aux2
+        self.sigma_aux1: float = float(p.get("sigma_aux1", 0.05))
+        self.sigma_aux2: float = float(p.get("sigma_aux2", 0.05))
+        # -- control inertia + parameter drift --
+        self.rho_u: float = min(1.0, max(0.0, float(p.get("u_smoothing_rho", 0.70))))
+        self.B_drift_sigma: float = float(p.get("param_B_drift_sigma", 0.01))
+        self.C_drift_sigma: float = float(p.get("param_C_drift_sigma", 0.002))
+        self.target_drift_sigma: float = float(p.get("target_drift_sigma", 0.0))
+        self.param_B_bounds: tuple[float, float] = tuple(p.get("param_B_bounds", (-1.5, 1.5)))  # type: ignore[assignment]
+        self.param_C_bounds: tuple[float, float] = tuple(p.get("param_C_bounds", (-1.0, 1.0)))  # type: ignore[assignment]
+        # -- periodic external regime shocks (break a worked-out policy) --
+        self.shock_period: int = int(p.get("shock_period", 150))
+        self.shock_magnitude_aux1: float = float(p.get("shock_magnitude_aux1", 0.8))
+        self.shock_magnitude_aux2: float = float(p.get("shock_magnitude_aux2", -0.6))
+        self.initial_x_aux1: float = float(p.get("initial_x_aux1", 0.0))
+        self.initial_x_aux2: float = float(p.get("initial_x_aux2", 0.0))
+        self.reset(int(p.get("seed", 0)))
+
+    @property
+    def lever_attrs(self) -> dict[str, tuple[float, float]]:
+        return {"u_commanded": self.u_range}
+
+    def reset(self, seed: int) -> None:
+        self.rng = np.random.default_rng(seed)
+        self.current_x = self.initial_x
+        self.previous_x = self.initial_x
+        self.x_aux1 = self.initial_x_aux1
+        self.x_aux2 = self.initial_x_aux2
+        self.current_u = 0.0       # u_eff (the smoothed, effective control)
+        self.u_commanded = 0.0     # u_cmd (what the lever expression sets)
+        self.param_B = self.param_B_init   # reset the drifting params to their initial values
+        self.param_C = self.param_C_init
+        self.target_x = self.target_x_init
+        self._t = 0
+        self._levers.clear()
+
+    def _clip_u(self, v: float) -> float:
+        lo, hi = self.u_range
+        return max(lo, min(hi, v))
+
+    def step(self) -> StepInfo:
+        self._reeval_levers()  # installs u_commanded (clipped to u_range) — the eval-cadence contract
+        # 1) control inertia: effective control lags the commanded control
+        self.current_u = self._clip_u(self.rho_u * self.current_u + (1.0 - self.rho_u) * self.u_commanded)
+        # 2) parameter drift (random walk, bounded)
+        if self.B_drift_sigma > 0.0:
+            self.param_B = float(np.clip(self.param_B + self.rng.normal(0.0, self.B_drift_sigma), *self.param_B_bounds))
+        if self.C_drift_sigma > 0.0:
+            self.param_C = float(np.clip(self.param_C + self.rng.normal(0.0, self.C_drift_sigma), *self.param_C_bounds))
+        if self.target_drift_sigma > 0.0 and self.target_x is not None:
+            self.target_x += float(self.rng.normal(0.0, self.target_drift_sigma))
+        # 3) periodic external regime shock (the unseen structural change)
+        if self.shock_period > 0 and self._t > 0 and self._t % self.shock_period == 0:
+            self.x_aux1 += self.shock_magnitude_aux1
+            self.x_aux2 += self.shock_magnitude_aux2
+        # 4) noise + coupled dynamics
+        eps_main = float(self.rng.normal(0.0, self.sigma_epsilon))
+        eps1 = float(self.rng.normal(0.0, self.sigma_aux1))
+        eps2 = float(self.rng.normal(0.0, self.sigma_aux2))
+        xm = self.current_x
+        x1 = (self.param_A * xm + self.a12 * self.x_aux1 + self.a13 * self.x_aux2
+              + self.param_B * self.current_u + self.param_C + eps_main)
+        x2 = self.a21 * xm + self.gamma1 * self.x_aux1 + self.d1 * self.current_u + eps1
+        x3 = self.a31 * xm + self.gamma2 * self.x_aux2 + self.d2 * self.current_u + eps2
+        self.previous_x = self.current_x
+        self.current_x = float(x1)
+        self.x_aux1 = float(x2)
+        self.x_aux2 = float(x3)
+        self._t += 1
+        terminated = not np.isfinite(self.current_x) or abs(self.current_x) > 1e9
+        return StepInfo(terminated=terminated, truncated=False, info={})
+
+    def observe(self, viewer_id: str = "regent:0") -> Observation:
+        v: dict[str, float] = {
+            "step": float(self._t),
+            "current_x": self.current_x,
+            "previous_x": self.previous_x,
+            "current_u": self.current_u,
+            "u_commanded": self.u_commanded,
+            "x_aux1": self.x_aux1,
+            "x_aux2": self.x_aux2,
+            "rho_u": self.rho_u,
+            "param_A": self.param_A,
+            "param_B": self.param_B,
+            "param_C": self.param_C,
+            "sigma_epsilon": self.sigma_epsilon,
+            "u_range_min": self.u_range[0],
+            "u_range_max": self.u_range[1],
+        }
+        if self.target_x is not None:
+            v["target_x"] = self.target_x
+        return Observation(vars=v, scope=viewer_id, t=self._t)
+
+    @property
+    def time(self) -> int:
+        return self._t
+
+    def metrics(self) -> dict[str, float]:
+        m: dict[str, float] = {
+            "step": float(self._t),
+            "current_x": self.current_x,
+            "current_u": self.current_u,
+            "previous_x": self.previous_x,
+            "u_commanded": self.u_commanded,
+            "x_aux1": self.x_aux1,
+            "x_aux2": self.x_aux2,
+            "param_B": self.param_B,
+            "param_C": self.param_C,
+        }
+        if self.target_x is not None:
+            m["target_x"] = self.target_x
+        return m
