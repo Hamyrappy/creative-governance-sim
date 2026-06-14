@@ -17,7 +17,7 @@ from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.schedule import EveryN
 from govsim.core.regent import ScriptedRegent
 from govsim.harness import EpisodicMemory, TraceFeedback
-from govsim.regents import LLMRegent, OPRORegent
+from govsim.regents import LLMRegent, OPRORegent, make_obfuscated_assembler, suppliable_names
 from govsim.domains.scalar import (
     CompanyProfit,
     CompanySystem,
@@ -271,6 +271,53 @@ def cubic_nonlinear_opro() -> Experiment:
             falsification="the harnessed LLM does NOT lower post-shock regret vs this baseline over seeds",
         ),
         creativity_metric=None,
+    )
+
+
+@register("cubic_nonlinear_llm_obfuscated")
+def cubic_nonlinear_llm_obfuscated() -> Experiment:
+    """The true H1 PARTIAL-INFORMATION arm: the LLM regent is told only ``x_(k+1)=f(x_k,u_k,noise)``
+    with f UNKNOWN/possibly-nonlinear, and must INFER the cubic structure from observed history (the
+    obfuscated prompt). The boot-time ``check_prompt`` validates the template against the world's
+    suppliable names at construction. EpisodicMemory feeds the history the regent reasons over."""
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    max_tokens, extra = _llm_opts()
+
+    def factory(seed: int) -> CubicSystem:
+        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
+                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
+                           "cubic_coeff": 0.05, "state_exponent": 3})
+        sys.reset(seed)
+        return sys
+
+    iface = ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")])
+    sample = factory(0)
+    assembler = make_obfuscated_assembler(suppliable_names(sample.observe(), iface.action_space(sample, "regent:0")))
+
+    return Experiment(
+        name="cubic_nonlinear_llm_obfuscated",
+        system_factory=factory,
+        action_interface=iface,
+        regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0,
+                                       prompt_assembler=assembler, prompt_file="obfuscated",
+                                       max_tokens=max_tokens, extra=extra)},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        harness=Harness([TraceFeedback(), EpisodicMemory(k=4)]),
+        schedule=EveryN(25),
+        seeds=[0, 1, 2],
+        horizon=200,
+        hypothesis=Hypothesis(
+            id="H1-adaptation",
+            claim="under partial information (f unknown) the LLM infers the nonlinear plant from history "
+                  "and lowers post-shock regret vs frozen-optimal and trace-less OPRO",
+            baseline="frozen LQR/numeric-DP for the linearization + trace-less OPRO (cubic_nonlinear_opro)",
+            primary_metric="mse",
+            falsification="no lower regret than the frozen-optimal baseline over seeds",
+        ),
+        creativity_metric=CreativityMetric(
+            name="functional-novelty", kind="functional_novelty",
+            description="infers and exploits the cubic term from history; conditionals/state-powers a PID cannot",
+        ),
     )
 
 

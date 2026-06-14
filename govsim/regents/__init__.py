@@ -16,6 +16,12 @@ All are domain-BLIND: they see an ``Observation`` + an ``ActionSpace`` and retur
 from govsim.regents.llm_regent import LLMRegent, default_prompt_assembler, parse_action_requests
 from govsim.regents.baselines import PIDRegent, LQRRegent
 from govsim.regents.opro import OPRORegent
+from govsim.regents.prompting import (
+    TemplatePromptAssembler,
+    check_prompt,
+    make_obfuscated_assembler,
+    suppliable_names,
+)
 
 __all__ = [
     "LLMRegent",
@@ -24,4 +30,8 @@ __all__ = [
     "PIDRegent",
     "LQRRegent",
     "OPRORegent",
+    "TemplatePromptAssembler",
+    "check_prompt",
+    "make_obfuscated_assembler",
+    "suppliable_names",
 ]
