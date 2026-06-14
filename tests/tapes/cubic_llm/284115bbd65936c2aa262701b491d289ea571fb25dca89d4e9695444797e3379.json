@@ -1,0 +1,66 @@
+{
+  "text": "",
+  "tool_calls": [
+    {
+      "id": "chatcmpl-tool-9d9960ae23060def",
+      "name": "set_control_input",
+      "arguments": "{\"expr\": \"0\", \"reasoning\": \"Target equals current state, so no control needed.\"}"
+    }
+  ],
+  "model": "Openai/Gpt-oss-120b",
+  "usage": {
+    "completion_tokens": 71,
+    "prompt_tokens": 402,
+    "total_tokens": 473,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+  },
+  "raw": {
+    "id": "chatcmpl-b81a26893988c907",
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": null,
+          "refusal": null,
+          "role": "assistant",
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [
+            {
+              "id": "chatcmpl-tool-9d9960ae23060def",
+              "function": {
+                "arguments": "{\"expr\": \"0\", \"reasoning\": \"Target equals current state, so no control needed.\"}",
+                "name": "set_control_input"
+              },
+              "type": "function"
+            }
+          ],
+          "reasoning": "We need to set control input. target_x=0, current_x=0, so zero control. Expression: 0."
+        },
+        "stop_reason": 200012,
+        "token_ids": null
+      }
+    ],
+    "created": 1781478789,
+    "model": "Openai/Gpt-oss-120b",
+    "object": "chat.completion",
+    "moderation": null,
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 71,
+      "prompt_tokens": 402,
+      "total_tokens": 473,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "cost_usd": null
+}
