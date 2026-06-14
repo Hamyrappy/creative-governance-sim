@@ -9,7 +9,63 @@
   *economy domain plugin* (Phase 4), not the top-level framework.
 - **08** is authoritative on two reversals of 01/02: (1) **keep** the cubic + obfuscated prompt;
   (2) treat 01's citations as unverified leads.
-- **09** is AUTHORITATIVE for architecture + implementation. This branch implements **Phase 0** of 09.
+- **09** is AUTHORITATIVE for architecture + implementation. This branch implements **Phase 0, Phase 1,
+  and the Phase-2 harness machinery** of 09 (the H1 *result* — a multi-seed live comparison + author
+  sign-off — is the remaining science step; see STATUS.md).
+
+## ADR-0015 — `CoupledSystem` migrated to `LeverSystem`; lever drives `u_commanded` (2026-06-15)
+**Decision:** the legacy `CoupledLinearStochasticSystem` is migrated onto `LeverSystem`/`RollableSystem`;
+the lever writes `u_commanded` and `step()` smooths it into `current_u` (`u_eff`), so the existing
+control-inertia semantics survive while the eval-cadence contract (per-step re-eval) holds. All
+randomness moves from bare `random.gauss` to `self.rng`. **Why:** completes Phase-1's "coupled system";
+bare RNG would have made `clone()`/rollout unsound and tripped the invariant test. **Status:** done
+(`coupled_stabilization`, `coupled_regime_shift`). Legacy `economic_models/*` removal still deferred to
+Phase 4 (ADR-0006).
+
+## ADR-0014 — Rollout primitive in `core`; `RollableSystem` is the precondition gate (2026-06-15)
+**Decision:** `core/rollout.py` provides a domain-neutral clone→install→step→score oracle; the Runner
+injects a `RolloutContext` into a regent's scratch **only when the system is a `RollableSystem`** — its
+presence/absence IS the rollout-soundness gate (doc-09 §5.2). `seed=None` continues the carried
+Generator faithfully; an explicit seed resamples an independent future (for `mean−λ·std` selection).
+**Why:** rollout-dependent components (`RolloutProbe`, OPRO) must be sound and must no-op where clone is
+impossible. **Status:** done; `RolloutProbe` ships, gated.
+
+## ADR-0013 — OPRO scores candidates by rollout; archive lives in scratch (2026-06-15)
+**Decision:** `OPRORegent` (the trace-less H1 rival) scores each proposed law by rollout on a clone
+(rather than waiting for realized multi-step feedback), and keeps its `(law, score)` archive in
+`scratch` (which the Runner resets per seed). **Why:** rollout scoring is self-contained and
+replay-deterministic; a scratch-held archive resets per seed so the paired comparison is unbiased (a
+`self`-held archive would leak across seeds). It degrades to emitting the LLM's raw proposal on a
+non-rollable system. **Status:** done (`cubic_nonlinear_opro`).
+
+## ADR-0012 — `govsim/analysis`: the stats protocol as code (2026-06-15)
+**Decision:** ship paired bootstrap CI on per-seed differences, variance-aware selection (`mean−λ·std`),
+and a collapse/tail-event detector as `govsim/analysis/` + a `govsim compare A B` CLI subcommand.
+**Why:** `stats-protocol.md` was a slogan with no code; a "X beats Y" claim needs the paired CI to
+exclude 0, and selection must never be on the mean alone. **Status:** done; the H1/H3 comparisons run
+through it.
+
+## ADR-0011 — Partial-information obfuscated prompt + `check_prompt` boot validator (2026-06-15)
+**Decision:** the H1 nonlinear arm gets a `make_obfuscated_assembler` that tells the regent only
+`x_(k+1)=f(x_k,u_k,noise)` with `f` UNKNOWN (infer the cubic from history); `check_prompt`
+(doc-06 §2.3) validates any `{placeholder}` template against the world's suppliable names at
+construction, failing loud at boot instead of blanking at the LLM. **Why:** "partial information" is the
+regime where code-as-policy can beat a fixed-form PID, and was previously unwired. **Status:** done
+(`cubic_nonlinear_llm_obfuscated`).
+
+## ADR-0010 — `Critic` harness component (rollout-free audit→revise) (2026-06-15)
+**Decision:** add a `Critic` component: a 2nd LLM audits the proposal and, on a concrete veto, the
+regent revises once with the critique on `scratch["critic"]` (surfaced by both assemblers). Conservative
+by default (approves unless it can name a problem). **Why:** an H3 leave-one-out ablation arm and a
+cheap, rollout-free upgrade. **Status:** done (`cubic_nonlinear_llm_critic`).
+
+## ADR-0009 — LLM seam carries `max_tokens` + provider `extra`; verified live (2026-06-15)
+**Decision:** extend `LLMClient.complete` (and the cache key, `SCHEMA_VERSION`→`2`) with `max_tokens` +
+a provider `extra` dict (e.g. gpt-oss `reasoning_effort="low"`); the CLI loads `.env`. **Why:** reasoning
+models return empty content unless given a token budget + low effort; the cache key must cover them.
+Verified end-to-end against a live OpenAI-compatible vLLM cluster (`Openai/Gpt-oss-120b`, tool-calling),
+including byte-exact replay with a wrong key. **Status:** done; tests stay key-free (fake clients +
+committed replay tapes only).
 
 ## ADR-0008 — Persist via git bundle when remote writes are 403 (2026-06-14)
 **Decision:** in this session both `git push` and the GitHub API (MCP `push_files`) return 403

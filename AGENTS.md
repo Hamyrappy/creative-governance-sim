@@ -92,14 +92,26 @@ uv run python -m govsim run cubic_nonlinear --seeds 0 1 2 --store logs/runs --pl
 uv run pytest
 ```
 
-> **Status update (Phase 0 done):** the real CLI now exists (`govsim/__main__.py` +
+> **Status update (Phase 0–1 + Phase-2 machinery done):** the real CLI exists (`govsim/__main__.py` +
 > `govsim/experiments/` registry); `python -m govsim run <experiment>` reproduces a fixed trajectory
-> from `(spec, seed)` (golden-master). The new domain-agnostic stack — `govsim/core/` (six seams +
-> `Experiment`/`Runner`/`ResultStore` + `llm/` cache-replay), `govsim/domains/scalar/`,
-> `govsim/regents/`, `govsim/harness/`, `govsim/docs_gates/` — supersedes the config-driven
-> `simulation.py` path. The legacy `uv run simulation` path still imports (Gemini removed → inert)
-> but is deprecated; the legacy `economic_models`/`governing_agents` removal is deferred to Phase 4
-> (its replacement). See `agents/09-grand-plan.md` and `govsim/docs_gates/STATUS.md`.
+> from `(spec, seed)` (golden-master), and `python -m govsim compare A B` runs a paired bootstrap
+> comparison. The new domain-agnostic stack supersedes the config-driven `simulation.py` path:
+> - `govsim/core/` — six seams + `Experiment`/`Runner`/`ResultStore` + `llm/` cache-replay +
+>   `rollout.py` (the `RollableSystem`-gated fitness oracle).
+> - `govsim/domains/scalar/` — `CubicSystem` (linear/cubic), `CoupledSystem`, `SIRSystem`,
+>   `CompanySystem`; `ScalarLeverInterface`; objectives.
+> - `govsim/regents/` — `LLMRegent` (+ 4-source/obfuscated prompt assemblers + `check_prompt`),
+>   `PIDRegent`, `LQRRegent`, `OPRORegent`.
+> - `govsim/harness/` — `TraceFeedback`, `EpisodicMemory` (rollout-free), `RolloutProbe` (gated),
+>   `Critic`.
+> - `govsim/analysis/` — paired bootstrap CI, variance-aware selection, collapse detector.
+>
+> Registered experiments (see `govsim list`): cubic (linear sanity + nonlinear + LLM + OPRO +
+> obfuscated + critic), coupled (stabilization + regime-shift), SIR, company. The LLM stack is
+> **OpenAI-compatible** and was verified live against a vLLM cluster (`Openai/Gpt-oss-120b`,
+> tool-calling) with byte-exact replay. The legacy `uv run simulation` /
+> `economic_models`/`governing_agents` path still imports but is deprecated (removal deferred to
+> Phase 4). See `agents/09-grand-plan.md` and `govsim/docs_gates/STATUS.md`.
 
 To choose what runs, edit `govsim/config.py`:
 - `SIMULATION_CONFIG.economic_model_type` ∈ {`LinearStochasticSystem`, `CoupledLinearStochasticSystem`, `SimpleGrowthModel`, `SingleMarketModel`}
@@ -120,6 +132,13 @@ If you add a new control surface, add a `PolicyDescriptor` in the world — do *
 sandbox unless you mean to.
 
 ## 6. Gotchas that will bite you (see audit for line refs)
+
+> **These are the DEPRECATED legacy path's gotchas (`economic_models`/`governing_agents`/
+> `simulation.py`), all RESOLVED in the new `govsim/core` + `domains` + `regents` stack:** the regent is
+> domain-blind (no context-class coupling); every `System` owns a `np.random.Generator` (a CI test bans
+> bare RNG); the cubic is parameterized (`cubic_coeff`×`state_exponent`), not an uncommitted edit; the
+> eval-cadence contract (re-eval per step) is enforced in one place; reproducibility is real via the
+> LLM cache/replay tape. Treat the list below as historical context for the legacy code only.
 
 - **The LLM regent only works on the two linear worlds.** `IntelligentLLMAgent` hard-checks
   `LinearSystemAgentContext`; `SimpleGrowthModel`/`SingleMarketModel` return a different context
