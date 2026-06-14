@@ -12,9 +12,11 @@ from __future__ import annotations
 import os
 
 from govsim.core.experiment import CreativityMetric, Experiment, Hypothesis
+from govsim.core.harness import Harness
 from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.schedule import EveryN
 from govsim.core.regent import ScriptedRegent
+from govsim.harness import EpisodicMemory, TraceFeedback
 from govsim.regents import LLMRegent
 from govsim.domains.scalar import (
     CompanyProfit,
@@ -132,6 +134,7 @@ def cubic_nonlinear_llm() -> Experiment:
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
         regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0)},
         objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        harness=Harness([TraceFeedback(), EpisodicMemory(k=3)]),  # the cheapest upgrades (doc-09 §5.2)
         schedule=EveryN(25),
         seeds=[0, 1, 2],
         horizon=200,
