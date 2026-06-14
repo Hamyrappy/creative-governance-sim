@@ -46,7 +46,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
         exp.horizon = args.horizon
 
     store = ResultStore(args.store) if args.store else None
-    records = Runner(result_store=store).run(exp)
+    try:
+        records = Runner(result_store=store).run(exp)
+    except (RuntimeError, KeyError, ValueError) as e:
+        print(f"run failed: {e}", file=sys.stderr)
+        return 1
 
     print(f"=== {exp.name}  (H[{exp.hypothesis.id}], baseline: {exp.hypothesis.baseline}) ===")
     for rec in records:

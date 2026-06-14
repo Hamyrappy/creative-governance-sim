@@ -9,9 +9,13 @@ that an experiment names its claim + baseline up front (docs in ``govsim/docs_ga
 
 from __future__ import annotations
 
+import os
+
 from govsim.core.experiment import CreativityMetric, Experiment, Hypothesis
+from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.schedule import EveryN
 from govsim.core.regent import ScriptedRegent
+from govsim.regents import LLMRegent
 from govsim.domains.scalar import (
     CompanyProfit,
     CompanySystem,
@@ -90,6 +94,58 @@ def cubic_nonlinear() -> Experiment:
         creativity_metric=CreativityMetric(
             name="functional-novelty", kind="functional_novelty",
             description="residual of the best-fit PID; use of conditionals/state-history a PID cannot",
+        ),
+    )
+
+
+def _replay_client() -> CachingReplayClient:
+    """An OpenAI-compatible client wrapped in the cache/replay tape, configured purely by env
+    (no vendor/model hardcoded): OPENAI_BASE_URL, OPENAI_MODEL, GOVSIM_LLM_MODE (live|cache|replay),
+    GOVSIM_LLM_CACHE. Construction is lazy/key-free, so registering + listing this experiment needs
+    no API key; only ``govsim run`` of it calls the model (or replays a recorded tape)."""
+    inner = OpenAICompatClient(base_url=os.environ.get("OPENAI_BASE_URL"))
+    return CachingReplayClient(inner, os.environ.get("GOVSIM_LLM_CACHE", "logs/llm_cache"),
+                               mode=os.environ.get("GOVSIM_LLM_MODE", "cache"))
+
+
+@register("cubic_nonlinear_llm")
+def cubic_nonlinear_llm() -> Experiment:
+    """The H1 nonlinear arm governed by an actual ``LLMRegent`` (OpenAI-compatible, cache/replay).
+
+    Identical wiring to ``cubic_nonlinear`` but the regent is the LLM instead of the scripted
+    baseline — the end-to-end demonstration that the machine runs an LLM-in-the-loop experiment.
+    Run with a key (cache mode) once to record the tape, then replay for free/reproducible reruns:
+        OPENAI_API_KEY=... OPENAI_MODEL=<model> govsim run cubic_nonlinear_llm --store logs/runs
+    """
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+    def factory(seed: int) -> CubicSystem:
+        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
+                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
+                           "cubic_coeff": 0.05, "state_exponent": 3})
+        sys.reset(seed)
+        return sys
+
+    return Experiment(
+        name="cubic_nonlinear_llm",
+        system_factory=factory,
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
+        regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0)},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        schedule=EveryN(25),
+        seeds=[0, 1, 2],
+        horizon=200,
+        hypothesis=Hypothesis(
+            id="H1-adaptation",
+            claim="an LLM code-as-policy regent infers the nonlinear plant from partial info and lowers "
+                  "post-shock regret vs a frozen pre-shock-optimal controller and trace-less OPRO",
+            baseline="frozen LQR/numeric-DP for the linearization + trace-less OPRO",
+            primary_metric="mse",
+            falsification="no lower regret than the frozen-optimal baseline over seeds",
+        ),
+        creativity_metric=CreativityMetric(
+            name="functional-novelty", kind="functional_novelty",
+            description="residual of the best-fit PID; conditionals/state-history a PID cannot use",
         ),
     )
 
