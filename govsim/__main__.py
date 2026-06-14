@@ -90,6 +90,9 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     if args.seeds:
         exp_a.seeds = list(args.seeds)
         exp_b.seeds = list(args.seeds)
+    if args.horizon:
+        exp_a.horizon = args.horizon
+        exp_b.horizon = args.horizon
 
     metric = args.metric or exp_a.hypothesis.primary_metric
     lower = infer_lower_is_better(metric)
@@ -146,6 +149,7 @@ def build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("exp_b", help="experiment B (e.g. the trace-less OPRO baseline)")
     cmp.add_argument("--metric", help="metric to compare (default: A's hypothesis.primary_metric)")
     cmp.add_argument("--seeds", type=int, nargs="+", help="shared seed list for the paired design")
+    cmp.add_argument("--horizon", type=int, help="override the horizon for both experiments")
     cmp.add_argument("--higher-better", action="store_true", help="force higher-is-better orientation")
     cmp.add_argument("--lower-better", action="store_true", help="force lower-is-better orientation")
     cmp.set_defaults(func=_cmd_compare)
