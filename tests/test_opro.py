@@ -77,6 +77,57 @@ def test_opro_degrades_without_rollout_context():
     assert scratch["_opro_archive"] == []
 
 
+def test_opro_realized_mode_credits_deployed_law():
+    sys, iface = _cubic(), _iface()
+    r = OPRORegent("set_control_input", _OPROFakeClient(), "fake", scoring="realized")
+    space = iface.action_space(sys, "regent:0")
+    scratch: dict = {}
+
+    # decision 1: nothing deployed yet ⇒ archive empty, propose (seed 0 ⇒ gain 0.3), deploy it
+    out1 = r.decide(sys.observe(), space, scratch)
+    assert out1[0].payload["expr"] == "-0.3 * current_x"
+    assert scratch["_opro_pending"] == "-0.3 * current_x"
+    assert scratch["_opro_archive"] == []
+
+    # the Runner supplies the realized score of the deployed law before the next decision
+    scratch["_last_realized_score"] = -0.5
+    out2 = r.decide(sys.observe(), space, scratch)
+    assert scratch["_opro_archive"] == [("-0.3 * current_x", -0.5)]  # the deployed law was credited
+    assert out2[0].payload["expr"] == "-1.9 * current_x"            # explores a new proposal (seed 1)
+    assert scratch["_opro_pending"] == "-1.9 * current_x"
+
+
+def test_opro_realized_mode_runs_through_runner():
+    def factory(seed: int) -> CubicSystem:
+        s = CubicSystem({"param_A": 0.95, "param_B": 0.5, "sigma_epsilon": 0.05})
+        s.reset(seed)
+        return s
+
+    exp = Experiment(
+        name="opro_realized_smoke",
+        system_factory=factory,
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-3.0, 3.0), "current_u")]),
+        regents={"regent:0": OPRORegent("set_control_input", _OPROFakeClient(), "fake", scoring="realized")},
+        objectives={"regent:0": StabilizationLoss(lam=0.05)},
+        schedule=EveryN(15),
+        seeds=[0],
+        horizon=120,
+        hypothesis=Hypothesis(id="H-opro-realized", claim="realized opro runs", baseline="static", primary_metric="mse"),
+    )
+    rec = Runner().run(exp)[0]
+    # the realized-feedback channel let OPRO credit and explore across several decisions
+    assert sum(1 for c in rec.llm_io if c.get("regent") == "opro") >= 2
+
+
+def test_cubic_nonlinear_lqr_experiment_is_key_free_and_runs():
+    from govsim.experiments import get
+
+    exp = get("cubic_nonlinear_lqr")
+    exp.seeds = [0]
+    rec = Runner().run(exp)[0]
+    assert rec.system_id == "CubicSystem" and rec.regent_specs["regent:0"]["type"] == "LQRRegent"
+
+
 def test_opro_end_to_end_through_runner_stabilizes():
     def factory(seed: int) -> CubicSystem:
         s = CubicSystem({"param_A": 0.95, "param_B": 0.5, "sigma_epsilon": 0.05})

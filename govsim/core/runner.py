@@ -75,9 +75,18 @@ class Runner:
         trajectory: list[dict[str, float]] = []
         llm_io: list[dict[str, Any]] = []
         terminated_at: int | None = None
+        last_decision_len = {rid: 0 for rid in regents}
 
         for step in range(exp.horizon):
             if exp.schedule.should_decide(step):
+                # Realized-feedback channel: the Objective over the window since this regent's LAST
+                # decision (i.e. the realized score of the law it then deployed). Lets a learning
+                # regent (e.g. OPRO in 'realized' mode) score its own past actions without a model.
+                for rid in regents:
+                    window = trajectory[last_decision_len[rid]:]
+                    if window:
+                        scratch[rid]["_last_realized_score"] = exp.objectives[rid].evaluate(window, rid)
+                    last_decision_len[rid] = len(trajectory)
                 self._decision_step(exp, system, scratch)
             info = system.step()
             trajectory.append(system.metrics())

@@ -17,7 +17,7 @@ from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.schedule import EveryN
 from govsim.core.regent import ScriptedRegent
 from govsim.harness import Critic, EpisodicMemory, TraceFeedback
-from govsim.regents import LLMRegent, OPRORegent, make_obfuscated_assembler, suppliable_names
+from govsim.regents import LLMRegent, LQRRegent, OPRORegent, make_obfuscated_assembler, suppliable_names
 from govsim.domains.scalar import (
     CompanyProfit,
     CompanySystem,
@@ -70,12 +70,7 @@ def cubic_nonlinear() -> Experiment:
     With cubic_coeff != 0 the plant is nonlinear; the obfuscated prompt (Phase 1, for the LLM
     regent) reveals only "a third-degree main term", so the regent must infer structure. Here the
     baseline ScriptedRegent simply demonstrates the wiring runs and stays bounded."""
-    def factory(seed: int) -> CubicSystem:
-        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
-                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
-                           "cubic_coeff": 0.05, "state_exponent": 3})
-        sys.reset(seed)
-        return sys
+    factory = _cubic_h1_factory()
 
     return Experiment(
         name="cubic_nonlinear",
@@ -123,6 +118,32 @@ def _llm_opts() -> tuple[int | None, dict | None]:
     return (int(mt) if mt else None), ({"reasoning_effort": eff} if eff else None)
 
 
+# Pre-shock linearization the FROZEN baselines (LQR) are built from — they cannot see the shock.
+_CUBIC_H1_A, _CUBIC_H1_B = 0.95, 0.5
+
+
+def _cubic_h1_factory():
+    """The shared H1 nonlinear arm: a cubic plant suffering an UNSEEN structural shock at t=100
+    (``param_A`` jumps unstable + the nonlinearity strengthens). Every H1 regent/baseline binds to
+    THIS same system so a paired comparison isolates the regent, and a frozen pre-shock-optimal
+    controller provably cannot anticipate the regime change (doc-09 §6.4)."""
+    # Severity NOTE (☐ AUTHOR knob): these values set whether H1 has headroom. Post-shock the plant is
+    # mildly unstable AND the nonlinearity strengthens AND the state is kicked away from target, so a
+    # frozen gentle controller (pre-shock LQR) recovers slowly / may diverge while an adaptive law that
+    # infers the cubic recovers. Tune to keep the strong arms bounded but the frozen baseline stressed.
+    cfg = {"param_A": _CUBIC_H1_A, "param_B": _CUBIC_H1_B, "param_C": 0.0, "sigma_epsilon": 0.08,
+           "target_x": 0.0, "u_range": (-2.0, 2.0), "cubic_coeff": 0.05, "state_exponent": 3,
+           "shock_step": 100, "shock_params": {"param_A": 1.03, "cubic_coeff": 0.10},
+           "shock_state_kick": 0.8}
+
+    def factory(seed: int) -> CubicSystem:
+        sys = CubicSystem(cfg)
+        sys.reset(seed)
+        return sys
+
+    return factory
+
+
 @register("cubic_nonlinear_llm")
 def cubic_nonlinear_llm() -> Experiment:
     """The H1 nonlinear arm governed by an actual ``LLMRegent`` (OpenAI-compatible, cache/replay).
@@ -135,12 +156,7 @@ def cubic_nonlinear_llm() -> Experiment:
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     max_tokens, extra = _llm_opts()
 
-    def factory(seed: int) -> CubicSystem:
-        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
-                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
-                           "cubic_coeff": 0.05, "state_exponent": 3})
-        sys.reset(seed)
-        return sys
+    factory = _cubic_h1_factory()
 
     return Experiment(
         name="cubic_nonlinear_llm",
@@ -244,19 +260,14 @@ def cubic_nonlinear_opro() -> Experiment:
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     max_tokens, extra = _llm_opts()
 
-    def factory(seed: int) -> CubicSystem:
-        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
-                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
-                           "cubic_coeff": 0.05, "state_exponent": 3})
-        sys.reset(seed)
-        return sys
+    factory = _cubic_h1_factory()
 
     return Experiment(
         name="cubic_nonlinear_opro",
         system_factory=factory,
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
         regents={"regent:0": OPRORegent("set_control_input", _replay_client(), model, temperature=0.8,
-                                        probe_horizon=40, probe_seeds=(0, 1, 2),
+                                        scoring="realized",  # FAIR: learns only from realized outcomes
                                         max_tokens=max_tokens, extra=extra)},
         objectives={"regent:0": StabilizationLoss(lam=0.1)},
         harness=Harness([]),  # trace-LESS by construction: no components
@@ -274,6 +285,32 @@ def cubic_nonlinear_opro() -> Experiment:
     )
 
 
+@register("cubic_nonlinear_lqr")
+def cubic_nonlinear_lqr() -> Experiment:
+    """The FROZEN pre-shock-optimal baseline (doc-09 §6.4): an analytic LQR gain computed from the
+    PRE-shock linearization (A=0.95, B=0.5) under the objective's Q/R (R=λ=0.1), held fixed through
+    the regime shock. It cannot anticipate the shock or the nonlinearity — the controller H1 must beat
+    on post-shock regret. Key-free (no LLM)."""
+    return Experiment(
+        name="cubic_nonlinear_lqr",
+        system_factory=_cubic_h1_factory(),
+        action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
+        regents={"regent:0": LQRRegent("set_control_input", A=_CUBIC_H1_A, B=_CUBIC_H1_B, Q=1.0, R=0.1)},
+        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        schedule=EveryN(25),
+        seeds=[0, 1, 2],
+        horizon=200,
+        hypothesis=Hypothesis(
+            id="H1-adaptation",
+            claim="the frozen pre-shock-optimal LQR is the baseline the adaptive regent must beat post-shock",
+            baseline="this IS the named frozen-optimal baseline",
+            primary_metric="mse",
+            falsification="the adaptive regent does NOT lower post-shock regret vs this frozen LQR",
+        ),
+        creativity_metric=None,
+    )
+
+
 @register("cubic_nonlinear_llm_obfuscated")
 def cubic_nonlinear_llm_obfuscated() -> Experiment:
     """The true H1 PARTIAL-INFORMATION arm: the LLM regent is told only ``x_(k+1)=f(x_k,u_k,noise)``
@@ -283,12 +320,7 @@ def cubic_nonlinear_llm_obfuscated() -> Experiment:
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     max_tokens, extra = _llm_opts()
 
-    def factory(seed: int) -> CubicSystem:
-        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
-                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
-                           "cubic_coeff": 0.05, "state_exponent": 3})
-        sys.reset(seed)
-        return sys
+    factory = _cubic_h1_factory()
 
     iface = ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")])
     sample = factory(0)
@@ -330,12 +362,7 @@ def cubic_nonlinear_llm_critic() -> Experiment:
     max_tokens, extra = _llm_opts()
     client = _replay_client()
 
-    def factory(seed: int) -> CubicSystem:
-        sys = CubicSystem({"param_A": 0.95, "param_B": 0.5, "param_C": 0.0,
-                           "sigma_epsilon": 0.08, "target_x": 0.0, "u_range": (-2.0, 2.0),
-                           "cubic_coeff": 0.05, "state_exponent": 3})
-        sys.reset(seed)
-        return sys
+    factory = _cubic_h1_factory()
 
     return Experiment(
         name="cubic_nonlinear_llm_critic",

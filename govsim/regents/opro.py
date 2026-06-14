@@ -9,10 +9,14 @@ law in the archive. It is **trace-LESS**: its only feedback is the ``(solution, 
 trajectory — there is no error/conservation/runtime trace channel (that is exactly the ``TraceFeedback``
 arm it is compared against). So "code-as-policy + trace beats trace-less OPRO" is a clean contrast.
 
-Scoring candidates by rollout (rather than waiting for realized multi-step feedback) makes OPRO
-self-contained and deterministic under the replay tape — a faithful, if generous, version of the
-baseline. It therefore needs the rollout context the Runner injects for ``RollableSystem``s; on a
-non-rollable system it degrades to emitting the LLM's latest raw proposal (no archive).
+Two scoring modes:
+  - ``realized`` (the FAIR H1 baseline): the archive credits each law with the realized ``Objective``
+    over the interval it was actually deployed (the Runner supplies ``scratch["_last_realized_score"]``).
+    OPRO then explores — it deploys the new proposal to measure it — exactly like a trace-less reasoner
+    that learns only from outcomes it observed. Use this against the harnessed LLM.
+  - ``rollout`` (generous, self-contained): score candidates on a true-plant clone before committing the
+    incumbent best. This makes OPRO an oracle optimizer (more information than the harnessed LLM gets),
+    so it is a *strong* baseline, kept for ablations and replay-determinism. Needs a ``RollableSystem``.
 """
 
 from __future__ import annotations
@@ -32,21 +36,33 @@ def _format_archive(archive: list[tuple[str, float]], top: int) -> str:
 
 class OPRORegent(Regent):
     def __init__(self, verb: str, llm: Any, model: str, *, id: str = "regent:0",
-                 temperature: float = 0.8, seed: int = 0, probe_horizon: int = 30,
-                 probe_seeds: tuple[int, ...] = (0, 1, 2), archive_cap: int = 16, top_k: int = 8,
+                 temperature: float = 0.8, seed: int = 0, scoring: str = "rollout",
+                 probe_horizon: int = 30, probe_seeds: tuple[int, ...] = (0, 1, 2),
+                 archive_cap: int = 16, top_k: int = 8,
                  max_tokens: int | None = None, extra: dict[str, Any] | None = None) -> None:
         super().__init__(id)
+        if scoring not in ("rollout", "realized"):
+            raise ValueError("scoring must be 'rollout' or 'realized'")
         self.verb = verb
         self.llm = llm
         self.model = model
         self.temperature = temperature
         self.seed = seed
+        # 'rollout': score candidates on a true-plant clone (generous — an oracle optimizer).
+        # 'realized': score the law you ACTUALLY deployed by its realized objective over the next
+        #   interval (fair — the trace-less reasoning baseline H1 should be measured against).
+        self.scoring = scoring
         self.probe_horizon = probe_horizon
         self.probe_seeds = tuple(probe_seeds)
         self.archive_cap = archive_cap
         self.top_k = top_k
         self.max_tokens = max_tokens
         self.extra = extra
+
+    def _trim(self, archive: list[tuple[str, float]]) -> None:
+        archive.sort(key=lambda t: t[1])  # ascending ⇒ best last
+        if len(archive) > self.archive_cap:
+            del archive[: len(archive) - self.archive_cap]
 
     def _meta_prompt(self, view: Observation, space: ActionSpace, archive: list[tuple[str, float]]) -> list[dict]:
         system = (
@@ -66,6 +82,15 @@ class OPRORegent(Regent):
 
     def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
         archive: list[tuple[str, float]] = scratch.setdefault("_opro_archive", [])
+
+        # 'realized' mode: first credit the previously-deployed law with its realized score.
+        if self.scoring == "realized":
+            pending = scratch.get("_opro_pending")
+            realized = scratch.get("_last_realized_score")
+            if pending is not None and realized is not None:
+                archive.append((pending, float(realized)))
+                self._trim(archive)
+
         messages = self._meta_prompt(view, space, archive)
         opt: dict[str, Any] = {}
         if self.max_tokens is not None:
@@ -76,19 +101,24 @@ class OPRORegent(Regent):
                                  temperature=self.temperature, seed=self.seed + len(archive), **opt)
         self._record(scratch, view, messages, resp)
         reqs = parse_action_requests(resp, space, self.id)
+        new_expr = reqs[0].payload.get("expr") if reqs else None
 
-        ctx = scratch.get("_rollout")
-        if reqs and ctx is not None:
-            expr = reqs[0].payload.get("expr")
-            valid = ctx.action_interface.validate(reqs[0], ctx.system, self.id)
-            if isinstance(expr, str) and valid.ok:
-                futures = ctx.score(reqs[:1], self.probe_horizon, self.probe_seeds)
-                archive.append((expr, statistics.fmean(futures)))
-                archive.sort(key=lambda t: t[1])  # ascending ⇒ best is last
-                if len(archive) > self.archive_cap:
-                    del archive[: len(archive) - self.archive_cap]
+        if self.scoring == "rollout":
+            ctx = scratch.get("_rollout")
+            if reqs and ctx is not None and isinstance(new_expr, str):
+                valid = ctx.action_interface.validate(reqs[0], ctx.system, self.id)
+                if valid.ok:
+                    archive.append((new_expr, statistics.fmean(ctx.score(reqs[:1], self.probe_horizon, self.probe_seeds))))
+                    self._trim(archive)
+            if archive:  # commit the incumbent best law (the true plant was the oracle)
+                return [ActionRequest(self.id, self.verb, {"expr": archive[-1][0]})]
+            return reqs
 
-        if archive:  # commit the incumbent best law (OPRO does not chase the latest noisy proposal)
+        # 'realized' mode: DEPLOY the new proposal so its realized score can be measured next interval.
+        if isinstance(new_expr, str):
+            scratch["_opro_pending"] = new_expr
+            return [ActionRequest(self.id, self.verb, {"expr": new_expr})]
+        if archive:  # no parseable proposal ⇒ fall back to the incumbent best
             return [ActionRequest(self.id, self.verb, {"expr": archive[-1][0]})]
         return reqs
 

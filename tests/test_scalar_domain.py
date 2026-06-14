@@ -126,6 +126,38 @@ def test_clone_with_installed_lever_reevaluates_against_itself():
     assert sys.current_u == 1.0
 
 
+# --- cubic structural shock (the H1 unseen regime change) -----------------------------------
+
+def test_cubic_shock_changes_params_at_shock_step():
+    sys = CubicSystem({"param_A": 0.95, "cubic_coeff": 0.05, "sigma_epsilon": 0.0,
+                       "shock_step": 5, "shock_params": {"param_A": 1.08, "cubic_coeff": 0.12}})
+    sys.reset(0)
+    for _ in range(5):  # steps 0..4: pre-shock
+        assert sys.param_A == 0.95 and sys.cubic_coeff == 0.05
+        sys.step()
+    # the shock fires at the start of step() when _t == 5
+    sys.step()
+    assert sys.param_A == 1.08 and sys.cubic_coeff == 0.12
+
+
+def test_cubic_no_shock_by_default():
+    sys = CubicSystem({"param_A": 0.95})
+    sys.reset(0)
+    for _ in range(20):
+        sys.step()
+    assert sys.param_A == 0.95  # stationary plant (the golden-master arm)
+
+
+def test_cubic_reset_restores_shocked_params():
+    sys = CubicSystem({"param_A": 0.95, "shock_step": 2, "shock_params": {"param_A": 1.2}})
+    sys.reset(0)
+    for _ in range(4):
+        sys.step()
+    assert sys.param_A == 1.2
+    sys.reset(0)  # a fresh run must start from the pre-shock plant
+    assert sys.param_A == 0.95
+
+
 # --- objectives -----------------------------------------------------------------------------
 
 def test_stabilization_loss_rewards_staying_on_target():

@@ -92,16 +92,23 @@ class CubicSystem(LeverSystem):
         super().__init__()
         p = params or {}
         self.initial_x: float = float(p.get("initial_x", 0.0))
-        self.param_A: float = float(p.get("param_A", 0.95))
-        self.param_B: float = float(p.get("param_B", 0.5))
-        self.param_C: float = float(p.get("param_C", 0.0))
+        self.param_A0: float = float(p.get("param_A", 0.95))
+        self.param_B0: float = float(p.get("param_B", 0.5))
+        self.param_C0: float = float(p.get("param_C", 0.0))
         self.sigma_epsilon: float = float(p.get("sigma_epsilon", 0.1))
         tx = p.get("target_x", 0.0)
         self.target_x: float | None = None if tx is None else float(tx)
         lo, hi = p.get("u_range", (-2.0, 2.0))
         self.u_range: tuple[float, float] = (float(lo), float(hi))
-        self.cubic_coeff: float = float(p.get("cubic_coeff", 0.0))
+        self.cubic_coeff0: float = float(p.get("cubic_coeff", 0.0))
         self.state_exponent: int = int(p.get("state_exponent", 3))
+        # Optional UNSEEN structural shock (the H1 regime change): at ``shock_step`` the named plant
+        # params are overwritten with new values. ``None`` (default) = no shock ⇒ a stationary plant
+        # (the golden-master arm). Pre-shock-optimal controllers (frozen LQR) cannot anticipate it.
+        ss = p.get("shock_step")
+        self.shock_step: int | None = None if ss is None else int(ss)
+        self.shock_params: dict[str, float] = dict(p.get("shock_params", {}))
+        self.shock_state_kick: float = float(p.get("shock_state_kick", 0.0))  # displaces x at the shock
         self.reset(int(p.get("seed", 0)))
 
     @property
@@ -114,10 +121,19 @@ class CubicSystem(LeverSystem):
         self.previous_x: float = self.initial_x
         self.current_u: float = 0.0
         self._t: int = 0
+        # restore the (possibly shock-mutated) plant params to their initial values
+        self.param_A: float = self.param_A0
+        self.param_B: float = self.param_B0
+        self.param_C: float = self.param_C0
+        self.cubic_coeff: float = self.cubic_coeff0
         self._levers.clear()
 
     def step(self) -> StepInfo:
         self._reeval_levers()  # re-eval the installed lever expression EACH step (the contract)
+        if self.shock_step is not None and self._t == self.shock_step:
+            for name, value in self.shock_params.items():  # the unseen structural regime change
+                setattr(self, name, float(value))
+            self.current_x += self.shock_state_kick  # a real excursion to recover from
         shock = float(self.rng.normal(0.0, self.sigma_epsilon))
         next_x = (
             self.param_A * self.current_x
