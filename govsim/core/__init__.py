@@ -33,6 +33,15 @@ from govsim.core.regent import Regent, StaticRegent, ScriptedRegent
 from govsim.core.objective import Objective
 from govsim.core.harness import Harness, HarnessComponent, Outcome
 from govsim.core.schedule import Schedule, EveryN, AtSteps
+from govsim.core.experiment import (
+    Experiment,
+    RunRecord,
+    Hypothesis,
+    CreativityMetric,
+    JurisdictionSpec,
+)
+from govsim.core.runner import Runner
+from govsim.core.result_store import ResultStore
 
 __all__ = [
     "System",
@@ -55,4 +64,11 @@ __all__ = [
     "Schedule",
     "EveryN",
     "AtSteps",
+    "Experiment",
+    "RunRecord",
+    "Hypothesis",
+    "CreativityMetric",
+    "JurisdictionSpec",
+    "Runner",
+    "ResultStore",
 ]
