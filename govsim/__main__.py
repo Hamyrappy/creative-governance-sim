@@ -78,6 +78,55 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_compare(args: argparse.Namespace) -> int:
+    from govsim.analysis import compare, infer_lower_is_better, metric_by_seed, collapse_summary
+
+    try:
+        exp_a = experiments.get(args.exp_a)
+        exp_b = experiments.get(args.exp_b)
+    except KeyError as e:
+        print(e, file=sys.stderr)
+        return 2
+    if args.seeds:
+        exp_a.seeds = list(args.seeds)
+        exp_b.seeds = list(args.seeds)
+
+    metric = args.metric or exp_a.hypothesis.primary_metric
+    lower = infer_lower_is_better(metric)
+    if args.higher_better:
+        lower = False
+    if args.lower_better:
+        lower = True
+
+    try:
+        recs_a = Runner().run(exp_a)
+        recs_b = Runner().run(exp_b)
+    except (RuntimeError, KeyError, ValueError) as e:
+        print(f"compare failed: {e}", file=sys.stderr)
+        return 1
+
+    a_by = metric_by_seed(recs_a, metric)
+    b_by = metric_by_seed(recs_b, metric)
+    res = compare(a_by, b_by, lower_is_better=lower)
+
+    arrow = "lower-is-better" if lower else "higher-is-better"
+    print(f"=== compare '{args.exp_a}' (A) vs '{args.exp_b}' (B) on '{metric}' ({arrow}) ===")
+    for s in res["seeds"]:
+        print(f"  seed={s:<4} A={a_by[s]:.4f}  B={b_by[s]:.4f}  A-B={a_by[s]-b_by[s]:+.4f}")
+    print(f"  paired mean(A-B)={res['point_estimate']:+.4f}  95% CI=[{res['ci_low']:+.4f}, {res['ci_high']:+.4f}]  (n={res['n']})")
+    if res["a_better_than_b"]:
+        print(f"  VERDICT: A beats B (CI excludes 0 on the {arrow} side).")
+    elif res["excludes_zero"]:
+        print(f"  VERDICT: B beats A (CI excludes 0 against A).")
+    else:
+        print("  VERDICT: no significant difference (CI includes 0).")
+    for label, recs in (("A", recs_a), ("B", recs_b)):
+        cs = collapse_summary(recs)
+        if cs["n_terminated"]:
+            print(f"  [{label}] {cs['n_terminated']}/{cs['n_runs']} runs collapsed early (seeds {cs['terminated_seeds']}); worst score {cs['worst_score']:.4f}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="govsim", description="Experiment machine for LLM regents of complex systems.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -91,6 +140,15 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--store", help="persist runs to this ResultStore directory (sqlite + artifacts)")
     run.add_argument("--plot", action="store_true", help="plot the first run's series (needs --store)")
     run.set_defaults(func=_cmd_run)
+
+    cmp = sub.add_parser("compare", help="paired bootstrap comparison of two experiments (A vs B)")
+    cmp.add_argument("exp_a", help="experiment A (e.g. the harnessed LLM regent)")
+    cmp.add_argument("exp_b", help="experiment B (e.g. the trace-less OPRO baseline)")
+    cmp.add_argument("--metric", help="metric to compare (default: A's hypothesis.primary_metric)")
+    cmp.add_argument("--seeds", type=int, nargs="+", help="shared seed list for the paired design")
+    cmp.add_argument("--higher-better", action="store_true", help="force higher-is-better orientation")
+    cmp.add_argument("--lower-better", action="store_true", help="force lower-is-better orientation")
+    cmp.set_defaults(func=_cmd_compare)
     return parser
 
 
