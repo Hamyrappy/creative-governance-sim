@@ -40,7 +40,7 @@ a clean, extensible platform and finally stabilize a real ABM. A follow-up artic
 | Economic models ("worlds") | `govsim/economic_models/` — `economic_models.py` (SimpleGrowth), `single_market_model.py`, `linear_stochastic_system.py`, `coupled_linear_stochastic_system.py` |
 | Governing agents ("regents") | `govsim/governing_agents/` — `government_agents.py` (Static/Random/Test), `gov_agent_linear.py` (`IntelligentLLMAgent`, the LLM regent) |
 | The policy code sandbox (RestrictedPython) | `govsim/utils/policy_utils.py` |
-| The LLM client layer (Gemini via LangChain) | `govsim/utils/gemini_utils.py` |
+| The LLM client layer (OpenAI-*compatible*) | `govsim/core/llm/` (`client.py`, `cache.py`) — replaced the removed Gemini/LangChain layer |
 | Prompt templates + formatting | `govsim/prompts/*.md`, `govsim/utils/prompts_utils.py` |
 | All tunable parameters | `govsim/config.py` |
 | Plots | `govsim/chart_generators/` |
@@ -75,22 +75,23 @@ needs "what's the target economy", start with the Mandel papers and
 ## 4. Setup & run
 
 ```bash
-# 1. Install (Poetry; Python >=3.12,<3.14)
-poetry install
+# 1. Install deps + create the venv (uv; Python >=3.12,<3.14)
+uv sync                      # add `--group notebook` for jupyter/ipykernel
 
-# 2. Provide an LLM key — create .env in the repo root:
-#    GOOGLE_API_KEY="..."   (Google AI Studio key)
-#    NOTE: govsim/utils/gemini_utils.py currently raises at import time if this is missing.
+# 2. Provide an LLM key — create .env in the repo root. The engine is OpenAI-*compatible*
+#    (any provider / local model / proxy), selected by base_url + model in config, NOT hardcoded:
+#    OPENAI_API_KEY="..."           # or whichever api_key_env the client is configured with
+#    OPENAI_BASE_URL="..."          # optional: OpenRouter / vLLM / Ollama / a proxy
 
 # 3. Run the config-driven simulation (the only working entry point today)
-poetry run simulation        # obeys govsim/config.py
+uv run simulation            # obeys govsim/config.py
 
 # 4. Visualize a linear-system run
-poetry run visualize-linear
+uv run visualize-linear
 ```
 
 ⚠️ The README documents `python -m govsim <experiment>` with a `--help` list. **That CLI does not
-exist** (`govsim/__main__.py` is empty). Use `poetry run simulation` and edit `config.py` to
+exist** (`govsim/__main__.py` is empty). Use `uv run simulation` and edit `config.py` to
 choose the world/agent, until the real CLI is built (refactor plan, step 6).
 
 To choose what runs, edit `govsim/config.py`:
@@ -134,7 +135,7 @@ sandbox unless you mean to.
   [`agents/03-refactor-plan.md`](agents/03-refactor-plan.md): one shippable, tested step per PR,
   with re-export shims so old import paths keep working mid-migration.
 - **Tests:** there are none yet. The first refactor step adds a golden-master test for a thesis
-  experiment plus sandbox/determinism tests — add to these; run `poetry run pytest`.
+  experiment plus sandbox/determinism tests — add to these; run `uv run pytest`.
 - **Add-a-thing should be one file + one registration**, never an edit to the core loop. If you
   find yourself editing `simulation.py` to add a world/agent, that's the signal to do the
   registry refactor first.

@@ -18,7 +18,7 @@ from govsim.core import (
     Harness,
     HarnessComponent,
     StaticRegent,
-    TestRegent,
+    ScriptedRegent,
     VerbSpec,
 )
 from govsim.core.llm import CachingReplayClient, LLMResponse
@@ -60,7 +60,7 @@ def test_static_regent_proposes_nothing():
 
 
 def test_test_regent_emits_fixed_request():
-    r = TestRegent(verb="set_u", expr="-0.9 * current_x", id="regent:0")
+    r = ScriptedRegent(verb="set_u", expr="-0.9 * current_x", id="regent:0")
     reqs = r.decide(None, _space(), {})
     assert len(reqs) == 1
     req = reqs[0]
@@ -82,7 +82,7 @@ def test_action_space_as_tools_is_openai_shaped():
 # --- Harness (Phase 0: machinery, components exercised here as fakes) ------------------------
 
 def test_harness_passthrough_with_no_components():
-    r = TestRegent(verb="set_u", expr="0.0")
+    r = ScriptedRegent(verb="set_u", expr="0.0")
     h = Harness()
     reqs = h.act(r, None, _space(), {})
     assert len(reqs) == 1 and reqs[0].verb == "set_u"
@@ -102,7 +102,7 @@ def test_harness_component_hooks_and_ablation_switch():
             calls.append("propose")
             return base(view, space, scratch)
 
-    r = TestRegent(verb="set_u", expr="0.0")
+    r = ScriptedRegent(verb="set_u", expr="0.0")
     comp = Tracer()
     h = Harness([comp])
     scratch: dict = {}

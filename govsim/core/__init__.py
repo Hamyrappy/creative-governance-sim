@@ -29,7 +29,7 @@ from govsim.core.action import (
     ValidationResult,
     ApplyReport,
 )
-from govsim.core.regent import Regent, StaticRegent, TestRegent
+from govsim.core.regent import Regent, StaticRegent, ScriptedRegent
 from govsim.core.objective import Objective
 from govsim.core.harness import Harness, HarnessComponent, Outcome
 from govsim.core.schedule import Schedule, EveryN, AtSteps
@@ -47,7 +47,7 @@ __all__ = [
     "ApplyReport",
     "Regent",
     "StaticRegent",
-    "TestRegent",
+    "ScriptedRegent",
     "Objective",
     "Harness",
     "HarnessComponent",

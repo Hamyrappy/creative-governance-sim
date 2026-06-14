@@ -36,11 +36,12 @@ class StaticRegent(Regent):
         return []
 
 
-class TestRegent(Regent):
+class ScriptedRegent(Regent):
     """Deterministic baseline: emit a fixed expression for a fixed verb each decision step.
 
     Used for the N=1 golden-master test (reproduce a pre-rewrite run with no live LLM) and as
-    a quick smoke regent. Mirrors the old ``TestPoliciesAgent`` but on the new seam.
+    a quick smoke regent. Mirrors the old ``TestPoliciesAgent`` but on the new seam. (Named
+    ``ScriptedRegent``, not ``TestRegent``, to avoid pytest's ``Test*`` collection heuristic.)
     """
 
     def __init__(self, verb: str, expr: str, id: str = "regent:0") -> None:

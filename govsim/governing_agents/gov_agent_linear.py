@@ -14,7 +14,14 @@ from govsim.utils.policy_utils import validate_and_compile_policy_expression, Po
 from govsim.utils.prompts_utils import DefaultMapping, DEFAULT_PROMPT_TEMPLATE, load_prompt_template, format_policy_descriptors_for_prompt
 
 # ! С импортом модуля Gemini бывают проблемы при отсутствии соединения с API GoogleAI, например при отсутствии API ключа или блокировке
-from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent 
+try:
+    # Legacy Gemini path has been removed (the project migrated to the OpenAI-compatible client
+    # in govsim.core.llm). This import is kept tolerant so the old simulation path still imports;
+    # IntelligentLLMAgent is being replaced by an LLMRegent on the new core (agents/09-grand-plan.md).
+    from govsim.utils.gemini_utils import create_agent, BaseAgent as GeminiBaseAgent  # type: ignore
+except ModuleNotFoundError:
+    create_agent = None  # type: ignore
+    GeminiBaseAgent = None  # type: ignore 
     
 
 # --- IntelligentLLMAgent, предназначен для линейной стохастической модели мира ---
