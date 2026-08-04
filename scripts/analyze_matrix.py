@@ -273,14 +273,22 @@ def main() -> int:
             res["p"] = bootstrap_p(res["diffs"])
             contrasts[f"{name} {ref_label}"] = {
                 k: res[k] for k in ("n", "point_estimate", "ci_low", "ci_high",
-                                    "a_better_than_b", "excludes_zero", "p")}
+                                    "a_better_than_b", "excludes_zero", "p",
+                                    "p_wilcoxon", "robust_agreement", "ci_method")}
     holm_c = holm_bonferroni({k: v["p"] for k, v in contrasts.items()}) if contrasts else {}
     for k, v in contrasts.items():
         v.update(holm_c.get(k, {}))
     for k, v in sorted(contrasts.items(), key=lambda kv: kv[1]["point_estimate"]):
-        verdict = "BETTER" if v["a_better_than_b"] else ("worse" if v["excludes_zero"] else "ns")
+        # Read the CORRECTED result. The uncorrected flag sits in the same dict and was
+        # what this line used to print — next to the p_holm it contradicted.
+        # A claim must survive BOTH the Holm-corrected studentized CI and a distribution-free
+        # rank test. At n=20 those disagreeing means the result rests on a few seeds' tails.
+        sig = v.get("significant", v["excludes_zero"]) and v.get("robust_agreement", True)
+        verdict = ("BETTER" if sig and v["point_estimate"] < 0 else
+                   "worse" if sig else "ns")
         print(f"{k:<52} n={v['n']:>3} Δ={v['point_estimate']:>+9.4f} "
-              f"[{v['ci_low']:+.4f},{v['ci_high']:+.4f}] p_holm={v.get('p_adj', float('nan')):.4f}  {verdict}")
+              f"[{v['ci_low']:+.4f},{v['ci_high']:+.4f}] p_holm={v.get('p_adj', float('nan')):.4f} "
+              f"p_wilcox={v.get('p_wilcoxon', float('nan')):.4f}  {verdict}")
 
     # ---- 4. cross-model replication -----------------------------------------------------------
     cross = None

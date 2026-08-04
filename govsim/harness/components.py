@@ -206,8 +206,14 @@ class EpisodicMemory(HarnessComponent):
     """
 
     name = "episodic_memory"
-    # keys that are bookkeeping, not controllable state — excluded from both similarity and score
-    _NON_STATE_KEYS = frozenset({"step", "t", "target_x"})
+    # Keys that are bookkeeping, not controllable state — excluded from both similarity and score.
+    #
+    # ``cum_cost`` belongs here for the same reason the clock does, and its absence was a real bug:
+    # it is a running total from t=0, so including it in an episode's score makes that score a
+    # monotone function of *when* the episode happened. Retrieval then ranks precedent by recency
+    # wearing the costume of quality, which is worse than not ranking it at all — the component
+    # looks like it is doing its job while carrying no information about the policy.
+    _NON_STATE_KEYS = frozenset({"step", "t", "target_x", "cum_cost", "cash"})
 
     def __init__(self, k: int = 3) -> None:
         self.k = k

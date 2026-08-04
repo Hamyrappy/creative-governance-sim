@@ -138,9 +138,26 @@ class EpidemicLoss(Objective):
         return trajectory[s:] if s < len(trajectory) else []
 
     def evaluate(self, trajectory: Trajectory, regent_id: str = "regent:0") -> float:
-        total_infected = sum(row.get(self.infected_key, 0.0) for row in trajectory)
-        final_cost = trajectory[-1].get(self.cost_key, 0.0) if trajectory else 0.0
-        return -(total_infected + self.lam * final_cost)
+        """Negated loss over ``trajectory``, which may be a WINDOW rather than a whole run.
+
+        The cost is differenced across the window, exactly as ``components`` does. It has to be:
+        ``cum_cost`` is a running total from t=0, so reading its last value scores a 10-step window
+        by *when it happened* rather than by what the policy did in it. Two windows with identical
+        infection burden and identical per-step spending then differ by the whole cost accrued
+        before either of them started.
+
+        This is not a hypothetical. The Runner calls this method on the interval since the regent's
+        previous decision to produce the realized-performance signal a harness shows the model
+        (``core/runner.py``), and with the undifferenced version that signal was a monotonically
+        falling clock: across 20 seeds it reported "worse than last time" 359 times and "better"
+        never. A regent shown that signal rationally abandons whatever it is doing, and an ablation
+        built on it measures the passage of time.
+
+        For a full trajectory the two definitions differ only by the first step's cost, so the
+        reported ``components["loss"]`` — which was always differenced — is unaffected.
+        """
+        burden, cost = self._burden_cost(trajectory)
+        return -(burden + self.lam * cost)
 
     def components(self, trajectory: Trajectory, regent_id: str = "regent:0") -> dict[str, float]:
         infected = [row.get(self.infected_key, 0.0) for row in trajectory]

@@ -25,6 +25,9 @@ from govsim.analysis.calibration import (
 )
 from govsim.analysis.stats import (
     bootstrap_ci,
+    bootstrap_ci_bca,
+    bootstrap_ci_t,
+    channel_liveness,
     minimum_detectable_effect,
     collapse_summary,
     compare,
@@ -33,6 +36,7 @@ from govsim.analysis.stats import (
     paired_diff,
     robust_score,
     variance_aware_select,
+    wilcoxon_signed_rank_p,
 )
 
 __all__ = [
@@ -45,6 +49,10 @@ __all__ = [
     "headroom",
     "normalized_regret",
     "bootstrap_ci",
+    "bootstrap_ci_bca",
+    "bootstrap_ci_t",
+    "channel_liveness",
+    "wilcoxon_signed_rank_p",
     "minimum_detectable_effect",
     "collapse_summary",
     "compare",

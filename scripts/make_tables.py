@@ -267,8 +267,10 @@ def results_prose(a: dict, calib: dict) -> str:
     def _c(key):
         return contrasts.get(key, {})
 
+    # Must filter on the CORRECTED verdict: the sentence below says "after Holm correction".
     beat_fixed = [n for n in arms
-                  if _c(f"{n} vs_best_fixed").get("a_better_than_b")]
+                  if _c(f"{n} vs_best_fixed").get("significant")
+                  and (_c(f"{n} vs_best_fixed").get("point_estimate") or 0) < 0]
 
     abstract = (
         f"Adaptation is worth {num(ep.get('headroom_vs_best_fixed'), 2)}$\\times$ over the best fixed "
