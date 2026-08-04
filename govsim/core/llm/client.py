@@ -15,6 +15,9 @@ Design rules (doc-08 / doc-09):
 from __future__ import annotations
 
 import os
+import re
+import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -76,12 +79,22 @@ class OpenAICompatClient:
         default_model: str | None = None,
         timeout: float = 120.0,
         drop_params: frozenset[str] | set[str] | None = None,
+        max_retries: int = 6,
+        min_interval: float = 0.0,
     ) -> None:
         self.base_url = base_url
         self.api_key_env = api_key_env
         self.default_model = default_model
         self.timeout = timeout
         self.drop_params = frozenset(drop_params or ())
+        # Free and shared endpoints rate-limit aggressively (Gemini's free tier is 15 requests per
+        # minute per model). A multi-seed experiment is thousands of calls, so a 429 partway through
+        # must cost a pause, not the run. ``min_interval`` paces proactively; ``max_retries`` with
+        # server-suggested backoff recovers from the bursts that slip through.
+        self.max_retries = max_retries
+        self.min_interval = min_interval
+        self._last_call_at = 0.0
+        self._lock = threading.Lock()
         self._client: Any = None  # the openai.OpenAI instance, created lazily
 
     def _ensure(self) -> Any:
@@ -101,6 +114,59 @@ class OpenAICompatClient:
                 )
             self._client = OpenAI(api_key=key, base_url=self.base_url, timeout=self.timeout)
         return self._client
+
+    _RETRY_AFTER_RE = re.compile(r"retry(?:Delay|-after)['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)", re.I)
+
+    @classmethod
+    def _is_retryable(cls, exc: Exception) -> bool:
+        """True for rate limits and transient server errors, by duck-typing rather than by isinstance.
+
+        The concrete exception classes live in the lazily-imported ``openai`` package, and importing
+        them here to catch them would reintroduce the import-time dependency this seam exists to
+        avoid — CI runs with no key and, on a minimal install, no SDK.
+        """
+        status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+        if status in (408, 409, 429, 500, 502, 503, 504) or str(status) in ("429", "503"):
+            return True
+        name = type(exc).__name__
+        return any(k in name for k in ("RateLimit", "APIConnection", "APITimeout", "InternalServer"))
+
+    @classmethod
+    def _suggested_delay(cls, exc: Exception) -> float | None:
+        """The server's own retry hint, if it published one (Gemini returns ``retryDelay: '6s'``)."""
+        m = cls._RETRY_AFTER_RE.search(str(exc))
+        return float(m.group(1)) if m else None
+
+    def _pace(self) -> None:
+        """Hold the configured minimum gap between outbound calls."""
+        if self.min_interval <= 0:
+            return
+        with self._lock:
+            wait = self.min_interval - (time.monotonic() - self._last_call_at)
+            if wait > 0:
+                time.sleep(wait)
+            self._last_call_at = time.monotonic()
+
+    def _call_with_retry(self, client: Any, kwargs: dict[str, Any]) -> Any:
+        last: Exception | None = None
+        for attempt in range(self.max_retries + 1):
+            self._pace()
+            try:
+                return client.chat.completions.create(**kwargs)
+            except Exception as e:  # noqa: BLE001 - re-raised below unless retryable
+                if attempt >= self.max_retries or not self._is_retryable(e):
+                    raise
+                last = e
+                # Server hint if there is one, else exponential backoff. The offset keeps several
+                # arms started at the same moment from re-colliding on every retry; it is derived
+                # from the pid rather than drawn, both because the global RNG is banned under
+                # govsim/core (it would break clone/rollout reproducibility) and because a
+                # per-process constant decorrelates parallel runs more reliably than a shared draw.
+                delay = self._suggested_delay(e)
+                if delay is None:
+                    delay = min(60.0, 2.0 * (2 ** attempt))
+                time.sleep(delay + (os.getpid() % 100) / 100.0)
+        raise last if last else RuntimeError("unreachable")
 
     def complete(
         self,
@@ -134,7 +200,7 @@ class OpenAICompatClient:
         for name in self.drop_params:
             kwargs.pop(name, None)
 
-        resp = client.chat.completions.create(**kwargs)
+        resp = self._call_with_retry(client, kwargs)
         msg = resp.choices[0].message
         tool_calls: list[dict[str, Any]] = []
         for tc in (getattr(msg, "tool_calls", None) or []):

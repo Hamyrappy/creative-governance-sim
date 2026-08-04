@@ -26,7 +26,8 @@ from govsim.core.system import Observation
 _PLACEHOLDER_RE = re.compile(r"(?<!\{)\{([a-zA-Z_]\w*)\}")
 
 # The non-observable legs of the four-source contract the AGENT supplies (not the world's observables).
-AGENT_SUPPLIED = {"available_context_vars", "history_text", "trace", "memory", "current_step", "critic"}
+AGENT_SUPPLIED = {"available_context_vars", "history_text", "trace", "memory", "current_step",
+                  "critic", "outcome"}
 
 
 def placeholders(template: str) -> set[str]:
@@ -88,6 +89,10 @@ class TemplatePromptAssembler:
         data["history_text"] = scratch.get("memory") or "(no history yet)"
         data["trace"] = f"Feedback on your last action: {scratch['trace']}" if scratch.get("trace") else ""
         data["critic"] = f"A critic flagged your previous law: {scratch['critic']} Revise it." if scratch.get("critic") else ""
+        data["outcome"] = (
+            f"How your recent laws actually performed (higher score is better):\n{scratch['outcome']}"
+            if scratch.get("outcome") else ""
+        )
         for v in space.verbs:
             if v.value_range:
                 data[f"{v.name}_range"] = v.value_range

@@ -42,6 +42,11 @@ def default_prompt_assembler(view: Observation, space: ActionSpace, scratch: dic
     user_parts = [f"Current observation (step {view.t}): {obs}"]
     if scratch.get("trace"):
         user_parts.append(f"Feedback on your last action: {scratch['trace']}")
+    if scratch.get("outcome"):
+        user_parts.append(
+            "How your recent laws actually performed (higher score is better):\n"
+            f"{scratch['outcome']}"
+        )
     if scratch.get("memory"):
         user_parts.append(f"Relevant past episodes:\n{scratch['memory']}")
     if scratch.get("critic"):

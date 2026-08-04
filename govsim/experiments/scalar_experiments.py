@@ -110,6 +110,7 @@ def _replay_client() -> CachingReplayClient:
         drop_params=frozenset(
             p.strip() for p in os.environ.get("GOVSIM_LLM_DROP_PARAMS", "").split(",") if p.strip()
         ),
+        min_interval=float(os.environ.get("GOVSIM_LLM_MIN_INTERVAL", "0") or 0),
     )
     return CachingReplayClient(inner, os.environ.get("GOVSIM_LLM_CACHE", "logs/llm_cache"),
                                mode=os.environ.get("GOVSIM_LLM_MODE", "cache"))

@@ -25,8 +25,10 @@ dependencies = [
 
 [project.scripts]
 govsim = "govsim.__main__:main"
-simulation = "govsim.simulation:run_simulation"
-visualize-linear = "govsim.chart_generators.visualize_linear_system:main"
+# NOTE: the legacy `simulation` / `visualize-linear` entry points were removed — they drove the
+# DEPRECATED config-driven path (govsim/simulation.py), shipping broken/degenerate commands next to
+# the real `govsim` CLI. The modules still import (removal deferred to Phase 4); run them via
+# `python -m govsim.simulation` if needed until then.
 
 [dependency-groups]
 dev = ["pytest>=8.4.1"]

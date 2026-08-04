@@ -66,6 +66,54 @@ class TraceFeedback(HarnessComponent):
             scratch["_pending_trace"] = outcome.error
 
 
+class OutcomeFeedback(HarnessComponent):
+    """Report how well the law you deployed last interval ACTUALLY scored, and keep the running log.
+
+    ``TraceFeedback`` is a *failure* channel: it fires only when an action was rejected or errored,
+    so a regent emitting perfectly well-formed policy sees nothing from it forever. That is fine for
+    catching malformed code and useless for noticing that the world changed underneath a
+    well-formed policy.
+
+    This is the *performance* channel — the institutional analogue of monitoring and evaluation. The
+    Runner already scores each regent's deployed law over the window since its previous decision
+    (``scratch["_last_realized_score"]``); this component surfaces that number, together with the
+    law that earned it, as ``scratch["outcome"]``. Two consecutive entries showing "same policy,
+    worse score" is the only signal in the whole harness from which an *unobservable* instrument
+    failure can be inferred at all — which is exactly why it is worth ablating separately rather
+    than bundling into "memory".
+
+    Scores are the Objective's own (higher is better), so "went down" always means "got worse".
+    """
+
+    name = "outcome_feedback"
+
+    def __init__(self, k: int = 4) -> None:
+        self.k = k
+        self.log: list[tuple[str, float]] = []  # (law deployed, realized score)
+
+    def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
+        realized = scratch.get("_last_realized_score")
+        pending = scratch.pop("_pending_outcome_law", None)
+        if realized is not None and pending is not None:
+            self.log.append((pending, float(realized)))
+        if not self.log:
+            scratch.pop("outcome", None)
+            return
+        lines = [f"- you deployed [{law}] and it scored {score:.4f}" for law, score in self.log[-self.k:]]
+        if len(self.log) >= 2:
+            (_, prev), (last_law, last) = self.log[-2], self.log[-1]
+            direction = "WORSE than" if last < prev else ("BETTER than" if last > prev else "the same as")
+            lines.append(f"  (the most recent result is {direction} the one before it)")
+            _ = last_law
+        scratch["outcome"] = "\n".join(lines)
+
+    def on_outcome(self, view: Observation, requests: list[ActionRequest], outcome: Outcome,
+                   scratch: dict) -> None:
+        if requests:
+            laws = "; ".join(f"{r.verb}: {r.payload.get('expr', r.payload)}" for r in requests)
+            scratch["_pending_outcome_law"] = laws
+
+
 class EpisodicMemory(HarnessComponent):
     """Retrieve the k most similar past (state, action, outcome) episodes by current metrics and
     inject them as ``scratch["memory"]`` — the cheap, RAG-style learning baseline (doc-08 §6).

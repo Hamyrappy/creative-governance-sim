@@ -208,7 +208,7 @@ class SIRSystem(LeverSystem):
         super().__init__()
         p = params or {}
         self.beta0_init: float = float(p.get("beta0", 0.35))
-        self.gamma: float = float(p.get("gamma", 0.10))
+        self.gamma_init: float = float(p.get("gamma", 0.10))
         self.noise_sigma: float = float(p.get("noise_sigma", 0.0))
         self.shock_step: int = int(p.get("shock_step", 120))
         self.shock_factor: float = float(p.get("shock_factor", 1.8))
@@ -232,6 +232,14 @@ class SIRSystem(LeverSystem):
         # Arbitrary named-parameter overwrite at the shock (as CubicSystem does), so the shock can
         # hit the instruments and not only transmissibility.
         self.shock_params: dict[str, float] = dict(p.get("shock_params", {}))
+        # Per-seed population heterogeneity. Without this the SIR dynamics are fully deterministic,
+        # every seed produces the identical trajectory, and a paired shared-seed design has nothing
+        # to pair over — the bootstrap CI would be an interval of width zero dressed up as a result.
+        # Drawn once in reset() from the system's own Generator, so runs stay reproducible.
+        self.beta0_sigma: float = float(p.get("beta0_sigma", 0.0))    # lognormal spread of β₀
+        self.gamma_sigma: float = float(p.get("gamma_sigma", 0.0))    # lognormal spread of γ
+        self.initial_i: float = float(p.get("initial_i", 0.01))
+        self.initial_i_sigma: float = float(p.get("initial_i_sigma", 0.0))
         self.reset(int(p.get("seed", 0)))
 
     @property
@@ -240,8 +248,16 @@ class SIRSystem(LeverSystem):
 
     def reset(self, seed: int) -> None:
         self.rng = np.random.default_rng(seed)
-        self.S, self.I, self.R = 0.99, 0.01, 0.0
+        i0 = self.initial_i
+        if self.initial_i_sigma > 0:
+            i0 = float(np.clip(i0 * np.exp(self.rng.normal(0.0, self.initial_i_sigma)), 1e-5, 0.5))
+        self.S, self.I, self.R = 1.0 - i0, i0, 0.0
         self.beta0 = self.beta0_init
+        if self.beta0_sigma > 0:
+            self.beta0 *= float(np.exp(self.rng.normal(0.0, self.beta0_sigma)))
+        self.gamma = self.gamma_init
+        if self.gamma_sigma > 0:
+            self.gamma *= float(np.exp(self.rng.normal(0.0, self.gamma_sigma)))
         self.lockdown_efficacy = self.lockdown_efficacy0
         self.vacc_efficacy = self.vacc_efficacy0
         self.lockdown = 0.0

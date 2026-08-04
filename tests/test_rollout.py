@@ -38,7 +38,7 @@ def test_rollout_does_not_mutate_the_live_system():
     before = sys.current_x
     score, traj = rollout(sys, iface, obj, [req], horizon=30)
     assert sys.current_x == before  # only the clone advanced
-    assert len(traj) == 31 and score <= 0.0  # StabilizationLoss is a negated loss
+    assert len(traj) == 30 and score <= 0.0  # post-step rows only (matches the Runner's slice)
 
 
 def test_rollout_seed_resamples_independent_future_from_same_state():

@@ -160,8 +160,10 @@ sandbox unless you mean to.
 - **Don't big-bang rewrite.** Follow the incremental migration in
   [`agents/03-refactor-plan.md`](agents/03-refactor-plan.md): one shippable, tested step per PR,
   with re-export shims so old import paths keep working mid-migration.
-- **Tests:** there are none yet. The first refactor step adds a golden-master test for a thesis
-  experiment plus sandbox/determinism tests — add to these; run `uv run pytest`.
+- **Tests:** the new stack has a green, key-free suite (`uv run pytest`) — golden-master, sandbox,
+  determinism/clone, stats, regents, harness, and gate invariants (CI runs it on 3.12 + 3.13). Add
+  to these; keep the suite green. Only the *legacy* `economic_models`/`governing_agents`/`simulation.py`
+  path is untested (deprecated, removal deferred to Phase 4).
 - **Add-a-thing should be one file + one registration**, never an edit to the core loop. If you
   find yourself editing `simulation.py` to add a world/agent, that's the signal to do the
   registry refactor first.
