@@ -120,3 +120,32 @@ prevent.
 *(append-only; each entry gives the date, what changed, and why)*
 
 - **2026-08-04** — initial registration.
+
+- **2026-08-04 (same day, after the first control arm returned) — PRIMARY METRIC CHANGED from
+  `post_loss` to full-horizon `loss`; a new reference `best_fixed` becomes the falsification target.**
+
+  *What triggered it.* The **no-harness control** arm returned `post_loss` 12.73 (gemini-3.5-flash-lite)
+  and 13.58 (gemini-3.1-flash-lite) against frozen 20.11 and the post-window oracle 11.84 — i.e.
+  R ≈ 0.11 for an arm that receives no feedback of any kind. The policy audit explained it: that arm
+  emits **64% bare constants**, never referencing the state at all.
+
+  *The flaw.* A post-break-only metric rewards passivity. A policy that never intervenes is wrong
+  before the break and, precisely because the break disables the instrument, nearly right after it.
+  It scores well on the post-window metric without having adapted to anything. The metric could not
+  distinguish "adapted" from "did nothing, and doing nothing happened to be right afterwards" —
+  which is the entire question.
+
+  *The fix.* Score the **full horizon**, and add the **best fixed law in hindsight** (`best_fixed`)
+  as the non-adaptive ceiling. No fixed law can be optimal on both sides of a break that moves the
+  optimum, so beating `best_fixed` requires genuinely changing behaviour and cannot be reached by
+  passivity. `switching` (pre-break optimum → post-break optimum at the exact break) becomes the R=0
+  anchor. Re-calibrated at n=20: frozen 27.97, best_fixed 27.11, switching 23.74 ⇒ adaptation is
+  worth **1.142×** over the best fixed rule. The scalar negative control drops to **1.039×**, so the
+  diagnostic still separates the two regimes.
+
+  *Why this is a deviation and not a repair of a typo.* It changes the headline number and it was
+  made after seeing a treatment-adjacent result, so it is disclosed in full. Nothing about the
+  worlds, seeds, arms, harness components, or correction procedure changed; the LLM call tape is
+  unaffected (no prompt depends on the scoring window), so every arm is re-scored on the identical
+  recorded runs rather than re-sampled. **H1/H1b/H3/H4 above are to be read against full-horizon
+  `loss` with `best_fixed` as the named non-adaptive rival.**

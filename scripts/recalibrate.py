@@ -80,6 +80,7 @@ def _regime_spec(name: str) -> dict:
             pre=R.sir_factory(R.EPIDEMIC_PRE), shocked=R.sir_factory(R.EPIDEMIC_SHOCKED),
             objective=EpidemicLoss(lam=R.EPIDEMIC_LAMBDA, post_shock_step=R.EPIDEMIC_SHOCK_STEP),
             schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), horizon=R.EPIDEMIC_HORIZON,
+            shock_step=R.EPIDEMIC_SHOCK_STEP,
         )
     if name == "scalar":
         return dict(
@@ -87,54 +88,106 @@ def _regime_spec(name: str) -> dict:
             pre=R.cubic_factory(R.SCALAR_PRE), shocked=R.cubic_factory(R.SCALAR_SHOCKED),
             objective=StabilizationLoss(lam=R.SCALAR_LAMBDA, post_shock_step=R.SCALAR_SHOCK_STEP),
             schedule=EveryN(R.SCALAR_DECIDE_EVERY), horizon=R.SCALAR_HORIZON,
+            shock_step=R.SCALAR_SHOCK_STEP,
         )
     raise KeyError(name)
 
 
 def run(name: str, seeds: list[int]) -> dict:
+    """Calibrate the four references the full-horizon comparison needs.
+
+    ``frozen``      best fixed law given only the pre-break world, held through the break.
+    ``best_fixed``  best fixed law over the WHOLE broken horizon, chosen in hindsight. This is the
+                    non-adaptive ceiling, and it is the reference that makes an adaptation claim
+                    falsifiable: no fixed law can be optimal on both sides of a break that moves the
+                    optimum, so beating it requires actually changing behaviour.
+    ``oracle``      best fixed law for the post-break window (kept for continuity of the post-window
+                    reporting; on its own it is NOT a sound target, see below).
+    ``switching``   pre-break optimum until the break, post-break optimum after — the clairvoyant
+                    adaptor, and the achievable end of the full-horizon scale.
+
+    Why the extra references: scoring only the post-break window rewards *passivity*. A policy that
+    never intervenes is wrong before the break and, when the break disables the instrument, nearly
+    right after it, so it scores well on a post-window metric without having adapted to anything. We
+    found this when the no-harness control arm scored suspiciously close to the post-window oracle.
+    Over the full horizon that free lunch disappears.
+    """
     s = _regime_spec(name)
     fam, iface, sched, hz, obj = s["family"], s["iface"], s["schedule"], s["horizon"], s["objective"]
-    print(f"\n=== {name}: {fam.size()} laws x 2 regimes x {len(seeds)} seeds ===")
+    print(f"\n=== {name}: {fam.size()} laws x {len(seeds)} seeds ===")
     sys.stdout.flush()
 
     frozen = calibrate(fam, system_factory=s["pre"], action_interface=iface, objective=obj,
                        schedule=sched, seeds=seeds, horizon=hz, metric="loss")
     oracle = calibrate(fam, system_factory=s["shocked"], action_interface=iface, objective=obj,
                        schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
-
-    # The WIDE oracle: same clairvoyance, but allowed to pick its functional form as well as its
-    # parameters. This is the reference that makes "the regent beat the oracle" mean something.
-    wide_name, wide = calibrate_families(
+    # The non-adaptive ceiling, over the full horizon, chosen with hindsight.
+    best_fixed_name, best_fixed = calibrate_families(
         s["families"], system_factory=s["shocked"], action_interface=iface, objective=obj,
-        schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
+        schedule=sched, seeds=seeds, horizon=hz, metric="loss")
 
     skw = dict(verb=fam.verb, system_factory=s["shocked"], action_interface=iface, objective=obj,
-               schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
-    fl = _score_expr(frozen.best_expr, **skw)
-    ol = _score_expr(oracle.best_expr, **skw)
-    wl = _score_expr(wide.best_expr, **skw)
-    h, hw = headroom(fl, ol), headroom(fl, wl)
+               schedule=sched, seeds=seeds, horizon=hz)
+    fl = _score_expr(frozen.best_expr, metric="loss", **skw)
+    bl = _score_expr(best_fixed.best_expr, metric="loss", **skw)
+    fl_post = _score_expr(frozen.best_expr, metric="post_loss", **skw)
+    ol_post = _score_expr(oracle.best_expr, metric="post_loss", **skw)
+
+    # The clairvoyant adaptor, scored the same way as everything else.
+    sl = _score_switching(frozen.best_expr, oracle.best_expr, s, seeds, metric="loss")
+
+    h_full = headroom(fl, sl)
+    h_vs_fixed = headroom(bl, sl)
     print(f"  frozen      : {frozen.best_expr}")
-    print(f"  oracle      : {oracle.best_expr}   (narrow family)")
-    print(f"  oracle_wide : {wide.best_expr}   (best of {sorted(s['families'])} -> '{wide_name}')")
-    print(f"  post_loss on the shocked world: frozen={fl:.5f}  oracle={ol:.5f}  oracle_wide={wl:.5f}")
-    print(f"  headroom (narrow)={h:.3f}x   headroom (wide)={hw:.3f}x")
+    print(f"  best_fixed  : {best_fixed.best_expr}   (hindsight, whole horizon, '{best_fixed_name}')")
+    print(f"  oracle(post): {oracle.best_expr}")
+    print(f"  switching   : [{frozen.best_expr}]  ->  [{oracle.best_expr}]  at t={s['shock_step']}")
+    print(f"  full-horizon loss: frozen={fl:.4f}  best_fixed={bl:.4f}  switching={sl:.4f}")
+    print(f"  headroom  frozen/switching = {h_full:.3f}x   best_fixed/switching = {h_vs_fixed:.3f}x")
+    if h_vs_fixed < 1.05:
+        print("  [!] the best FIXED law nearly matches the clairvoyant adaptor — adaptation buys "
+              "almost nothing here even over the full horizon")
     return {
         "verb": fam.verb,
-        "frozen": {"expr": frozen.best_expr, "params": frozen.best_params, "post_loss": fl},
-        "oracle": {"expr": oracle.best_expr, "params": oracle.best_params, "post_loss": ol},
-        "oracle_wide": {"expr": wide.best_expr, "params": wide.best_params, "post_loss": wl,
-                        "family": wide_name},
-        "headroom": h,
-        "headroom_wide": hw,
+        "switch_step": s["shock_step"],
+        "frozen": {"expr": frozen.best_expr, "params": frozen.best_params,
+                   "loss": fl, "post_loss": fl_post},
+        "best_fixed": {"expr": best_fixed.best_expr, "params": best_fixed.best_params,
+                       "loss": bl, "family": best_fixed_name},
+        "oracle": {"expr": oracle.best_expr, "params": oracle.best_params, "post_loss": ol_post},
+        "switching": {"pre_expr": frozen.best_expr, "post_expr": oracle.best_expr, "loss": sl},
+        "headroom": h_full,
+        "headroom_vs_best_fixed": h_vs_fixed,
         "provenance": {
             "n_seeds": len(seeds), "seeds": seeds, "family_template": fam.template,
             "family_grid": fam.grid, "family_size": fam.size(),
             "wide_families": {n: f.template for n, f in s["families"].items()},
             "horizon": hz, "decide_every": sched.n if hasattr(sched, "n") else None,
+            "primary_metric": "loss (full horizon)",
             "calibrated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         },
     }
+
+
+def _score_switching(pre_expr: str, post_expr: str, s: dict, seeds: list[int], metric: str) -> float:
+    """Score the clairvoyant adaptor through the normal Runner path, so it is comparable."""
+    import math
+    import statistics as st
+
+    from govsim.core.experiment import Experiment, Hypothesis
+    from govsim.core.runner import Runner
+    from govsim.regents import SwitchingRegent
+
+    exp = Experiment(
+        name="calib:switching", system_factory=s["shocked"], action_interface=s["iface"],
+        regents={"regent:0": SwitchingRegent(s["family"].verb, pre_expr, post_expr, s["shock_step"])},
+        objectives={"regent:0": s["objective"]}, schedule=s["schedule"], seeds=seeds,
+        horizon=s["horizon"],
+        hypothesis=Hypothesis(id="calibration", claim="clairvoyant adaptor reference",
+                              baseline="the same family without the switch", primary_metric=metric),
+    )
+    vals = [r.components["regent:0"][metric] for r in Runner().run(exp)]
+    return float("inf") if any(not math.isfinite(v) for v in vals) else st.fmean(vals)
 
 
 def main() -> int:

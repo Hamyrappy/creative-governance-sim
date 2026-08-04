@@ -1,0 +1,300 @@
+\documentclass[11pt]{article}
+\input{preamble}
+\IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
+
+\title{\bfseries Rules That Stop Working\\
+\large Why feedback institutions survive shocks to the world but not shocks to their own
+instruments, and what it takes to notice}
+
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+A standing policy rule---``restrict activity whenever the indicator crosses this threshold''---is a
+feedback device, and feedback devices are unexpectedly robust. When the world worsens, the indicator
+rises, the rule fires more often, and the institution keeps doing roughly the right thing without
+anyone revisiting the statute. We show computationally that this robustness has a sharp boundary,
+and that the boundary is not where the literature on institutional adaptation usually looks.
+
+Using a simulated polity governing an endemic epidemic, we separate two kinds of structural break.
+When the \emph{environment} changes---the pathogen becomes more transmissible---a rule calibrated
+before the change remains within one percent of the best rule available after it. There is
+essentially nothing for adaptation to do. When the \emph{instrument} changes---the same lockdown now
+delivers a quarter of the behavioural response while costing what it always cost---the pre-shock
+rule carries a large excess burden, and its feedback structure makes matters worse rather than
+better: rising prevalence causes it to intervene harder, buying less each time. The optimal response
+is to withdraw from the failing instrument, which is the opposite of what the rule does.
+
+We then ask what an authority must be able to observe to notice. We give a policy-maker---instantiated
+as a language model that writes its rules as short executable expressions, so that every enacted
+policy is a legible, archivable artifact---a governing loop equipped with different informational
+channels, and vary them factorially: a compliance channel reporting rule violations, a monitoring
+channel reporting the realized performance of the policy actually in force, and an institutional
+memory of precedents. \ResultsAbstractSentence
+
+The design implication is specific. Auditing whether a rule was followed cannot reveal that the rule
+has stopped working; only evaluating what the rule achieved can. Institutions built to detect
+non-compliance are, in a precise and measurable sense, blind to instrument failure.
+\end{abstract}
+
+\section{The problem: when is a rule stale?}
+
+Institutions govern through standing rules. A central bank follows a reaction function, a health
+authority a threshold for restrictions, a regulator a trigger for intervention. Writing the rule
+down is the point: it makes the state's behaviour predictable, reviewable, and contestable in a way
+that discretionary case-by-case action is not.
+
+The standard worry about such rules is that they go stale, and the canonical statement of the worry
+is Lucas's: a relation estimated under one policy regime need not survive the introduction of
+another \citep{lucas1976critique}, with Goodhart's \citeyearpar{goodhart1984monetary} corollary that
+a measure targeted by policy ceases to be a good measure. Both are usually read as warnings about
+\emph{estimation}. We want to read them as a question about \emph{institutional design}: given that
+a rule will eventually stop working, what does the institution enforcing it have to be able to see
+in order to find out?
+
+This paper makes three moves. First, we show that ``the rule goes stale'' is far too coarse: the
+staleness of a feedback rule depends on \emph{which part of the world moved}, and for one large
+class of movements the rule barely goes stale at all. Second, we identify the class that does break
+it---changes to the efficacy of the instrument the rule operates---and show why a feedback structure
+converts that change from a nuisance into an active harm. Third, we vary the informational
+architecture around a rule-writing authority and measure which channel is load-bearing for
+detection.
+
+\subsection{Why a computational model, and what it is for}
+
+We use a simulation because the question is counterfactual in a way historical policy episodes
+cannot be: we need to know how well the \emph{best available} rule would have performed after a
+break in order to say whether an authority's response was good, and no observed polity provides
+that. Our claim is not that the simulation predicts what any real health authority would do
+\citep[a claim that would require far more than statistical realism;][]{li2026statistical}, but that
+it isolates a mechanism and bounds it.
+
+The policy-maker in our model is a large language model. We use it not as a claim about how humans
+reason but as a convenient generator of \emph{written rules}: it must express its policy as a short
+executable expression, which means every decision it takes leaves an inspectable artifact and its
+revision history is measurable. Where prior work has language models set a tax rate or fill in a
+fixed policy schema \citep{wang2025taxagent,li2023econagent,decurto2026narratives}, here the object
+the authority produces is the rule itself. That is what makes questions like ``did the institution
+revise its policy, and in which direction'' answerable at all.
+
+\section{The model}
+\label{sec:model-social}
+
+A full ODD-style specification is in \cref{app:odd}; the essentials follow.
+
+\paragraph{The governed system.} A population is partitioned into susceptible, infectious, and
+recovered shares \citep{kermack1927contribution}. Immunity wanes and a small number of cases arrive
+from outside, so the disease is \emph{endemic}: it does not burn out and cannot be waited out. This
+is a substantive modelling choice rather than a technical one. In a model where the epidemic ends by
+itself, ``do nothing until it is over'' is a viable strategy, and the interesting governance question
+disappears.
+
+\paragraph{The authority.} At regular review points the authority promulgates a standing rule
+governing two costed instruments, restriction intensity and vaccination effort. The rule is applied
+every period until replaced, not re-decided each period---an institution issuing a standing rule
+rather than an administrator making daily calls. It is scored on infection burden plus a weight
+$\lambda$ times intervention cost.
+
+$\lambda$ is the polity's political economy in one number: the price it places on a unit of
+restriction relative to a unit of illness. It is not a nuisance parameter to be marginalized. Set it
+low and permanent maximal restriction is optimal; set it high and doing nothing is; and in both
+cases the optimum sits at a corner where no shock can move it. Only at intermediate values does the
+polity face a genuine trade-off, and only then can it be said to adapt at all. We report the whole
+range (\cref{fig:surface}) rather than a single calibration.
+
+\paragraph{The break.} At the midpoint of the horizon, without announcement, the efficacy of
+restriction falls to a quarter: the same order produces a quarter of the behavioural change, while
+costing exactly what it did before. Compliance fatigue is the obvious reading. Crucially,
+\textbf{efficacy is never observable}. The authority sees prevalence, its own past choices, and
+whatever its institutional memory retains. It never sees the parameter connecting them.
+
+\section{Measuring what adaptation could be worth}
+\label{sec:headroom-social}
+
+Comparative claims about institutional adaptation are usually made against a single reference: the
+policy that was in force before. That reference tells us whether an authority changed course
+profitably. It cannot tell us whether changing course was worth much, and without that, a finding of
+``no adaptation effect'' is uninterpretable---it may be a fact about the authority or a fact about
+the situation.
+
+We therefore calibrate two references inside one shared vocabulary of rules. The \emph{frozen} rule
+is the best rule available given everything knowable before the break, held unchanged through it.
+The \emph{clairvoyant} rule is the best rule in the same vocabulary given the break already known.
+They differ in exactly one respect: when they were allowed to look. The ratio of their post-break
+burdens is the \emph{adaptation headroom}, and it is the entire prize any adapting authority is
+competing for.
+
+\input{generated/headroom_table}
+
+\begin{figure}[t]\centering
+\includegraphics[width=0.82\linewidth]{generated/fig_headroom_surface}
+\caption{\textbf{Adaptation is worth something only in a narrow band of political economies.}
+Rows vary how badly the instrument fails; columns vary $\lambda$, the polity's price on
+restriction. Cells marked ``='' are ones where the best rule before the break and the best rule
+after it are \emph{the same rule}: the break does not move the optimum, so there is nothing to
+adapt to. At low $\lambda$ the polity should always restrict and at high $\lambda$ never; both are
+corner solutions and both are immune to the shock. Institutional adaptation is a meaningful category
+only in between.}
+\label{fig:surface}
+\end{figure}
+
+\subsection{The first result: which shocks a rule shrugs off}
+
+\Cref{tab:headroom} and \cref{fig:surface} carry the paper's first finding. A shock to the
+\emph{environment}---a more transmissible pathogen---leaves headroom of essentially one. The
+pre-break rule remains near-optimal after the break, and no authority, however attentive, could have
+demonstrated an improvement.
+
+The reason is that a threshold rule is a feedback device. The shock raises prevalence; prevalence is
+the variable the rule keys on; so the rule fires more often, entirely on its own. The institution
+adapts without anyone adapting it, because the indicator still means what it meant.
+
+A shock to the \emph{instrument} is different in kind. Nothing in the indicator reveals that a unit
+of restriction now buys less, so no threshold on that indicator recovers the right behaviour. Worse,
+the feedback structure that was protective before is now actively harmful: prevalence rises, so the
+rule restricts harder, so the polity pays more for a fraction of the effect. The correct response is
+to \emph{stop}, which is precisely the response the rule's own logic forbids.
+
+\begin{takeaway}
+Feedback rules are robust to shocks in the governed system and fragile to shocks in the governing
+instrument. The robustness and the fragility have the same cause.
+\end{takeaway}
+
+\begin{figure}[t]\centering
+\includegraphics[width=0.72\linewidth]{generated/fig_policy_divergence}
+\caption{\textbf{One polity, three institutions.} Before the break the frozen rule is the good
+policy---it suppresses prevalence almost completely, which is why it was chosen. After the break it
+continues to enact maximal restriction, accumulating cost while prevalence rises anyway. The
+clairvoyant institution has withdrawn; the language-model authority converges on a proportional
+response that approximates withdrawal while retaining a small standing intervention.}
+\label{fig:divergence}
+\end{figure}
+
+\section{What must an institution see?}
+\label{sec:channels-social}
+
+If instrument failure is the case that matters, the design question becomes concrete: what
+information does an authority need in order to detect one? We equip the rule-writing authority with
+different channels and vary them factorially. Each is a recognizable piece of institutional
+machinery:
+
+\begin{description}[leftmargin=0em,style=nextline]
+\item[Compliance reporting] The authority learns when its instructions were rejected or
+malformed---the analogue of an enforcement or legal-validity channel. It reports on the
+\emph{form} of the rule and says nothing about its consequences. An authority issuing valid rules
+receives, correctly, no information from it at all.
+\item[Outcome monitoring] The authority learns what its currently standing rule actually achieved
+over the last review period, and retains the preceding entries. This is monitoring and evaluation in
+the ordinary administrative sense. It is the only channel in which an unobservable instrument
+failure leaves any trace, and the trace is indirect: two consecutive reviews reading ``same policy,
+worse result''.
+\item[Institutional memory] Retrieved precedent---the most similar past situations and what was done
+then. Valuable for recurring problems and, across a structural break, potentially misleading, since
+the most similar past situation may belong to a regime that no longer exists.
+\end{description}
+
+Stating the prediction in advance, and asymmetrically: monitoring should carry the effect;
+compliance reporting should do nothing here; memory may be neutral or actively harmful across the
+break. The full pre-registration, including the conditions under which we would withdraw rather than
+adjust the claim, was committed before the treatment runs.
+
+\section{Results}
+\label{sec:results-social}
+
+\ResultsBody
+
+\input{generated/arms_table}
+\input{generated/factorial_table}
+
+\subsection{What the authority actually wrote}
+
+Because policy here is code rather than a number, the enacted rules can simply be read.
+\Cref{tab:crossmodel} reports whether the ordering replicates across the language models we could
+access; more informative for a reader is the content of the rules themselves. Three observations
+recur.
+
+Authorities with no informational channel at all overwhelmingly emit \emph{constants}---a fixed
+restriction level with no reference to the state of the epidemic. This is not a novel or creative
+policy; it is a degenerate one, less responsive than the threshold rules the references use. An
+authority with nothing to learn from does not merely fail to adapt: it never engages with the
+situation in the first place.
+
+Authorities with monitoring converge instead on \emph{proportional} rules, restricting in proportion
+to prevalence. This form lies outside the threshold vocabulary the clairvoyant reference was
+optimized within, which is a caution as much as a result---an authority that outperforms the
+reference by writing a rule the reference could not express is telling us about our choice of
+vocabulary. We therefore re-calibrate the clairvoyant reference over a widened vocabulary including
+that form and report both comparisons.
+
+Third, the direction of revision is measurable and it matters. An authority that responds to
+worsening outcomes by restricting harder is failing in exactly the way the frozen rule fails, even
+though it is nominally adapting.
+
+\input{generated/crossmodel_table}
+
+\section{Discussion}
+
+\paragraph{An audit of compliance is not an audit of efficacy.} The sharpest implication is
+negative. A channel that reports whether rules were followed contains no information about whether
+following them still accomplishes anything. These are different questions, and an institution
+equipped only for the first is blind to instrument failure by construction rather than by
+inattention. That is a claim about informational architecture, and it does not depend on the
+authority being a language model: any decision procedure restricted to compliance data faces the
+same wall.
+
+\paragraph{Rules fail in the direction of their own logic.} A feedback rule does not fail by going
+quiet. It fails by doing more of what it does, more expensively, in response to the deterioration it
+is itself failing to prevent. Escalation is the diagnostic signature of instrument failure, and it
+looks from the inside exactly like the rule working hard.
+
+\paragraph{Adaptation is a category with boundaries.} \Cref{fig:surface} shows that most of the
+parameter space we might have studied contains no adaptation problem: at a corner solution the
+optimal rule is invariant to the shock. This is worth stating to a literature that routinely asks
+whether agents, institutions, or organizations adapt without establishing that adapting was
+available. A null result in a region with no headroom is not evidence of rigidity.
+
+\paragraph{Policy as a readable artifact.} Requiring the authority to express itself in code is a
+methodological choice with a payoff for social science specifically: the object of study becomes a
+sequence of legible rules with a revision history, rather than a sequence of actions from which a
+rule must be inferred. Questions about \emph{how} policy changed---abruptly or gradually, in form or
+in parameter, toward escalation or withdrawal---become directly measurable.
+
+\section{Limitations}
+
+The model is a stylized governance setting, not an epidemiological or public-health one, and nothing
+here is a recommendation about restrictions. The authority is a language model, which is a
+convenient rule-writer and not a model of human deliberation; we make no claim that its failures
+resemble human ones. Model access was limited to what was reachable without paid inference, biasing
+the panel toward smaller systems. Following \citet{ye2026trails} we audit robustness at the level of
+the environment and the protocol but do not systematically vary the wording in which the authority's
+task is described. Finally, in the present regime the clairvoyant response is close to withdrawal;
+a stronger version, in which a second instrument survives the break so that the correct response is
+substitution rather than retreat, is specified and not yet run.
+
+\section{Conclusion}
+
+Institutions do not usually fail because their rules were wrong when written. They fail because the
+world moved and nothing in the institution's information flow made that visible. We have tried to
+make that intuition precise: to separate the movements a feedback rule quietly absorbs from those it
+converts into escalating harm, to measure how much any given movement leaves worth adapting to, and
+to identify which of an institution's informational channels can carry the news. The channel that
+can is the one that asks what the policy achieved. The channel that cannot---and that institutions
+build first---is the one that asks whether the policy was obeyed.
+
+\appendix
+\section{Model specification (ODD-style)}
+\label{app:odd}
+\input{generated/odd}
+
+\section{Reproduction}
+\label{app:repro-social}
+\input{generated/repro}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

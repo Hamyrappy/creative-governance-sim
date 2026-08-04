@@ -10,20 +10,27 @@ prevalence, its own past choices, and whatever its harness remembers; efficacy i
 **Why this world and not the scalar plant.** Measured, not assumed
 (``scripts/headroom_audit.py``): a threshold-on-prevalence rule is *feedback*, so it absorbs a
 transmissibility shock on its own — prevalence rises, the rule triggers more often, and a frozen
-policy stays near-optimal. Headroom ≈ 1.0x, and no controller could have shown an effect there. An
-**instrument** shock is not absorbed, because the observable no longer says what the lever is worth.
-Headroom ≈ 1.7x, with an interior optimum on both sides. The scalar arms below are kept as a
-declared negative control at ≈1.14x: the regime where the diagnostic predicts no findable effect.
+policy stays near-optimal. No controller could have shown an effect there. An **instrument** shock
+is not absorbed, because the observable no longer says what the lever is worth. The scalar arms
+below are kept as a declared negative control.
 
-**The two anchors** are calibrated by exhaustive search over one shared threshold-policy family
-(``scripts/recalibrate.py`` → ``docs_gates/calibration.json``), so they differ only in *when* they
-were allowed to look:
+**Four calibrated references**, all by exhaustive search over the same policy vocabulary
+(``scripts/recalibrate.py`` → ``docs_gates/calibration.json``), so they differ only in what they
+were allowed to know:
 
-    frozen  ``0.9 if I > 0.01 else 0.0``   optimal before the break, deployed unchanged (R = 1)
-    oracle  ``0.9 if I > 0.25 else 0.0``   optimal after it, clairvoyant                  (R = 0)
+    frozen      ``0.9 if I > 0.01 else 0.0``   optimal before the break, held through it   (R = 1)
+    best_fixed  ``0.9 if I > 0.25 else 0.0``   best FIXED law over the whole broken horizon,
+                                               chosen in hindsight — the non-adaptive ceiling
+    switching   frozen → best-post, at t=100   the clairvoyant ADAPTOR                     (R = 0)
 
-The oracle's answer is the substantive one: keep the intensity, raise the trigger twenty-fold. Stop
-paying for an instrument that no longer works, except in a genuine emergency.
+**Why the metric is the full horizon and not the post-break window.** Scoring only the post-break
+window rewards *passivity*: a policy that never intervenes is wrong before the break and, because
+the break disables the instrument, close to right after it — so it scores well without having
+adapted to anything. We found this when the no-harness control arm landed within 11% of the
+post-window oracle while emitting mostly constants. Over the full horizon the free lunch is gone,
+because no fixed law is optimal on both sides of a break that moves the optimum. **Beating
+``best_fixed`` is therefore what "the regent adapted" has to mean**, and it is the pre-registered
+falsification target (deviation logged in ``docs_gates/preregistration.md`` §8).
 
 **The ablation** is a 2×2×2 factorial over three *different kinds* of information, not one-at-a-time:
 ``TraceFeedback`` (failures), ``OutcomeFeedback`` (realized performance), ``EpisodicMemory``
@@ -57,7 +64,7 @@ from govsim.domains.scalar import (
 from govsim.domains.scalar import regimes as R
 from govsim.experiments import register
 from govsim.harness import Critic, EpisodicMemory, OutcomeFeedback, TraceFeedback
-from govsim.regents import LLMRegent, OPRORegent
+from govsim.regents import LLMRegent, OPRORegent, SwitchingRegent
 
 # Seeds: the pre-registered headline count. 20 paired seeds is the stats-protocol floor for a
 # headline claim; the development floor of 5 is for smoke runs only.
@@ -109,8 +116,9 @@ _EPIDEMIC_CLAIM = (
     "rule it started from"
 )
 _EPIDEMIC_BASELINE = (
-    "calibrated frozen threshold institution (epidemic_frozen, R=1) and budget-matched trace-less "
-    "OPRO (epidemic_opro); calibrated clairvoyant oracle (epidemic_oracle) anchors R=0"
+    "the best FIXED law in hindsight (epidemic_best_fixed) — the non-adaptive ceiling — plus the "
+    "calibrated frozen institution (epidemic_frozen, R=1) and budget-matched trace-less OPRO "
+    "(epidemic_opro); the clairvoyant switching adaptor (epidemic_switching) anchors R=0"
 )
 
 
@@ -133,9 +141,10 @@ def _epidemic_experiment(name: str, regent, harness: Harness, *, claim: str = _E
             id=hyp_id,
             claim=claim,
             baseline=_EPIDEMIC_BASELINE,
-            primary_metric="post_loss",
+            primary_metric="loss",  # FULL horizon — see the note on passivity below
             falsification=falsification or (
-                "the paired bootstrap CI of (arm - frozen) on post_loss includes 0 over 20 seeds"
+                "the paired bootstrap CI of (arm - best_fixed) on full-horizon loss includes 0 "
+                "over 20 seeds"
             ),
         ),
         creativity_metric=creativity,
@@ -162,6 +171,37 @@ def epidemic_frozen() -> Experiment:
         claim="this IS the named non-adaptive baseline: the pre-shock-optimal threshold institution",
         falsification="n/a — reference arm",
         metadata={"role": "reference:frozen", "normalized_regret": 1.0},
+    )
+
+
+@register("epidemic_best_fixed")
+def epidemic_best_fixed() -> Experiment:
+    """The NON-ADAPTIVE CEILING: the single best fixed law over the whole broken horizon, chosen
+    with hindsight. Beating this is what "the regent adapted" has to mean — a fixed law cannot be
+    optimal on both sides of a break that moves the optimum, so any arm that beats it must have
+    changed its behaviour, and no arm can reach it by being passive."""
+    return _epidemic_experiment(
+        "epidemic_best_fixed",
+        ScriptedRegent(verb="set_lockdown", expr=R.reference_expr("epidemic", "best_fixed")),
+        Harness([]),
+        claim="this IS the non-adaptive ceiling: the best fixed law in hindsight",
+        falsification="n/a — reference arm",
+        metadata={"role": "reference:best_fixed"},
+    )
+
+
+@register("epidemic_switching")
+def epidemic_switching() -> Experiment:
+    """R = 0. The clairvoyant ADAPTOR: pre-break optimum until the break, post-break optimum after.
+    It is handed both laws and the exact switch time, none of which any other arm can see."""
+    pre, post, step = R.switching_reference("epidemic")
+    return _epidemic_experiment(
+        "epidemic_switching",
+        SwitchingRegent("set_lockdown", pre, post, step),
+        Harness([]),
+        claim="this IS the clairvoyant upper bound: the optimal policy switch at the exact break",
+        falsification="n/a — reference arm",
+        metadata={"role": "reference:switching", "normalized_regret": 0.0},
     )
 
 
@@ -267,7 +307,8 @@ def epidemic_opro() -> Experiment:
 # ---------------------------------------------------------------------------------------------
 
 _SCALAR_NULL_NOTE = (
-    "declared negative control: the measured headroom in this regime is ~1.14x, so the diagnostic "
+    "declared negative control: the best FIXED law in hindsight comes within ~4% of the "
+    "clairvoyant adaptor in this regime, so the diagnostic "
     "predicts almost no findable effect here. It is reported to show the headroom measure has "
     "discriminating power, not because an effect is expected."
 )
@@ -290,8 +331,8 @@ def _scalar_experiment(name: str, regent, harness: Harness, claim: str, role: st
             id="H1-negative-control",
             claim=claim,
             baseline="calibrated frozen (scalar_frozen) and clairvoyant oracle (scalar_oracle)",
-            primary_metric="post_loss",
-            falsification="an effect IS found here despite ~1.14x headroom, which would indicate "
+            primary_metric="loss",
+            falsification="an effect IS found here despite ~1.04x adaptation headroom, which would indicate "
                           "the headroom measure understates what is achievable outside the "
                           "calibration family",
         ),

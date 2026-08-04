@@ -114,12 +114,29 @@ def calibration() -> dict[str, Any]:
     return json.loads(CALIBRATION_PATH.read_text(encoding="utf-8"))
 
 
-def reference_expr(regime: str, which: str) -> str:
-    """Look up a calibrated reference law, e.g. ``reference_expr("epidemic", "frozen")``."""
+def _reference(regime: str, which: str) -> dict:
     data = calibration().get(regime)
     if not data or which not in data:
         raise RuntimeError(
             f"no calibrated '{which}' policy for regime '{regime}'. "
             f"Run `uv run python scripts/recalibrate.py` to generate {CALIBRATION_PATH.name}."
         )
-    return data[which]["expr"]
+    return data[which]
+
+
+def reference_expr(regime: str, which: str) -> str:
+    """Look up a calibrated reference law, e.g. ``reference_expr("epidemic", "frozen")``."""
+    return _reference(regime, which)["expr"]
+
+
+def switching_reference(regime: str) -> tuple[str, str, int]:
+    """``(pre_expr, post_expr, switch_step)`` for the clairvoyant ADAPTOR.
+
+    This is the reference the headline claim is measured against, because the *fixed*-policy
+    references cannot separate adaptation from passivity: on a post-break-only metric a policy that
+    simply never intervenes scores well without having adapted at all. Over the full horizon no
+    fixed law can be optimal on both sides of a break that moves the optimum, so the gap between
+    the best fixed law in hindsight and this switching law is exactly what adaptation is worth.
+    """
+    d = _reference(regime, "switching")
+    return d["pre_expr"], d["post_expr"], int(calibration()[regime]["switch_step"])

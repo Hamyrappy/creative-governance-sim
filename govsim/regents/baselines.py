@@ -76,6 +76,32 @@ class LQRRegent(Regent):
         return [ActionRequest(regent_id=self.id, verb=self.verb, payload={"expr": expr})]
 
 
+class SwitchingRegent(Regent):
+    """Enacts one law before ``switch_step`` and another at or after it — the CLAIRVOYANT adaptor.
+
+    This is the reference that makes an adaptation claim falsifiable when the metric spans the whole
+    horizon. Scoring only the post-break window turns out to reward *passivity*: a policy that never
+    intervenes is wrong before the break and, if the break makes the instrument useless, close to
+    right after it, so it scores well without having adapted to anything. Over the full horizon no
+    single fixed law can be optimal on both sides of a break that moves the optimum, so beating the
+    best fixed law in hindsight requires actually changing behaviour.
+
+    It is given both laws and the exact switch time, none of which any other arm can see.
+    """
+
+    def __init__(self, verb: str, pre_expr: str, post_expr: str, switch_step: int,
+                 id: str = "regent:0") -> None:
+        super().__init__(id)
+        self.verb = verb
+        self.pre_expr = pre_expr
+        self.post_expr = post_expr
+        self.switch_step = switch_step
+
+    def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
+        expr = self.pre_expr if view.t < self.switch_step else self.post_expr
+        return [ActionRequest(regent_id=self.id, verb=self.verb, payload={"expr": expr})]
+
+
 class OracleRegent(LQRRegent):
     """The CLAIRVOYANT full-information reference: it is handed the *post*-shock plant.
 

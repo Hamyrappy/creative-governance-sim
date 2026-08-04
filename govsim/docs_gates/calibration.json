@@ -1,13 +1,24 @@
 {
   "epidemic": {
     "verb": "set_lockdown",
+    "switch_step": 100,
     "frozen": {
       "expr": "0.9 if I > 0.01 else 0.0",
       "params": {
         "a": 0.9,
         "thr": 0.01
       },
+      "loss": 27.972078470344606,
       "post_loss": 20.106821574866427
+    },
+    "best_fixed": {
+      "expr": "0.9 if I > 0.25 else 0.0",
+      "params": {
+        "a": 0.9,
+        "thr": 0.25
+      },
+      "loss": 27.113831680552284,
+      "family": "threshold"
     },
     "oracle": {
       "expr": "0.9 if I > 0.25 else 0.0",
@@ -17,17 +28,13 @@
       },
       "post_loss": 11.841708478962659
     },
-    "oracle_wide": {
-      "expr": "0.9 if I > 0.25 else 0.0",
-      "params": {
-        "a": 0.9,
-        "thr": 0.25
-      },
-      "post_loss": 11.841708478962659,
-      "family": "threshold"
+    "switching": {
+      "pre_expr": "0.9 if I > 0.01 else 0.0",
+      "post_expr": "0.9 if I > 0.25 else 0.0",
+      "loss": 23.73565540965903
     },
-    "headroom": 1.6979662698661364,
-    "headroom_wide": 1.6979662698661364,
+    "headroom": 1.178483508779016,
+    "headroom_vs_best_fixed": 1.1423249627022531,
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -83,18 +90,30 @@
       },
       "horizon": 200,
       "decide_every": 10,
-      "calibrated_at": "2026-08-04T15:42:18+00:00"
+      "primary_metric": "loss (full horizon)",
+      "calibrated_at": "2026-08-04T16:23:38+00:00"
     }
   },
   "scalar": {
     "verb": "set_control_input",
+    "switch_step": 100,
     "frozen": {
       "expr": "-(1.3 * current_x + 3.0 * current_x ** 3)",
       "params": {
         "k": 1.3,
         "c": 3.0
       },
+      "loss": 0.035827132175606013,
       "post_loss": 0.06334131832721326
+    },
+    "best_fixed": {
+      "expr": "-(1.9 * current_x + 3.0 * current_x ** 3)",
+      "params": {
+        "k": 1.9,
+        "c": 3.0
+      },
+      "loss": 0.0330834763692725,
+      "family": "cubic_gain"
     },
     "oracle": {
       "expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
@@ -104,17 +123,13 @@
       },
       "post_loss": 0.05622055617279676
     },
-    "oracle_wide": {
-      "expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
-      "params": {
-        "k": 2.6,
-        "c": 3.0
-      },
-      "post_loss": 0.05622055617279676,
-      "family": "cubic_gain"
+    "switching": {
+      "pre_expr": "-(1.3 * current_x + 3.0 * current_x ** 3)",
+      "post_expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
+      "loss": 0.031849705032051714
     },
-    "headroom": 1.1266576255939282,
-    "headroom_wide": 1.1266576255939282,
+    "headroom": 1.1248811296541568,
+    "headroom_vs_best_fixed": 1.0387372924169687,
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -164,7 +179,8 @@
       },
       "horizon": 200,
       "decide_every": 10,
-      "calibrated_at": "2026-08-04T15:43:24+00:00"
+      "primary_metric": "loss (full horizon)",
+      "calibrated_at": "2026-08-04T16:24:50+00:00"
     }
   }
 }

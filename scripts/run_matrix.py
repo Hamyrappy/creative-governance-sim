@@ -21,6 +21,7 @@ import statistics
 import sys
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -44,7 +45,7 @@ FACTORIAL = [
     "epidemic_llm_outcome_memory",
     "epidemic_llm_trace_outcome_memory",
 ]
-REFERENCES = ["epidemic_frozen", "epidemic_oracle"]
+REFERENCES = ["epidemic_frozen", "epidemic_best_fixed", "epidemic_switching", "epidemic_oracle"]
 GROUPS = {
     # References first: they are key-free and instant, so a broken world config surfaces before
     # thousands of paid calls, not after.
@@ -66,18 +67,39 @@ def _needs_llm(arm: str) -> bool:
     return "llm" in arm or "opro" in arm
 
 
-def run_pair(model: str, arm: str, seeds: list[int], store: ResultStore) -> dict:
-    """Run one (model, arm) over all seeds. Returns a summary row; never raises."""
+def run_pair(model: str, arm: str, seeds: list[int], store: ResultStore, workers: int = 1) -> dict:
+    """Run one (model, arm) over all seeds. Returns a summary row; never raises.
+
+    Seeds run concurrently when ``workers > 1``. Two things make that safe rather than merely fast:
+    each worker calls ``experiments.get(arm)`` for itself, so no regent or harness object (and in
+    particular no ``EpisodicMemory``) is shared across threads; and nothing is written to the store
+    until every seed is back, because the sqlite connection belongs to the calling thread. The work
+    is almost entirely waiting on the network, so the speedup is close to linear until the
+    provider's rate limit binds and the client's backoff takes over.
+    """
     os.environ["OPENAI_MODEL"] = model
     # Imported here, AFTER the env is set: experiment factories read OPENAI_MODEL at construction,
     # so the registry must be consulted per pair rather than captured once at import.
     from govsim import experiments
 
     t0 = time.time()
+
+    def one_seed(seed: int):
+        exp = experiments.get(arm)  # a FRESH regent + harness per seed
+        exp.seeds = [seed]
+        return Runner().run(exp)
+
     try:
-        exp = experiments.get(arm)
-        exp.seeds = list(seeds)
-        records = Runner(result_store=store).run(exp)
+        if workers <= 1:
+            exp = experiments.get(arm)
+            exp.seeds = list(seeds)
+            records = Runner().run(exp)
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                nested = list(pool.map(one_seed, seeds))
+            records = [r for group in nested for r in group]
+        for rec in records:  # single-threaded persistence
+            store.add(rec)
     except Exception as e:  # noqa: BLE001 - one bad pair must not kill a multi-hour sweep
         print(f"FAILED  {model:<26} {arm:<36} {type(e).__name__}: {str(e)[:160]}", flush=True)
         traceback.print_exc(file=sys.stderr)
@@ -111,6 +133,8 @@ def main() -> int:
     ap.add_argument("--seeds", type=int, default=20)
     ap.add_argument("--store", default="logs/runs")
     ap.add_argument("--summary", default="logs/matrix_summary.json")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="seeds to run concurrently within an arm (I/O bound; 4-6 is a good default)")
     args = ap.parse_args()
 
     arms: list[str] = []
@@ -120,7 +144,7 @@ def main() -> int:
     store = ResultStore(args.store)
 
     print(f"# matrix: {len(args.models)} model(s) x {len(arms)} arm(s) x {len(seeds)} seeds "
-          f"-> {store.db_path}", flush=True)
+          f"-> {store.db_path} (workers={args.workers})", flush=True)
     print(f"# models: {', '.join(args.models)}", flush=True)
 
     rows: list[dict] = []
@@ -130,7 +154,7 @@ def main() -> int:
             # duplicate identical rows and muddy the aggregation.
             if not _needs_llm(arm) and any(r.get("arm") == arm for r in rows):
                 continue
-            rows.append(run_pair(model, arm, seeds, store))
+            rows.append(run_pair(model, arm, seeds, store, workers=args.workers))
             Path(args.summary).parent.mkdir(parents=True, exist_ok=True)
             Path(args.summary).write_text(json.dumps(rows, indent=2), encoding="utf-8")
 

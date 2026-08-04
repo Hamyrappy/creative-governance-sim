@@ -35,7 +35,7 @@ from govsim.analysis.stats import bootstrap_p, factorial_effects, holm_bonferron
 from govsim.core.result_store import ResultStore
 
 FACTORS = ("trace", "outcome", "memory")
-METRIC = "post_loss"
+METRIC = "loss"  # FULL horizon: a post-break-only metric rewards passivity (preregistration §8)
 REGENT = "regent:0"
 
 
@@ -93,11 +93,15 @@ def main() -> int:
 
     stores = [ResultStore(p) for p in args.store]
     store = stores  # every loader takes the list
-    frozen = load_by_seed(store, "epidemic_frozen", None)
-    oracle = load_by_seed(store, "epidemic_oracle", None)
+    # R is anchored on the NON-ADAPTIVE ceiling and the clairvoyant ADAPTOR, so R<1 means
+    # "did better than any fixed law could have, in hindsight" rather than the much weaker
+    # "did better than the stale rule", which passivity alone can achieve.
+    frozen = load_by_seed(store, "epidemic_best_fixed", None)
+    oracle = load_by_seed(store, "epidemic_switching", None)
+    stale = load_by_seed(store, "epidemic_frozen", None)
     if not frozen or not oracle:
-        print("missing calibrated anchors (epidemic_frozen / epidemic_oracle) in the store; "
-              "run `scripts/run_matrix.py --arms epidemic-refs` first", file=sys.stderr)
+        print("missing calibrated anchors (epidemic_best_fixed / epidemic_switching) in the "
+              "store; run `scripts/run_matrix.py --arms epidemic-refs` first", file=sys.stderr)
         return 1
 
     cells = {}
@@ -115,9 +119,9 @@ def main() -> int:
     fm, om = statistics.fmean(frozen.values()), statistics.fmean(oracle.values())
     print(f"\n=== arms (metric={METRIC}, model={args.model or 'any'}) ===")
     print(f"{'arm':<38} {'n':>3} {'mean':>9} {'sd':>8} {'R':>7}   R: 0=oracle, 1=frozen")
-    print(f"{'epidemic_frozen (R=1 anchor)':<38} {len(frozen):>3} {fmt(fm)} "
+    print(f"{'best_fixed (R=1: non-adaptive ceiling)':<38} {len(frozen):>3} {fmt(fm)} "
           f"{fmt(statistics.pstdev(frozen.values()) if len(frozen) > 1 else 0.0, 8)} {1.0:>7.3f}")
-    print(f"{'epidemic_oracle (R=0 anchor)':<38} {len(oracle):>3} {fmt(om)} "
+    print(f"{'switching (R=0: clairvoyant adaptor)':<38} {len(oracle):>3} {fmt(om)} "
           f"{fmt(statistics.pstdev(oracle.values()) if len(oracle) > 1 else 0.0, 8)} {0.0:>7.3f}")
 
     table = []
@@ -160,7 +164,9 @@ def main() -> int:
     # ---- 3. named contrasts -------------------------------------------------------------------
     print(f"\n=== contrasts (paired bootstrap on {METRIC}; lower is better) ===")
     contrasts = {}
-    refs = {"vs_frozen": frozen, "vs_oracle": oracle}
+    refs = {"vs_best_fixed": frozen, "vs_switching": oracle}
+    if stale:
+        refs["vs_stale_rule"] = stale
     if "epidemic_opro" in all_arms:
         refs["vs_opro"] = all_arms["epidemic_opro"]
     for name, by_seed in all_arms.items():
