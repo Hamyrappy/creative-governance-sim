@@ -195,6 +195,14 @@ prevent.
   to: *trace does nothing when the regent is emitting well-formed policy, and is load-bearing when
   it is not.*
 
+- **2026-08-04 — SEVERITY AND PRICE WERE CONFOUNDED; now varied one at a time.**
+  The `epidemic_severe` cell set λ=0.15 *and* drove efficacy to 0, so its result (large staleness,
+  zero adaptation headroom) could not be attributed to severity. λ is now held at the flagship's
+  0.08 there, and a separate `epidemic_pricey` cell varies only the price. Both still show ≈1.00
+  adaptation headroom (severe 1.007, pricey 1.000), so the qualitative finding survives — and is now
+  stronger, because it holds along *each* axis separately. Reported in full rather than silently
+  re-run.
+
 - **2026-08-04 — MODEL PANEL REDUCED by the provider's daily quota.**
   The free tier turned out to allow **500 requests per model per day**, and one arm costs 400 calls
   (20 seeds × 20 reviews). Only the `gemma` family has enough headroom for the full 2³ factorial. The

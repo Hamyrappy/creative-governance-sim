@@ -234,61 +234,66 @@
     "verb": "set_lockdown",
     "switch_step": 100,
     "frozen": {
-      "expr": "0.9 if I > 0.03 else 0.0",
+      "expr": "0.9 if I > 0.01 else 0.0",
       "laws": {
-        "set_lockdown": "0.9 if I > 0.03 else 0.0",
+        "set_lockdown": "0.9 if I > 0.01 else 0.0",
         "set_vaccination": "0.0"
       },
       "params": {
         "a": 0.9,
-        "thr": 0.03,
+        "thr": 0.01,
         "v": 0.0
       },
-      "loss": 40.98319926779822,
-      "post_loss": 28.129912513098972
+      "loss": 29.966787682780147,
+      "post_loss": 22.101530787301968
     },
     "best_fixed": {
-      "expr": "0.0 if I > 0.002 else 0.0",
+      "expr": "0.75 if I > 0.16 else 0.0",
       "laws": {
-        "set_lockdown": "0.0 if I > 0.002 else 0.0",
-        "set_vaccination": "0.0"
+        "set_lockdown": "0.75 if I > 0.16 else 0.0",
+        "set_vaccination": "0.5"
       },
       "params": {
-        "a": 0.0,
-        "thr": 0.002,
-        "v": 0.0
+        "a": 0.75,
+        "thr": 0.16,
+        "v": 0.5
       },
-      "loss": 27.12498781832652,
+      "loss": 25.648185796064073,
       "family": "threshold"
     },
     "oracle": {
       "expr": "0.9 if I > 0.25 else 0.0",
       "laws": {
         "set_lockdown": "0.9 if I > 0.25 else 0.0",
-        "set_vaccination": "0.0"
+        "set_vaccination": "0.5"
       },
       "params": {
         "a": 0.9,
         "thr": 0.25,
-        "v": 0.0
+        "v": 0.5
       },
-      "post_loss": 11.841708478962659
+      "post_loss": 11.299487145956967
     },
     "switching": {
-      "pre_expr": "0.0 if I > 0.002 else 0.0",
+      "pre_expr": "0.9 if I > 0.16 else 0.0",
       "post_expr": "0.0 if I > 0.002 else 0.0",
       "pre_laws": {
-        "set_lockdown": "0.0 if I > 0.002 else 0.0",
-        "set_vaccination": "0.0"
+        "set_lockdown": "0.9 if I > 0.16 else 0.0",
+        "set_vaccination": "0.5"
       },
       "post_laws": {
         "set_lockdown": "0.0 if I > 0.002 else 0.0",
-        "set_vaccination": "0.0"
+        "set_vaccination": "0.5"
       },
-      "loss": 27.12498781832652
+      "loss": 25.481512411964253
     },
-    "headroom": 1.5109020340318327,
-    "headroom_vs_best_fixed": 1.0,
+    "headroom": 1.176020763536388,
+    "headroom_vs_best_fixed": 1.0065409533549337,
+    "diagnosis": {
+      "staleness": 1.176020763536388,
+      "adaptation_headroom": 1.0065409533549337,
+      "robustness_headroom": 1.1683784545641742
+    },
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -349,7 +354,134 @@
       "horizon": 200,
       "decide_every": 10,
       "primary_metric": "loss (full horizon)",
-      "calibrated_at": "2026-08-04T17:12:33+00:00"
+      "calibrated_at": "2026-08-04T19:39:45+00:00"
+    }
+  },
+  "epidemic_pricey": {
+    "verb": "set_lockdown",
+    "switch_step": 100,
+    "frozen": {
+      "expr": "0.9 if I > 0.03 else 0.0",
+      "laws": {
+        "set_lockdown": "0.9 if I > 0.03 else 0.0",
+        "set_vaccination": "0.0"
+      },
+      "params": {
+        "a": 0.9,
+        "thr": 0.03,
+        "v": 0.0
+      },
+      "loss": 39.03717305936418,
+      "post_loss": 26.18388630466493
+    },
+    "best_fixed": {
+      "expr": "0.0 if I > 0.002 else 0.0",
+      "laws": {
+        "set_lockdown": "0.0 if I > 0.002 else 0.0",
+        "set_vaccination": "0.0"
+      },
+      "params": {
+        "a": 0.0,
+        "thr": 0.002,
+        "v": 0.0
+      },
+      "loss": 27.12498781832652,
+      "family": "threshold"
+    },
+    "oracle": {
+      "expr": "0.9 if I > 0.25 else 0.0",
+      "laws": {
+        "set_lockdown": "0.9 if I > 0.25 else 0.0",
+        "set_vaccination": "0.0"
+      },
+      "params": {
+        "a": 0.9,
+        "thr": 0.25,
+        "v": 0.0
+      },
+      "post_loss": 11.841708478962659
+    },
+    "switching": {
+      "pre_expr": "0.0 if I > 0.002 else 0.0",
+      "post_expr": "0.0 if I > 0.002 else 0.0",
+      "pre_laws": {
+        "set_lockdown": "0.0 if I > 0.002 else 0.0",
+        "set_vaccination": "0.0"
+      },
+      "post_laws": {
+        "set_lockdown": "0.0 if I > 0.002 else 0.0",
+        "set_vaccination": "0.0"
+      },
+      "loss": 27.12498781832652
+    },
+    "headroom": 1.439159100119094,
+    "headroom_vs_best_fixed": 1.0,
+    "diagnosis": {
+      "staleness": 1.439159100119094,
+      "adaptation_headroom": 1.0,
+      "robustness_headroom": 1.439159100119094
+    },
+    "provenance": {
+      "n_seeds": 20,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "family_template": "{a} if I > {thr} else 0.0",
+      "family_grid": {
+        "a": [
+          0.0,
+          0.3,
+          0.45,
+          0.6,
+          0.75,
+          0.9
+        ],
+        "thr": [
+          0.002,
+          0.01,
+          0.03,
+          0.06,
+          0.1,
+          0.16,
+          0.25,
+          0.4
+        ],
+        "v": [
+          0.0,
+          0.1,
+          0.25,
+          0.5
+        ]
+      },
+      "family_size": 192,
+      "wide_families": {
+        "threshold": "{a} if I > {thr} else 0.0",
+        "proportional": "{g} * I + {b}",
+        "threshold_floor": "{a} if I > {thr} else {b}"
+      },
+      "horizon": 200,
+      "decide_every": 10,
+      "primary_metric": "loss (full horizon)",
+      "calibrated_at": "2026-08-04T19:50:01+00:00"
     }
   }
 }
