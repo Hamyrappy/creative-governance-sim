@@ -67,6 +67,30 @@ wrong numbers:
   post-shock comparison by emptying it. Now `+inf`, and the disease is endemic so it cannot be
   outlasted.
 
+## Four validity gates — run these before believing any LLM-arm table
+
+Every one of them caught a defect in this project that had already produced a clean, plausible,
+publishable-looking number. They are automatic now (`scripts/analyze_matrix.py`,
+`scripts/recalibrate.py`), and each refuses to let the tables be read rather than merely warning.
+
+| Gate | What it catches | What it caught here |
+|---|---|---|
+| **no-action rate** (>2% disqualifying) | a model that reasons past its `max_tokens` emits nothing, the previous law stays installed, and the arm silently becomes "sticky policy" — *correlated with the treatment*, since harness channels lengthen the prompt | outcome arm **32.5%**, no-harness arm **0%**, at `max_tokens=1500` |
+| **channel liveness** | a channel that fires but carries no information; rank-correlates what it reported against what it should track | all three channels dead: trace never fired; outcome and memory both reported a **clock** (`cum_cost` read undifferenced) |
+| **anchor consistency** | stored reference runs enacting laws from a superseded calibration | a store held a single-lever law two calibrations old; R moved 0.81 → 1.32 and the headline contrast flipped sign |
+| **headroom ≥ 1** for the switching reference | a "clairvoyant" adaptor a fixed policy can beat is impossible, so it is a free self-check on the reference search | composed (pre,post) legs gave 0.92× before the pair was searched jointly |
+
+**Statistics, corrected the same way.** The percentile bootstrap under-covers at n=20 (measured
+0.921 vs nominal 0.95 ⇒ the "CI excludes 0" rule rejects at ~8%). BCa does not help — a symmetric
+paired difference has little bias or skew; what is missing is variance uncertainty. We use
+**bootstrap-t** (0.935) and require a **Wilcoxon** agreement, and report a **minimum detectable
+effect** with every null.
+
+**And one design rule:** the regent must be *told its objective*. It was not, while every reference
+was exhaustively optimized for `burden + λ·cost` — so the study was partly measuring
+mandate-guessing. `Objective.describe()` now reaches every prompt, and adding it moved the headline
+by more than any harness channel.
+
 ## Gate docs
 
 | Doc | Purpose | Status |
