@@ -442,6 +442,15 @@ issues the same number of model calls per run, so no arm can win by being allowe
 often---the objection \citet{wang2026rethinking} raise against the harness literature. The critic arm
 is the sole exception; it buys extra calls and is reported separately and labelled as such.
 
+\paragraph{What a null is allowed to claim.} We report, alongside every non-result, the smallest
+effect this design could have detected. ``No component helped'' means one thing if a $5\%$
+improvement would have shown up and something else entirely if only a $40\%$ one would, and an
+ablation table that omits the distinction invites the stronger reading. The minimum detectable
+effect is computed from the observed per-seed paired differences at the \emph{corrected} $\alpha$,
+since that is the bar the headline analysis actually applies, and is stated as a fraction of the
+regime's total adaptation budget so it can be read against \cref{tab:headroom} directly. We also
+state what would fix it: the MDE falls with $\sqrt{n}$, so halving it costs four times the seeds.
+
 \paragraph{Statistics.} Comparisons are paired per seed and summarized by a percentile bootstrap
 over seeds. Factorial effects use $\pm1$ contrast coding, with contrasts formed \emph{within} each
 seed before aggregation, so world variance cancels. The family---three main effects, three two-way

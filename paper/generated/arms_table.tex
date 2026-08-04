@@ -1,4 +1,21 @@
 \begin{table}[t]\centering\small
-\caption{Arm results.}\label{tab:arms}
-\emph{\textcolor{red}{Pending: the analysis artifact does not yet contain this table (arms).}}
+\caption{\textbf{Full-horizon governance loss and normalized regret.} $\Rreg=1$ is the best
+\emph{fixed} law in hindsight and $\Rreg=0$ the clairvoyant switch, so $\Rreg<1$ means the arm
+did better than any standing rule could have---which, unlike a post-break-only comparison, passivity
+alone cannot achieve. Lower is better; $\Rreg$ is computed per seed against the paired anchors
+before averaging. $^{\dagger}$the critic arm is not budget-matched.}
+\label{tab:arms}
+\begin{tabular}{@{}l r r r r@{}}
+\toprule
+arm & $n$ & $L$ & sd & $\Rreg$ \\
+\midrule
+\textit{best fixed law in hindsight} & --- & 27.114 & --- & \textit{1.000} \\
+\textit{clairvoyant switch} & --- & 23.736 & --- & \textit{0.000} \\
+\midrule
+no harness & 20 & 26.477 & 5.542 & \textbf{0.812} \\
+trace & 20 & 26.477 & 5.542 & \textbf{0.812} \\
+outcome & 20 & 26.475 & 5.257 & \textbf{0.811} \\
+memory & 20 & 26.585 & 5.120 & \textbf{0.843} \\
+\bottomrule
+\end{tabular}
 \end{table}

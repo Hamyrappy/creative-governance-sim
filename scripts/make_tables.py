@@ -281,6 +281,24 @@ def results_prose(a: dict, calib: dict) -> str:
            "No harness term survives correction, which is itself the result: at this effect size "
            "the components are not separably attributable.")
     )
+    pw = a.get("power") or {}
+    budget = None
+    try:
+        budget = ep["best_fixed"]["loss"] - ep["switching"]["loss"]
+    except (KeyError, TypeError):
+        pass
+    power_line = ""
+    if pw.get("mde") and budget:
+        power_line = (
+            f"This design's minimum detectable effect, computed from the observed per-seed spread at "
+            f"the Holm-corrected $\\alpha$ and $80\\%$ power, is {num(pw['mde'], 2)} loss units "
+            f"against a total adaptation budget of {num(budget, 2)}. It can therefore resolve a "
+            f"component only if that component is worth at least "
+            f"{num(100 * pw['mde'] / budget, 0)}\\% of everything adaptation is worth in this "
+            f"regime. The null below rules out large component effects and does \\emph{{not}} rule "
+            f"out modest ones; halving the detectable effect would require "
+            f"$n={pw.get('n_for_half_mde', '?')}$ seeds.")
+
     body_lines = [
         f"Adaptation in this regime is worth {num(ep.get('headroom_vs_best_fixed'), 3)}$\\times$: the "
         f"clairvoyant switch reaches $L={num(ep.get('switching', {}).get('loss'))}$ where the best "
@@ -306,6 +324,8 @@ def results_prose(a: dict, calib: dict) -> str:
          f"{num(ep.get('headroom_vs_best_fixed'), 2)}$\\times$ ceiling and 20 seeds, the design is "
          f"not powered to separate components of this size, and saying so is more useful than "
          f"reporting the largest uncorrected term."),
+        "",
+        power_line,
     ]
     esc_body = "\n".join(body_lines)
     return (
