@@ -401,34 +401,49 @@ The pre-registered prediction is asymmetric rather than a hedge: outcome feedbac
 effect, failure trace should do nothing here, and memory may well be neutral or harmful across the
 break for the reason just given.
 
-\subsection{Interrogating the null: why realized-score history is not enough}
+\subsection{A null we had to withdraw, and the gate it produced}
 \label{sec:ctx-outcome}
 
-Outcome feedback did not carry the effect, and the first thing we checked was whether it was wired
-at all---a silent plumbing failure and a genuine null are indistinguishable in a results table. It
-was wired: the recorded prompts contain lines of the form
+Our first factorial reported that no harness channel helped. It was an artifact, and the way we
+reached it is the part worth publishing, because every step of it looked like diligence.
+
+Outcome feedback did not carry the effect, so we checked whether it was wired---a silent plumbing
+failure and a genuine null are indistinguishable in a results table. It was wired: the recorded
+prompts contain lines of the form
 \begin{quote}\ttfamily\small
 you deployed [set\_lockdown: 0.9; set\_vaccination: 0.5] and it scored -11.2680
 \end{quote}
-So the null is real, and the transcripts explain it. The scores come from different phases of an
-evolving epidemic. A score moves both because the policy changed and because the world moved on, so
-under non-stationarity \emph{the outcome signal is confounded with exactly the non-stationarity it
-is supposed to reveal}. In the recorded runs the regent sees its first and best-scoring policy
-followed by progressively worse scores and walks away from the good policy---which is the rational
-response to a confounded signal, not a failure of reasoning.
+We took that as sufficient, proposed a mechanism for the null---that scores drawn from different
+phases of an evolving epidemic are confounded with the non-stationarity the channel exists to
+reveal---and built a component to fix it.
 
-That diagnosis has an obvious remedy, so we built it and registered it as an arm. Contextual outcome
-feedback reports each score \emph{next to the state it was earned in}, and explicitly flags the case
-where the same law scored differently in a comparable state. Two identical policies producing
-different results under comparable conditions is the cleanest available evidence that something
-outside the policy changed---which is precisely the inference an unobservable instrument failure
-requires. Its control is the naive channel at the same call budget, so the contrast isolates
-\emph{contextualization} rather than \emph{feedback}.
+The mechanism was wrong and the null was an artifact. The objective's realized-score path read a
+\emph{cumulative} cost without differencing it across the scoring window, so the number the channel
+reported was a monotonically falling clock: two windows with identical infection burden and
+identical per-step spending scored $-5.648$ and $-13.648$, differing only by elapsed time. Across
+$20$ seeds the channel reported ``worse than last time'' $359$ times and ``better'' never. The
+regent abandoning its best policy was the rational response to a clock. Episodic memory carried the
+same defect through the same variable, and the failure channel had never fired at all---so all three
+components were dead, in three different ways, and the analysis reported three estimated nulls
+indistinguishable from real ones.
 
-We report this as a finding about harness design rather than as a repair. The literature enumerates
-memory, reflection, and feedback as scaffold component types; what this regime shows is that a
-component's \emph{type} does not determine whether its signal is identifiable, and that under
-non-stationarity the identification question is the one that decides whether the component works.
+The diagnostic error is the generalizable one: \textbf{checking that a channel \emph{fires} is not
+checking that it carries information}. The falsifying test for our proposed mechanism was cheap and
+we did not run it---the score declines identically on the \emph{stationary} pre-break half, which no
+story about non-stationarity can explain.
+
+So liveness is now a gate rather than a diagnostic. Before any component effect is reported, we
+rank-correlate what the channel reported against the quantity it is supposed to track and refuse to
+interpret a null from a channel that fails. Alongside it run two more gates that this study also
+needed: a no-action rate (\cref{sec:design}), and an anchor check that the stored reference runs
+enact the laws in the current calibration---a store of ours held a policy superseded two
+calibrations earlier, which rescaled every normalized regret and reversed the sign of the headline
+contrast.
+
+Contextual outcome feedback survives as an arm rather than as a remedy. Attaching state to each
+score, and flagging the same law scoring differently in comparable conditions, is a reasonable
+design idea and the naive channel is its control---but it was built for a cause that turned out not
+to exist, and we say so rather than quietly recasting it as the fix.
 
 \section{Experimental design}
 \label{sec:design}
