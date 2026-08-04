@@ -23,20 +23,22 @@ Language-model agents are increasingly proposed as policy-makers for simulated s
 economies, and a fast-growing literature asks whether the surrounding \emph{harness}---the code that
 decides what the model is shown and remembers---can be optimized or evolved. Both literatures share
 a blind spot: they report whether an agent adapted without first establishing whether the
-environment left any room to adapt \emph{into}. We make that quantity explicit. For a structural
-break at $\shockstep$, we calibrate two references inside one shared policy family: the policy that
-was optimal before the break and is then held fixed, and the policy that is optimal after it. Their
-loss ratio is the \emph{adaptation headroom} $\headroom$, and it bounds what any controller could
-possibly recover.
+environment left any room to adapt \emph{into}. We make that quantity computable. For a structural
+break, we calibrate three references inside one shared policy vocabulary---the rule that was optimal
+before the break and held fixed, the best \emph{fixed} rule over the whole broken horizon chosen in
+hindsight, and the best clairvoyant \emph{switch}---and show that what a stale rule costs factors
+exactly into an \emph{adaptation headroom} and a \emph{robustness headroom}. Only the first is
+recoverable by an agent that notices and revises; the second was available to anyone who wrote a
+better rule in the first place.
 
-Measuring $\headroom$ before running anything changes what we study. Across a scalar control plant,
-a coupled multi-state plant, and an epidemic-governance model, we find that shocks to the
-\emph{state dynamics} leave almost no headroom ($\headroom \approx 1.0$--$1.14$): a feedback rule
-absorbs them by construction, because the observable it keys on still tells it what to do. Shocks to
-\emph{instrument efficacy}---the lever keeps costing what it cost and stops working---are not
-absorbed, because no setting of the observable reveals the lever's new worth. This is the
-Lucas critique in miniature, and it is, as far as we can measure, the only regime in which the
-adaptation question is answerable at all.
+The distinction is not decorative. In two of the four regimes we calibrate, a stale rule costs
+$18$--$44\%$ while adaptation headroom is $1.00$--$1.01$: the optimum never moved, so an agent
+evaluated there would look rigid while facing no adaptive problem, and would be prescribed
+responsiveness for something responsiveness cannot touch. Measuring first also tells us which shocks
+are worth studying at all: feedback rules \emph{absorb} shocks to the state they observe---prevalence
+rises, the rule fires more often---and cannot absorb shocks to their own \emph{instrument}, where the
+observable no longer says what the lever is worth. Adaptation headroom turns out to be a narrow band
+in both severity and price, and it is not monotone in either.
 
 On that regime we place a regent that governs by emitting sandboxed executable Python policy---not
 a scalar, not a schema-bound JSON object---and specify a pre-registered $2^3$ factorial over three
@@ -104,9 +106,15 @@ that \citet{zhong2026separating} raise against putting a language model in the c
 (\cref{sec:design,sec:results}). The design is a full $2^3$ over three \emph{different kinds} of
 information; it estimates interactions rather than assuming them away, corrects across the family,
 and matches the model-call budget across arms---the three things the harness literature is currently
-being told it does not do. We also report three validity gates that this study needed and failed
-before it passed: output truncation correlated with the treatment, channels that delivered no signal,
-and reference anchors superseded by a recalibration.
+being told it does not do.
+
+\item \textbf{Four validity gates for scaffold ablations, every one of which this study failed
+before it passed} (\cref{sec:ctx-outcome}). Output truncation correlated with the treatment;
+information channels that fired but carried no signal; reference anchors superseded by a
+recalibration; and a clairvoyant reference that a fixed policy could beat. Each produced a clean,
+plausible, wrong number that no amount of care in the writing would have caught, and each is now an
+automatic check that refuses to let the tables be read. A literature being asked for better evidence
+needs transferable failure modes at least as much as it needs another effect.
 \end{enumerate}
 
 \section{Related work}
