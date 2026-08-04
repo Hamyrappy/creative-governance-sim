@@ -167,6 +167,7 @@ class LLMRegent(Regent):
                 "usage": getattr(resp, "usage", {}),
                 "cost_usd": getattr(resp, "cost_usd", None),
                 "cached": getattr(resp, "cached", False),
+                "cache_key": getattr(resp, "cache_key", ""),
             }
         )
         return parse_action_requests(resp, space, self.id)

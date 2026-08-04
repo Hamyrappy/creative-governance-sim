@@ -105,6 +105,15 @@ def _regime_spec(name: str) -> dict:
             schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), horizon=R.EPIDEMIC_HORIZON,
             shock_step=R.EPIDEMIC_SHOCK_STEP,
         )
+    if name == "epidemic_pricey":
+        return dict(
+            family=EPIDEMIC_FAMILY, families=EPIDEMIC_FAMILIES, iface=EPIDEMIC_IFACE,
+            pre=R.sir_factory(R.EPIDEMIC_PRE), shocked=R.sir_factory(R.EPIDEMIC_PRICEY_SHOCKED),
+            objective=EpidemicLoss(lam=R.EPIDEMIC_PRICEY_LAMBDA,
+                                   post_shock_step=R.EPIDEMIC_SHOCK_STEP),
+            schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), horizon=R.EPIDEMIC_HORIZON,
+            shock_step=R.EPIDEMIC_SHOCK_STEP,
+        )
     if name == "scalar":
         return dict(
             family=SCALAR_FAMILY, families={"cubic_gain": SCALAR_FAMILY}, iface=SCALAR_IFACE,
@@ -235,7 +244,7 @@ def _score_switching(pre_expr, post_expr, s: dict, seeds: list[int], metric: str
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--seeds", type=int, default=12)
-    ap.add_argument("--regimes", nargs="+", default=["epidemic", "epidemic_severe", "scalar"])
+    ap.add_argument("--regimes", nargs="+", default=["epidemic", "epidemic_severe", "epidemic_pricey", "scalar"])
     args = ap.parse_args()
     seeds = list(range(args.seeds))
 

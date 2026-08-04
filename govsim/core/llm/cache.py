@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -87,8 +87,9 @@ class CachingReplayClient:
 
         if self.mode != "live" and path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
+            data.pop("cache_key", None)  # derived, never trusted from disk
             data["cached"] = True
-            return LLMResponse(**data)
+            return LLMResponse(**data, cache_key=key)
 
         if self.mode == "replay":
             raise KeyError(
@@ -107,6 +108,7 @@ class CachingReplayClient:
             extra=extra,
         )
         stored = asdict(resp)
-        stored.pop("cached", None)  # never persist the cached flag
+        stored.pop("cached", None)     # never persist the cached flag …
+        stored.pop("cache_key", None)  # … nor the key, which is the filename
         path.write_text(json.dumps(stored, ensure_ascii=False, indent=2), encoding="utf-8")
-        return resp
+        return replace(resp, cache_key=key)

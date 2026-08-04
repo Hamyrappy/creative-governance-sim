@@ -33,6 +33,11 @@ class LLMResponse:
     raw: dict[str, Any] = field(default_factory=dict)
     cost_usd: float | None = None
     cached: bool = False
+    #: The content-addressed cache key this response was stored/served under. Set by
+    #: ``CachingReplayClient`` and recorded by the regents, so a reported run's tape can be exported
+    #: exactly (rather than reconstructed from an I/O log that does not keep every request knob),
+    #: and so a replay miss names the entry it wanted.
+    cache_key: str = ""
 
 
 @runtime_checkable

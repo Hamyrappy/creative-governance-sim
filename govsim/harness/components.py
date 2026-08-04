@@ -361,7 +361,7 @@ class Critic(HarnessComponent):
             "step": view.t, "regent": "critic", "messages": messages,
             "response_text": getattr(resp, "text", ""), "tool_calls": getattr(resp, "tool_calls", []),
             "model": getattr(resp, "model", self.model), "usage": getattr(resp, "usage", {}),
-            "cost_usd": getattr(resp, "cost_usd", None), "cached": getattr(resp, "cached", False),
+            "cost_usd": getattr(resp, "cost_usd", None), "cached": getattr(resp, "cached", False), "cache_key": getattr(resp, "cache_key", ""),
         })
         obj = _extract_json_obj(getattr(resp, "text", "") or "")
         return bool(obj.get("approve", True)), str(obj.get("critique", ""))

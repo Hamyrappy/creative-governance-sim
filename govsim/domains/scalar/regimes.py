@@ -73,13 +73,24 @@ EPIDEMIC_SHOCKED: dict[str, Any] = dict(
 # measured headroom means what this project claims, then the measured advantage of an adaptive
 # regent should be LARGER here, and by roughly the ratio the headroom predicts. A diagnostic that
 # does not track the thing it is supposed to bound is not a diagnostic.
-EPIDEMIC_SEVERE_LAMBDA = 0.15
+#: λ is held at the flagship's value ON PURPOSE. An earlier version set it to 0.15 here, so the
+#: severe cell differed from the flagship in *two* ways at once and its striking result — a large
+#: staleness cost with zero adaptation headroom — could not be attributed to severity. Crossing the
+#: knobs separately shows it was mostly the price: adaptation headroom is ≈1.00 at λ=0.15 even with
+#: the flagship's milder break, and ≈1.02 at λ=0.08 even with total failure. Varying one thing at a
+#: time is the whole point of having a second cell.
+EPIDEMIC_SEVERE_LAMBDA = EPIDEMIC_LAMBDA
 EPIDEMIC_SEVERE_SHOCKED: dict[str, Any] = dict(
     EPIDEMIC_PRE,
     shock_step=EPIDEMIC_SHOCK_STEP,
     shock_factor=1.0,
     shock_params={"lockdown_efficacy": 0.0},
 )
+
+#: The price cell: the flagship's break, the harsher price. Kept as a SEPARATE regime so the two
+#: knobs are never confounded again, and so the paper can say which one produced the null.
+EPIDEMIC_PRICEY_LAMBDA = 0.15
+EPIDEMIC_PRICEY_SHOCKED: dict[str, Any] = dict(EPIDEMIC_SHOCKED)
 
 # ---------------------------------------------------------------------------------------------
 # SCALAR — the near-null negative control
