@@ -337,6 +337,41 @@ def results_prose(a: dict, calib: dict) -> str:
     )
 
 
+def run_status(a: dict) -> str:
+    """A generated statement of what has actually been RUN, printed in the paper.
+
+    Written because the draft asserted a completed $2^3$ across several models while the store held
+    six of eight cells, no critic arm and no OPRO arm. That kind of claim is not caught by
+    proofreading — the tables around it render "Pending" in red and the sentence still reads as
+    finished. Making coverage a generated fact means the paper cannot overstate it, and updates
+    itself as arms land.
+    """
+    arms = {r["arm"]: r for r in (a.get("arms") or [])}
+    cells = [k for k in ARM_LABELS if k.startswith("epidemic_llm_") and "critic" not in k]
+    have = [k for k in cells if k in arms]
+    missing = [k for k in cells if k not in arms]
+    rates = a.get("action_rates") or {}
+    worst = max((v.get("rate", 0.0) for v in rates.values()), default=0.0)
+    extras = [(k, k in arms) for k in ("epidemic_opro", "epidemic_llm_critic")]
+
+    bits = [
+        f"\\textbf{{Run coverage.}} Of the ${2**3}$ factorial cells, "
+        f"\\textbf{{{len(have)}}} have completed at $n={arms[have[0]]['n'] if have else 0}$ paired "
+        f"seeds" + (f"; missing: {', '.join(esc(ARM_LABELS[m]) for m in missing)}." if missing else "."),
+    ]
+    for name, present in extras:
+        bits.append(f"The {esc(ARM_LABELS.get(name, name))} arm has "
+                    f"{'completed' if present else '\\emph{not} been run'}.")
+    if rates:
+        bits.append(f"Highest per-arm rate of decisions producing no parseable action: "
+                    f"{100 * worst:.1f}\\% "
+                    f"({'within' if worst <= 0.02 else '\\textbf{above}'} the $2\\%$ validity gate).")
+    cm = a.get("cross_model") or {}
+    if cm:
+        bits.append(f"Cross-model replication covers {len(cm)} model(s).")
+    return "\\noindent " + " ".join(bits) + "\n"
+
+
 def odd(calib: dict) -> str:
     """The ODD-style model description social-simulation venues expect, filled from the pinned config."""
     import sys as _sys
@@ -455,6 +490,7 @@ def main() -> int:
         "factorial_table.tex": factorial_table(analysis),
         "crossmodel_table.tex": crossmodel_table(analysis),
         "odd.tex": odd(calib),
+        "run_status.tex": run_status(analysis),
         "repro.tex": repro(calib, analysis, args.commit),
         "results_prose.tex": results_prose(analysis, calib),
     }

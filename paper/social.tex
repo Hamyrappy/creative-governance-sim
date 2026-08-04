@@ -1,6 +1,10 @@
 \documentclass[11pt]{article}
 \input{preamble}
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
+\IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
+% Fallbacks so the document still compiles before the figure code has run.
+\providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
+\providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
 
 \title{\bfseries Rules That Stop Working\\
 \large Why feedback institutions survive shocks to the world but not shocks to their own
@@ -205,8 +209,11 @@ instrument. The robustness and the fragility have the same cause.
 \caption{\textbf{One polity, three institutions.} Before the break the frozen rule is the good
 policy---it suppresses prevalence almost completely, which is why it was chosen. After the break it
 continues to enact maximal restriction, accumulating cost while prevalence rises anyway. The
-clairvoyant institution has withdrawn; the language-model authority converges on a proportional
-response that approximates withdrawal while retaining a small standing intervention.}
+clairvoyant institution does not withdraw --- it \emph{substitutes}, holding vaccination at its
+maximum throughout while dropping restriction to zero at the break. Cumulative cost on seed
+\DivergenceSeed: frozen \FrozenCost, best fixed rule \BestFixedCost, clairvoyant \SwitchCost.
+That distinction is the whole governance content of the figure: the right answer to an instrument
+that stopped working is to reach for the one that still does, not to stop governing.}
 \label{fig:divergence}
 \end{figure}
 

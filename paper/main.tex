@@ -2,6 +2,10 @@
 \input{preamble}
 % Overrides the "pending" defaults once scripts/make_tables.py has real numbers to state.
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
+\IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
+% Fallbacks so the document still compiles before the figure code has run.
+\providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
+\providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
 
 \title{\bfseries When Does Adaptation Have Room to Matter?\\
 \large Measuring adaptation headroom, and attributing it to harness components,\\
@@ -35,9 +39,10 @@ Lucas critique in miniature, and it is, as far as we can measure, the only regim
 adaptation question is answerable at all.
 
 On that regime we place a regent that governs by emitting sandboxed executable Python policy---not
-a scalar, not a schema-bound JSON object---and we run a pre-registered $2^3$ factorial over three
+a scalar, not a schema-bound JSON object---and specify a pre-registered $2^3$ factorial over three
 harness channels (failure trace, realized-outcome feedback, episodic memory) at a matched
-language-model call budget, on $20$ paired seeds, across several models.
+language-model call budget on $20$ paired seeds. Coverage of that design is reported as a generated
+fact rather than asserted (\cref{sec:results}).
 \ResultsAbstractSentence
 We release the environment, the calibration procedure, the pre-registration, and the recorded
 model-call tapes that make every run replayable without an API key.
@@ -96,10 +101,12 @@ enacted policy is a legible artifact---which is also a direct answer to the audi
 that \citet{zhong2026separating} raise against putting a language model in the control path at all.
 
 \item \textbf{Factorial harness attribution across a structural break, at matched budget}
-(\cref{sec:design,sec:results}). We run the full $2^3$ design over three
-\emph{different kinds} of information, estimate interactions rather than assuming them away, correct
-across the family, and match the model-call budget across arms---the three things the harness
-literature is currently being told it does not do.
+(\cref{sec:design,sec:results}). The design is a full $2^3$ over three \emph{different kinds} of
+information; it estimates interactions rather than assuming them away, corrects across the family,
+and matches the model-call budget across arms---the three things the harness literature is currently
+being told it does not do. We also report three validity gates that this study needed and failed
+before it passed: output truncation correlated with the treatment, channels that delivered no signal,
+and reference anchors superseded by a recalibration.
 \end{enumerate}
 
 \section{Related work}
@@ -331,21 +338,21 @@ comparison is between two real policies rather than between two blow-ups.
 
 \begin{figure}[t]\centering
 \includegraphics[width=0.72\linewidth]{generated/fig_policy_divergence}
-\caption{\textbf{One seed, three institutions.} Before the break the frozen rule is the good
-policy: it suppresses prevalence to near zero, which is exactly why it was selected. After the
-break it keeps enacting maximal lockdown, pays a cumulative cost of ${\sim}175$ against the
-oracle's ${\sim}0$, and gets a \emph{worse} epidemic for it, because each unit of lockdown now buys
-a quarter of what it used to. The clairvoyant response is to stop, and the regent's proportional
-rule approximates that while retaining a small standing response.}
+\caption{\textbf{One seed, four institutions.} Before the break the frozen rule is the good policy:
+it suppresses prevalence almost completely, which is exactly why it was selected. After the break it
+keeps enacting maximal lockdown and gets a \emph{worse} epidemic for it, because each unit now buys a
+quarter of what it used to. Cumulative cost on seed \DivergenceSeed: frozen \FrozenCost, best fixed
+law \BestFixedCost, clairvoyant switch \SwitchCost{} (these numbers are emitted by the figure code,
+not transcribed). The bottom two panels carry the substantive point: the clairvoyant response is
+\emph{not} to withdraw but to \emph{substitute}---vaccination is held at its maximum throughout while
+lockdown is dropped to zero at the break.}
 \label{fig:divergence}
 \end{figure}
 
-\Cref{fig:divergence} also makes the regime's main limitation legible rather than hidden: because
-lockdown is the only instrument that carries real weight here, the clairvoyant response after the
-break is close to ``stop intervening''. The inference problem is still a genuine one---the efficacy
-parameter is never observable, and the only evidence available is that the same policy started
-producing worse outcomes---but the \emph{action} it licenses is a simple one. We return to this in
-\cref{sec:limitations}.
+\Cref{fig:divergence} shows why the joint calibration matters. Confined to the lockdown lever, the
+best post-break policy looks like ``stop intervening''; allowed both instruments, it is ``keep
+vaccinating and stop paying for the lever that broke''. A reference restricted to the broken
+instrument would therefore have set an artificially low bar \emph{and} misdescribed the task.
 
 \section{The regent and its harness}
 \label{sec:regent}
@@ -480,6 +487,9 @@ sampled, temperature-bearing decision-maker compatible with a reproducibility cl
 \section{Results}
 \label{sec:results}
 
+\input{generated/run_status}
+
+\medskip
 \ResultsBody
 \providecommand{\ResultsBody}{\textcolor{red}{[Results section pending the completed sweep. The
 tables below are generated from the analysis artifact and are empty until it exists.]}}
