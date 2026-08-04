@@ -1,102 +1,131 @@
-# Creative Governance Simulation (creative-governance-sim)
+# creative-governance-sim
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A research prototype for studying government agents that use Large Language Models (LLMs) to generate and adapt economic policies.
+An experiment machine for **LLM "regents" — controllers that govern a dynamical system by emitting
+policy as sandboxed executable code** — and for measuring whether the *harness* around such a
+controller does anything.
+
+> **Name collision, unresolved.** `GovSim` is already an established artifact (Piatti et al.,
+> NeurIPS 2024, arXiv:2404.16698) for LLM commons governance. This project is unrelated to it and
+> should be renamed before any submission. See `govsim/docs_gates/STATUS.md`.
 
 ---
 
-![Project Architecture Diagram](main_feedback_loop.png)
+## The question, and the measurement that comes before it
 
-> 🚧 **Идёт большой рефакторинг (2026-06).** Проект мигрировал с Poetry на **uv** и с Gemini на
-> **OpenAI-совместимый** движок (любой эндпоинт через `base_url` + `model`). Актуальные инструкции по
-> сборке и запуску — в [`AGENTS.md`](AGENTS.md) §4; архитектура и план — в
-> [`agents/09-grand-plan.md`](agents/09-grand-plan.md). Команды в разделах ниже частично устарели:
-> используйте `uv sync` / `uv run …` (не `poetry`), ключ — `OPENAI_API_KEY`. CLI
-> `python -m govsim <эксперимент>` пока не существует (используйте `uv run simulation`).
+The obvious experiment is: break the world in a way the controller was not told about, and see
+whether it recovers better than a rule that cannot adapt. The problem is that the answer is bounded
+above by a property of the environment that nobody reports — **how much better anything could have
+done by adapting**. If a shock leaves a fixed rule near-optimal, a null result says nothing about
+the controller.
 
-## О проекте
+So this repo measures that first. For any regime it calibrates, inside one shared policy vocabulary:
 
-Цель этого проекта — исследование нового класса агентно-ориентированных моделей. Вместо использования предопределенных правил, управляющий агент (также называемый регентом), в основе которого лежит большая языковая модель (LLM), анализирует состояние симулируемой экономики и генерирует адаптивные политики в виде исполняемого Python-кода.
-
-Исследование сфокусировано на вопросе: может ли такой подход к моделированию найти более эффективные способы оптимизации динамических систем и преодолеть ограничения традиционных методов, основанных на статичных правилах.
-
-### Ключевая концепция
-
-- **Динамическая генерация политик**: Управляющая система генерирует экономические политики в виде Python-выражений на основе текущего экономического контекста.
-- **Безопасное исполнение**: Весь сгенерированный код проходит строгую проверку на безопасность через анализ абстрактного синтаксического дерева (AST) перед компиляцией и исполнением.
-- **Адаптивное поведение**: Система способна корректировать свои политики в ответ на изменение экономических условий, внешние шоки или новые стратегические цели.
-
-## Быстрый старт
-
-Проект использует [uv](https://docs.astral.sh/uv/) для управления зависимостями.
-
-1.  **Клонируйте репозиторий**
-    ```bash
-    git clone https://github.com/Hamyrappy/creative-governance-sim.git
-    cd creative-governance-sim
-    ```
-2.  **Установите проект и зависимости**
-    ```bash
-    uv sync               # добавьте `--group notebook` для jupyter/ipykernel
-    ```
-3.  **Настройте API-ключ** (только для LLM-регента; базовые эксперименты и тесты работают без ключа)
-    - Движок — **OpenAI-совместимый** (любой провайдер / локальная модель / прокси), выбирается
-      через `base_url` + `model`, ничего не захардкожено.
-    - Создайте файл `.env` в корневой директории проекта:
-      ```
-      OPENAI_API_KEY="ВАШ_КЛЮЧ"
-      OPENAI_BASE_URL="..."   # необязательно: OpenRouter / vLLM / Ollama / прокси
-      OPENAI_MODEL="..."      # модель для LLM-регента
-      ```
-
-## Запуск эксперимента
-
-Эксперименты запускаются через CLI; имя эксперимента берётся из реестра (`govsim/experiments/`).
-
-```bash
-uv run govsim list                       # список доступных экспериментов
-uv run govsim run cubic_stabilization    # детерминированный baseline (без ключа)
-uv run python -m govsim run cubic_nonlinear --seeds 0 1 2 --horizon 300 --store logs/runs --plot
-```
-
-Базовые эксперименты (`cubic_stabilization`, `cubic_nonlinear`, `sir_lockdown`, `company_pricing`)
-используют детерминированные/скриптовые регенты и **не требуют API-ключа**. Эксперимент с
-LLM-регентом (`cubic_nonlinear_llm`) требует ключ для записи кэша (`cache`-режим) и затем может
-воспроизводиться бесплатно/детерминированно через `replay`:
-
-```bash
-OPENAI_API_KEY=... OPENAI_MODEL=<модель> uv run govsim run cubic_nonlinear_llm --store logs/runs
-GOVSIM_LLM_MODE=replay uv run govsim run cubic_nonlinear_llm --store logs/runs   # без сети
-```
-
-Чтобы добавить эксперимент — одна функция + один декоратор `@register` в `govsim/experiments/`.
-Результаты (таблица прогонов + ряды метрик + сырой ввод/вывод LLM) сохраняются через `--store` в
-`ResultStore` (sqlite + артефакты).
-
-
-### Архитектура (см. `agents/09-grand-plan.md` — authoritative)
-
-Машина для экспериментов с LLM-«регентами» (контроллерами) над сложными системами; экономика — это
-*домен №1*, а не сам каркас. Доменно-нейтральное ядро (`govsim/core/`) — шесть «швов»: `System` /
-`ActionInterface` / `Regent` / `Harness` / `Objective` / `Schedule` плюс эксперимент-спайн
-(`Experiment`/`Runner`/`ResultStore`) и OpenAI-совместимый `LLMClient` с кэшем/replay-лентой.
-Домены живут в `govsim/domains/*` (единственный доменно-связанный шов — `ActionInterface`).
-
-| Где искать | Что |
+| reference | what it knew |
 |---|---|
-| Доменно-нейтральное ядро (6 швов + спайн) | `govsim/core/` |
-| LLM-клиент (OpenAI-совместимый) + кэш/replay | `govsim/core/llm/` |
-| Скалярный домен (cubic / SIR / company, без леджера) | `govsim/domains/scalar/` |
-| Регенты (`LLMRegent`, `PIDRegent`, `LQRRegent`) | `govsim/regents/` |
-| Компоненты харнесса (`TraceFeedback`, `EpisodicMemory`) | `govsim/harness/` |
-| Реестр экспериментов | `govsim/experiments/` |
-| WHAT-first гейт-доки (гипотезы / objective / метрика креативности / статистика) | `govsim/docs_gates/` |
-| Песочница политик (RestrictedPython) | `govsim/utils/policy_utils.py` → `govsim/core/sandbox.py` |
-| Результаты прогонов | директория, переданная в `--store` (по умолчанию ничего не пишется) |
+| `frozen` | optimal before the break, then held unchanged through it |
+| `best_fixed` | the best single **fixed** law over the whole broken horizon, chosen in hindsight |
+| `switching` | the pre-break optimum, then the post-break optimum, switched at the exact break |
 
-Тесты: `uv run pytest` (всё работает без API-ключа). Планы и анализ — в [`agents/`](agents/).
+`headroom = L(best_fixed) / L(switching)` is what changing behaviour is worth. Headroom ≈ 1 means the
+question is unanswerable in that regime, whatever controller you put in it.
+
+**What that measurement found.** Feedback rules ("intervene when the indicator crosses θ") *absorb*
+shocks to the governed system — the indicator rises, the rule fires more often, and it stays
+near-optimal without anyone touching it. They cannot absorb shocks to **instrument efficacy**, where
+the lever keeps costing what it cost and stops working. Most of the shock families this kind of
+benchmark reaches for first are in the first category, and are near-null by construction.
+
+```bash
+uv run python scripts/headroom_audit.py --seeds 8    # which regimes can host the question at all
+```
+
+## The flagship regime
+
+An endemic SIRS epidemic. The authority holds two costed instruments, lockdown and vaccination, and
+writes its policy as a Python expression the world re-evaluates every step. At `t=100`, without
+announcement, lockdown efficacy collapses to a quarter while lockdown still costs what it did.
+Efficacy is **never observable**. `S+I+R` is conserved, so no arm can diverge.
+
+Calibrated jointly over both instruments, the pre-break optimum uses *no* vaccination and the
+post-break optimum uses the *maximum* — the correct response to a broken instrument is substitution
+toward the one that still works.
+
+## The harness ablation
+
+A full $2^3$ factorial over three channels that carry **different kinds** of information:
+
+- `TraceFeedback` — rejections and runtime errors. A channel about *malformedness*; it cannot fire
+  on well-formed policy, which is exactly what makes it the right null control.
+- `OutcomeFeedback` — what the law you actually deployed achieved over the last interval. The only
+  channel in the stack from which an unobservable efficacy collapse is inferable.
+- `EpisodicMemory` — retrieved precedent, which across a structural break may be actively misleading.
+
+Interactions are estimated rather than assumed away, and the family is Holm-corrected. Every LLM arm
+decides on the same schedule, so no arm wins by thinking more often.
+
+## Quick start
+
+```bash
+uv sync                  # Python >=3.12,<3.14
+uv run pytest            # 122 tests, all key-free
+uv run govsim list       # registered experiments
+uv run govsim run epidemic_frozen --seeds 0 1 2      # key-free reference arm
+```
+
+For LLM arms, put a key in `.env` and point the client at any OpenAI-compatible endpoint:
+
+```bash
+OPENAI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/" \
+OPENAI_API_KEY_ENV=GOOGLE_API_KEY OPENAI_MODEL="gemma-4-31b-it" \
+GOVSIM_LLM_MODE=cache GOVSIM_LLM_DROP_PARAMS=seed \
+uv run python scripts/run_matrix.py --arms epidemic --seeds 20 --workers 6 --store logs/runs
+```
+
+`GOVSIM_LLM_DROP_PARAMS` strips wire parameters a given endpoint rejects (Gemini 400s on `seed`) —
+at the wire only, so the cache key is unchanged and recorded tapes still replay exactly.
+
+### Reproducing without a key
+
+Every model call is written to a content-addressed tape. `GOVSIM_LLM_MODE=replay` serves every
+reported run from disk with no network and no key; a deliberately wrong key changes nothing. That is
+what makes a sampled decision-maker compatible with a reproducibility claim at all.
+
+## Full pipeline
+
+```bash
+uv run python scripts/recalibrate.py --seeds 20        # -> govsim/docs_gates/calibration.json
+uv run python scripts/run_matrix.py --arms epidemic --seeds 20 --models <model> --workers 6
+uv run python scripts/analyze_matrix.py --store logs/runs_* --cross-model --json logs/analysis.json
+uv run python scripts/policy_audit.py --store logs/runs_*   # what the regents actually wrote
+uv run python scripts/make_tables.py && uv run python scripts/make_figures.py
+cd paper && pdflatex main.tex && bibtex main && pdflatex main.tex   # and social.tex
+```
+
+> Re-run `recalibrate.py` after **any** change to a regime. A stale calibration silently re-anchors
+> every normalized-regret number downstream.
+
+## Layout
+
+| Where | What |
+|---|---|
+| `govsim/core/` | the six domain-neutral seams + `Experiment`/`Runner`/`ResultStore` + the LLM cache/replay tape |
+| `govsim/domains/scalar/` | the worlds (cubic, coupled, SIR/SIRS, company), their objectives, and the **pinned regimes** |
+| `govsim/regents/` | `LLMRegent`, `OPRORegent`, and the calibrated baselines (`LQR`, `Oracle`, `Switching`) |
+| `govsim/harness/` | the ablatable channels: trace, outcome, memory, critic, rollout probe |
+| `govsim/analysis/` | paired bootstrap, factorial effects with interactions, Holm, **regime calibration** |
+| `govsim/docs_gates/` | the pre-registration, the generated calibration artifact, the ADR log |
+| `scripts/` | calibration, sweeps, analysis, policy audit, table and figure generation |
+| `paper/` | the technical manuscript (`main.tex`) and the social-science one (`social.tex`) |
+
+The `Runner` refuses to run an `Experiment` without a `Hypothesis` carrying a claim and a *named*
+baseline. Deciding what is being tested is an executable precondition, not a discipline.
+
+Deeper design docs are in [`agents/`](agents/); [`AGENTS.md`](AGENTS.md) is the contributor guide;
+current state and open author decisions are in
+[`govsim/docs_gates/STATUS.md`](govsim/docs_gates/STATUS.md).
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
