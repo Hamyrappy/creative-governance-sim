@@ -10,6 +10,27 @@ lives, how to run it, and how to work on it.** Read this first. Deeper analysis 
 
 ---
 
+> **Read this first (2026-08).** The project's centre of gravity moved from "build a better regent"
+> to **"measure whether the regime can tell"**. `govsim/analysis/calibration.py` computes, for any
+> regime, the best rule available *before* a structural break, the best *fixed* rule in hindsight,
+> and the best *switching* rule — and their ratios bound what adaptation could possibly be worth.
+> Running an adaptation experiment without that measurement is how the project spent its first
+> attempt on a regime with ≈1.0× headroom, where no controller could have shown anything.
+>
+> Practical consequences for anyone working here:
+> - **Re-run `scripts/recalibrate.py` after touching a regime.** Every normalized-regret number is
+>   anchored on the generated `docs_gates/calibration.json`; a stale one silently re-scales everything.
+> - **Calibrate references on the objective, never on one of its components.** Optimizing a
+>   reference for `mse` while the objective also prices control effort puts every optimum at a grid
+>   corner, and corner optima are regime-invariant.
+> - **Give references the same instruments the arms have.** A reference confined to one lever is not
+>   a weaker opponent, it is an unfair one.
+> - **The flagship regime is `EPIDEMIC_SHOCKED`** in `govsim/domains/scalar/regimes.py`, not the
+>   cubic plant. The cubic arms are retained as a *declared negative control*.
+> - The claims, the correction procedure, and the abandon condition are in
+>   [`govsim/docs_gates/preregistration.md`](govsim/docs_gates/preregistration.md), whose deviation
+>   log is append-only.
+
 ## 1. What this project is
 
 An **experiment machine for LLM "regents" (controllers) that try to control complex systems** —

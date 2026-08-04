@@ -226,6 +226,27 @@ $0$---a perfect score. In the epidemic model this made ``let it burn out'' the o
 policy. We score an empty window as $+\infty$ and, more fundamentally, make the disease endemic so
 that it cannot be outlasted.
 
+\emph{Scoring only the post-break window, which rewards passivity.} This one we pre-registered and
+had to withdraw. A policy that never intervenes is wrong before the break and, precisely because the
+break disables the instrument, close to right after it---so it scores well on a post-window metric
+without having adapted to anything. The no-harness control arm made this visible by reaching
+$\Rreg \approx 0.11$ while emitting $64\%$ bare constants. Scoring the full horizon against the best
+\emph{fixed} law in hindsight removes the free lunch, because no fixed law is optimal on both sides
+of a break that moves the optimum. The deviation is logged in full rather than quietly folded in.
+
+\emph{Composing the clairvoyant reference from separately-optimal legs.} The natural construction of
+the switching reference---take the law that is best on a stationary pre-break world, then the law
+that is best on the post-break window---is wrong whenever the state carries information across the
+break, which in a compartmental model it always does: the pre-break leg decides how much of the
+population is still susceptible when the break lands. The error is not subtle in its consequences.
+In our harsher severity cell the composed reference scored \emph{worse} than the best fixed law
+($\headroom = 0.92$), which is impossible for a genuine upper bound, since switching subsumes not
+switching. We now search the $(\text{pre}, \text{post})$ pair jointly over a shortlist of pre-legs,
+and treat $\headroom < 1$ as a hard signal that the reference search is under-powered rather than as
+a finding. This check is worth building in: a reference that can be beaten by a special case of
+itself is detectable automatically, and a normalized regret computed against one is meaningless in a
+way no amount of careful statistics downstream would reveal.
+
 \section{Which shocks leave room to adapt}
 \label{sec:which-shocks}
 

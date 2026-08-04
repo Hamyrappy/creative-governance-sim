@@ -169,8 +169,8 @@ def run(name: str, seeds: list[int]) -> dict:
     print(f"  frozen      : {frozen.best_laws}")
     print(f"  best_fixed  : {best_fixed.best_laws}   (hindsight, whole horizon, '{best_fixed_name}')")
     print(f"  oracle(post): {oracle.best_laws}")
-    print(f"  switching   : {pre_laws}
-                ->  {post_laws}   at t={s['shock_step']}")
+    print(f"  switching   : {pre_laws}")
+    print(f"                ->  {post_laws}   at t={s['shock_step']}")
     print(f"  full-horizon loss: frozen={fl:.4f}  best_fixed={bl:.4f}  switching={sl:.4f}")
     print(f"  headroom  frozen/switching = {h_full:.3f}x   best_fixed/switching = {h_vs_fixed:.3f}x")
     if h_vs_fixed < 1.0:
