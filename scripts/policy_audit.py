@@ -52,6 +52,8 @@ from govsim.core.result_store import ResultStore
 from govsim.domains.scalar import regimes as R
 
 REGENT = "regent:0"
+#: The instrument that SURVIVES the break. The clairvoyant response is to substitute toward it.
+SECOND_INSTRUMENT = "set_vaccination"
 
 # The calibrated reference family is exactly `<a> if I > <thr> else 0.0` with numeric a, thr.
 # Anything else is outside the space the oracle was optimal within.
@@ -121,7 +123,9 @@ def audit_arm(store: ResultStore, experiment: str) -> dict | None:
         return None
     shock = R.EPIDEMIC_SHOCK_STEP
     pre_rev, post_rev, direction, total = [], [], [], 0
+    touched_second, touched_second_post = [], []
     classes: Counter[str] = Counter()
+    verbs: Counter[str] = Counter()
     exprs: Counter[str] = Counter()
 
     for events in by_seed.values():
@@ -140,7 +144,14 @@ def audit_arm(store: ResultStore, experiment: str) -> dict | None:
         for e in events:
             exprs[e["expr"]] += 1
             classes[policy_class(e["expr"])] += 1
+            verbs[e["verb"]] += 1
             total += 1
+        # Did this run EVER legislate on the instrument that still works? The clairvoyant response
+        # to the break is to substitute toward vaccination, so an arm that never touches that lever
+        # has not merely adapted badly — it has not considered the correct move at all.
+        touched_second.append(any(e["verb"] == SECOND_INSTRUMENT for e in events))
+        post = [e for e in events if e["step"] >= shock]
+        touched_second_post.append(any(e["verb"] == SECOND_INSTRUMENT for e in post))
 
     return {
         "arm": experiment,
@@ -152,6 +163,11 @@ def audit_arm(store: ResultStore, experiment: str) -> dict | None:
         "share_constant": classes["constant"] / total if total else None,
         "share_in_family": classes["in-family"] / total if total else None,
         "share_outside": classes["outside"] / total if total else None,
+        "share_used_second_instrument": (sum(touched_second) / len(touched_second)
+                                         if touched_second else None),
+        "share_used_second_after_break": (sum(touched_second_post) / len(touched_second_post)
+                                          if touched_second_post else None),
+        "verb_counts": dict(verbs),
         "n_policies": total,
         "top_policies": exprs.most_common(5),
     }
@@ -187,14 +203,14 @@ def main() -> int:
 
     pct = lambda v: f"{100 * v:.0f}%" if v is not None else "—"  # noqa: E731
     print(f"\n{'arm':<38} {'seeds':>5} {'rev.pre':>8} {'rev.post':>9} "
-          f"{'tighten/relax':>14} {'const':>7} {'in-fam':>7} {'outside':>8}")
+          f"{'tighten/relax':>14} {'const':>7} {'in-fam':>7} {'outside':>8} {'used 2nd lever':>15}")
     for r in rows:
         rp = f"{r['revision_rate_pre']:.2f}" if r["revision_rate_pre"] is not None else "—"
         rq = f"{r['revision_rate_post']:.2f}" if r["revision_rate_post"] is not None else "—"
         print(f"{r['arm']:<38} {r['n_seeds']:>5} {rp:>8} {rq:>9} "
               f"{r['n_tightened_after_break']:>6}/{r['n_relaxed_after_break']:<7} "
               f"{pct(r['share_constant']):>7} {pct(r['share_in_family']):>7} "
-              f"{pct(r['share_outside']):>8}")
+              f"{pct(r['share_outside']):>8} {pct(r['share_used_second_after_break']):>15}")
 
     print("\n=== most frequently enacted policies ===")
     marks = {"constant": "c", "in-family": " ", "outside": "*"}

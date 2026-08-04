@@ -132,15 +132,21 @@ def plot_surface(rows: list[dict]) -> Path:
 # 2. policy divergence
 # ---------------------------------------------------------------------------------------------
 
-def _run_expr(expr: str, seed: int) -> list[dict]:
-    """Replay a fixed policy on the shocked world and return its trajectory."""
+def _run_expr(expr: str | dict, seed: int) -> list[dict]:
+    """Replay a fixed policy on the shocked world and return its trajectory.
+
+    Accepts a ``{verb: expression}`` map because the calibrated references govern both instruments:
+    plotting only their lockdown term would draw a different policy from the one that was scored.
+    """
     from govsim.core.experiment import Experiment, Hypothesis
-    from govsim.core.regent import ScriptedRegent
+    from govsim.core.regent import MultiScriptedRegent, ScriptedRegent
     from govsim.core.runner import Runner
 
+    regent = (MultiScriptedRegent(expr) if isinstance(expr, dict)
+              else ScriptedRegent(verb="set_lockdown", expr=expr))
     exp = Experiment(
         name="traj", system_factory=R.sir_factory(R.EPIDEMIC_SHOCKED), action_interface=IFACE,
-        regents={"regent:0": ScriptedRegent(verb="set_lockdown", expr=expr)},
+        regents={"regent:0": regent},
         objectives={"regent:0": EpidemicLoss(lam=R.EPIDEMIC_LAMBDA,
                                              post_shock_step=R.EPIDEMIC_SHOCK_STEP)},
         schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), seeds=[seed], horizon=R.EPIDEMIC_HORIZON,
@@ -151,32 +157,58 @@ def _run_expr(expr: str, seed: int) -> list[dict]:
 
 
 def plot_divergence(regent_expr: str | None, seed: int = 0) -> Path:
-    traces = [("frozen institution", R.reference_expr("epidemic", "frozen"), C_FROZEN, "-"),
-              ("clairvoyant oracle", R.reference_expr("epidemic", "oracle"), C_ORACLE, "--")]
+    calib = R.calibration().get("epidemic", {})
+    pre, post, step = R.switching_reference("epidemic")
+    switching = {"pre": calib["switching"].get("pre_laws", {"set_lockdown": pre}),
+                 "post": calib["switching"].get("post_laws", {"set_lockdown": post})}
+    traces = [
+        ("frozen rule (stale)", calib["frozen"].get("laws"), C_FROZEN, "-"),
+        ("best fixed law (hindsight)", calib["best_fixed"].get("laws"), "#7D5BA6", ":"),
+    ]
     if regent_expr:
-        traces.append((f"regent: {regent_expr}", regent_expr, C_REGENT, "-."))
+        traces.append((f"regent: {regent_expr}", {"set_lockdown": regent_expr}, C_REGENT, "-."))
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(5.6, 5.4), sharex=True,
-                                        gridspec_kw={"height_ratios": [1.2, 1, 1]})
-    for label, expr, color, ls in traces:
-        rows = _run_expr(expr, seed)
+    fig, (ax1, ax2, ax2b, ax3) = plt.subplots(4, 1, figsize=(5.8, 6.6), sharex=True,
+                                              gridspec_kw={"height_ratios": [1.3, 1, 1, 1]})
+
+    def draw(label, laws, color, ls, rows):
         t = [r["t"] for r in rows]
         ax1.plot(t, [r["infected"] for r in rows], color=color, ls=ls, lw=1.4, label=label)
         ax2.plot(t, [r.get("lockdown", 0.0) for r in rows], color=color, ls=ls, lw=1.4)
+        ax2b.plot(t, [r.get("vacc", 0.0) for r in rows], color=color, ls=ls, lw=1.4)
         ax3.plot(t, [r.get("cum_cost", 0.0) for r in rows], color=color, ls=ls, lw=1.4)
 
-    for ax in (ax1, ax2, ax3):
+    for label, laws, color, ls in traces:
+        if laws:
+            draw(label, laws, color, ls, _run_expr(laws, seed))
+    # The clairvoyant adaptor, run through the same path as everything else.
+    from govsim.core.experiment import Experiment, Hypothesis
+    from govsim.core.runner import Runner
+    from govsim.regents import SwitchingRegent
+
+    exp = Experiment(
+        name="traj:switch", system_factory=R.sir_factory(R.EPIDEMIC_SHOCKED), action_interface=IFACE,
+        regents={"regent:0": SwitchingRegent("set_lockdown", switching["pre"], switching["post"], step)},
+        objectives={"regent:0": EpidemicLoss(lam=R.EPIDEMIC_LAMBDA,
+                                             post_shock_step=R.EPIDEMIC_SHOCK_STEP)},
+        schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), seeds=[seed], horizon=R.EPIDEMIC_HORIZON,
+        hypothesis=Hypothesis(id="traj", claim="trajectory rendering", baseline="n/a",
+                              primary_metric="loss"))
+    draw("clairvoyant switch", None, C_ORACLE, "--", Runner().run(exp)[0].metrics_series)
+
+    for ax in (ax1, ax2, ax2b, ax3):
         ax.axvline(R.EPIDEMIC_SHOCK_STEP, color="#666", lw=0.9, ls=":")
-    ax1.set_ylim(top=ax1.get_ylim()[1] * 1.45)  # headroom so the legend never sits on a curve
+    ax1.set_ylim(top=ax1.get_ylim()[1] * 1.55)  # room so the legend never sits on a curve
     ax1.annotate("instrument efficacy collapses\n(unannounced, unobservable)",
                  xy=(R.EPIDEMIC_SHOCK_STEP + 4, ax1.get_ylim()[1] * 0.97),
                  fontsize=7.5, color="#444", va="top")
-    ax1.set_ylabel("prevalence $I_t$")
-    ax2.set_ylabel("enacted lockdown")
-    ax3.set_ylabel("cumulative cost")
+    ax1.set_ylabel("prevalence $I_t$", fontsize=8.5)
+    ax2.set_ylabel("lockdown\n(the broken lever)", fontsize=8.5)
+    ax2b.set_ylabel("vaccination\n(still works)", fontsize=8.5)
+    ax3.set_ylabel("cumulative cost", fontsize=8.5)
     ax3.set_xlabel("step")
     ax1.legend(fontsize=7.5, frameon=False, loc="upper left", ncol=1)
-    ax1.set_title("After the break the frozen rule pays more and buys less", fontsize=9.5, pad=6)
+    ax1.set_title("The stale rule keeps buying the instrument that broke", fontsize=9.5, pad=6)
     out = FIG / "fig_policy_divergence.pdf"
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)

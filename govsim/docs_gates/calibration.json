@@ -4,37 +4,60 @@
     "switch_step": 100,
     "frozen": {
       "expr": "0.9 if I > 0.01 else 0.0",
+      "laws": {
+        "set_lockdown": "0.9 if I > 0.01 else 0.0",
+        "set_vaccination": "0.0"
+      },
       "params": {
         "a": 0.9,
-        "thr": 0.01
+        "thr": 0.01,
+        "v": 0.0
       },
       "loss": 27.972078470344606,
       "post_loss": 20.106821574866427
     },
     "best_fixed": {
-      "expr": "0.9 if I > 0.25 else 0.0",
-      "params": {
-        "a": 0.9,
-        "thr": 0.25
+      "expr": "0.6 if I > 0.002 else 0.0",
+      "laws": {
+        "set_lockdown": "0.6 if I > 0.002 else 0.0",
+        "set_vaccination": "0.5"
       },
-      "loss": 27.113831680552284,
+      "params": {
+        "a": 0.6,
+        "thr": 0.002,
+        "v": 0.5
+      },
+      "loss": 25.229010481358703,
       "family": "threshold"
     },
     "oracle": {
-      "expr": "0.9 if I > 0.25 else 0.0",
-      "params": {
-        "a": 0.9,
-        "thr": 0.25
+      "expr": "0.45 if I > 0.16 else 0.0",
+      "laws": {
+        "set_lockdown": "0.45 if I > 0.16 else 0.0",
+        "set_vaccination": "0.5"
       },
-      "post_loss": 11.841708478962659
+      "params": {
+        "a": 0.45,
+        "thr": 0.16,
+        "v": 0.5
+      },
+      "post_loss": 11.26796162424795
     },
     "switching": {
       "pre_expr": "0.9 if I > 0.01 else 0.0",
-      "post_expr": "0.9 if I > 0.25 else 0.0",
-      "loss": 23.73565540965903
+      "post_expr": "0.45 if I > 0.16 else 0.0",
+      "pre_laws": {
+        "set_lockdown": "0.9 if I > 0.01 else 0.0",
+        "set_vaccination": "0.0"
+      },
+      "post_laws": {
+        "set_lockdown": "0.45 if I > 0.16 else 0.0",
+        "set_vaccination": "0.5"
+      },
+      "loss": 22.983534419664952
     },
-    "headroom": 1.178483508779016,
-    "headroom_vs_best_fixed": 1.1423249627022531,
+    "headroom": 1.217048603560791,
+    "headroom_vs_best_fixed": 1.097699336433325,
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -63,7 +86,6 @@
       "family_grid": {
         "a": [
           0.0,
-          0.15,
           0.3,
           0.45,
           0.6,
@@ -78,11 +100,16 @@
           0.1,
           0.16,
           0.25,
-          0.4,
-          0.7
+          0.4
+        ],
+        "v": [
+          0.0,
+          0.1,
+          0.25,
+          0.5
         ]
       },
-      "family_size": 63,
+      "family_size": 192,
       "wide_families": {
         "threshold": "{a} if I > {thr} else 0.0",
         "proportional": "{g} * I + {b}",
@@ -91,7 +118,7 @@
       "horizon": 200,
       "decide_every": 10,
       "primary_metric": "loss (full horizon)",
-      "calibrated_at": "2026-08-04T16:23:38+00:00"
+      "calibrated_at": "2026-08-04T16:42:02+00:00"
     }
   },
   "scalar": {
@@ -99,6 +126,9 @@
     "switch_step": 100,
     "frozen": {
       "expr": "-(1.3 * current_x + 3.0 * current_x ** 3)",
+      "laws": {
+        "set_control_input": "-(1.3 * current_x + 3.0 * current_x ** 3)"
+      },
       "params": {
         "k": 1.3,
         "c": 3.0
@@ -108,6 +138,9 @@
     },
     "best_fixed": {
       "expr": "-(1.9 * current_x + 3.0 * current_x ** 3)",
+      "laws": {
+        "set_control_input": "-(1.9 * current_x + 3.0 * current_x ** 3)"
+      },
       "params": {
         "k": 1.9,
         "c": 3.0
@@ -117,6 +150,9 @@
     },
     "oracle": {
       "expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
+      "laws": {
+        "set_control_input": "-(2.6 * current_x + 3.0 * current_x ** 3)"
+      },
       "params": {
         "k": 2.6,
         "c": 3.0
@@ -126,6 +162,12 @@
     "switching": {
       "pre_expr": "-(1.3 * current_x + 3.0 * current_x ** 3)",
       "post_expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
+      "pre_laws": {
+        "set_control_input": "-(1.3 * current_x + 3.0 * current_x ** 3)"
+      },
+      "post_laws": {
+        "set_control_input": "-(2.6 * current_x + 3.0 * current_x ** 3)"
+      },
       "loss": 0.031849705032051714
     },
     "headroom": 1.1248811296541568,
@@ -180,7 +222,7 @@
       "horizon": 200,
       "decide_every": 10,
       "primary_metric": "loss (full horizon)",
-      "calibrated_at": "2026-08-04T16:24:50+00:00"
+      "calibrated_at": "2026-08-04T16:42:11+00:00"
     }
   }
 }
