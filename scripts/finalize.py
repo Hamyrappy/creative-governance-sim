@@ -46,6 +46,9 @@ def main() -> int:
     ap.add_argument("--skip-refs", action="store_true",
                     help="skip re-running the key-free reference arms (only if calibration is unchanged)")
     ap.add_argument("--analysis", default="logs/analysis.json")
+    ap.add_argument("--export-tape", default=None, metavar="DIR",
+                    help="re-run every arm cache-served (to stamp cache keys) and export "
+                         "the replay tape for exactly the reported runs into DIR")
     args = ap.parse_args()
 
     py = [sys.executable]
@@ -59,6 +62,19 @@ def main() -> int:
                 py + ["scripts/run_matrix.py", "--arms", "epidemic-refs", "--seeds", "20",
                       "--models", args.model, "--store", store,
                       "--summary", f"logs/refs_{Path(store).name}.json"])
+
+    # 1b. Optional: re-run every arm cache-served, then export the tape for exactly those runs.
+    # The re-run costs seconds (every call is a cache hit) and is what stamps each record with the
+    # cache key the export needs — records made before the client began stamping it have none.
+    if args.export_tape:
+        results["restamp"] = run(
+            "re-run all arms (cache-served) to stamp cache keys",
+            py + ["scripts/run_matrix.py", "--arms", "epidemic", "--seeds", "20",
+                  "--models", args.model, "--workers", "6", "--store", args.store[0],
+                  "--summary", "logs/restamp.json"])
+        results["export_tape"] = run(
+            "export the replay tape",
+            py + ["scripts/export_tape.py", "--store", *args.store, "--out", args.export_tape])
 
     # 2. Analysis (needs the refs), then the policy audit (independent, reads llm_io artifacts).
     results["analysis"] = run(
