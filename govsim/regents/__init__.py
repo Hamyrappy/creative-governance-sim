@@ -9,12 +9,14 @@ All are domain-BLIND: they see an ``Observation`` + an ``ActionSpace`` and retur
   - ``PIDRegent``    — a tuned PD/PID control law (the "tuned controller" the creativity metric
                        must beat on un-tuned regimes).
   - ``LQRRegent``    — the analytic LQR ground-truth ceiling for the linear scalar plant.
+  - ``OracleRegent`` — the CLAIRVOYANT post-shock reference that anchors normalized regret at 0
+                       (the frozen pre-shock ``LQRRegent`` anchors it at 1).
   - ``OPRORegent``   — the trace-less Optimization-by-PROmpting rival H1 must beat (archive of
                        (law, score) + rollout scoring).
 """
 
 from govsim.regents.llm_regent import LLMRegent, default_prompt_assembler, parse_action_requests
-from govsim.regents.baselines import PIDRegent, LQRRegent
+from govsim.regents.baselines import PIDRegent, LQRRegent, OracleRegent
 from govsim.regents.opro import OPRORegent
 from govsim.regents.prompting import (
     TemplatePromptAssembler,
@@ -29,6 +31,7 @@ __all__ = [
     "parse_action_requests",
     "PIDRegent",
     "LQRRegent",
+    "OracleRegent",
     "OPRORegent",
     "TemplatePromptAssembler",
     "check_prompt",

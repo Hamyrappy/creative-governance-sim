@@ -151,27 +151,30 @@ example_json_content_with_formulas = """
     ]
 }
 """
-temp_json_filename_formulas = "temp_data_formulas.json"
-with open(temp_json_filename_formulas, 'w', encoding='utf-8') as f_temp:
-    f_temp.write(example_json_content_with_formulas)
+# Guarded so importing this module has NO filesystem side effects and no hardcoded-path reads —
+# the demo only runs when the script is executed directly (`python scripts/unique_policies.py`).
+if __name__ == "__main__":
+    temp_json_filename_formulas = "temp_data_formulas.json"
+    with open(temp_json_filename_formulas, 'w', encoding='utf-8') as f_temp:
+        f_temp.write(example_json_content_with_formulas)
 
-# 2. Укажите имя вашего JSON-файла
-json_file_name_formulas = 'logs/simulation_results_exp4.json'# temp_json_filename_formulas # Используем созданный временный файл
+    # 2. Укажите имя вашего JSON-файла
+    json_file_name_formulas = 'logs/simulation_results_exp4.json'# temp_json_filename_formulas # Используем созданный временный файл
 
-# 3. Вызов функции с именем файла
-extracted_full_data = extract_unique_policies_rationales_and_formulas_from_file(json_file_name_formulas)
+    # 3. Вызов функции с именем файла
+    extracted_full_data = extract_unique_policies_rationales_and_formulas_from_file(json_file_name_formulas)
 
-# 4. Вывод результатов
-if extracted_full_data:
-    print(f"\nИзвлеченные уникальные политики, их обоснования и формулы из файла '{json_file_name_formulas}':")
-    for policy_id, data_item in extracted_full_data.items():
-        print(f"\nPolicy ID: {policy_id}")
-        rationale_text = data_item['rationale'] if data_item['rationale'] is not None else "N/A (отсутствует или не удалось извлечь)"
-        formula_text = data_item['formula'] if data_item['formula'] is not None else "N/A (отсутствует)"
-        print(f"  Rationale: {rationale_text}")
-        print(f"  Formula:   {formula_text}")
-else:
-    print(f"\nНе найдено политик с данными в файле '{json_file_name_formulas}' или произошла ошибка при обработке.")
+    # 4. Вывод результатов
+    if extracted_full_data:
+        print(f"\nИзвлеченные уникальные политики, их обоснования и формулы из файла '{json_file_name_formulas}':")
+        for policy_id, data_item in extracted_full_data.items():
+            print(f"\nPolicy ID: {policy_id}")
+            rationale_text = data_item['rationale'] if data_item['rationale'] is not None else "N/A (отсутствует или не удалось извлечь)"
+            formula_text = data_item['formula'] if data_item['formula'] is not None else "N/A (отсутствует)"
+            print(f"  Rationale: {rationale_text}")
+            print(f"  Formula:   {formula_text}")
+    else:
+        print(f"\nНе найдено политик с данными в файле '{json_file_name_formulas}' или произошла ошибка при обработке.")
 
 # 5. (Опционально) Удаляем временный файл
 if os.path.exists(temp_json_filename_formulas):

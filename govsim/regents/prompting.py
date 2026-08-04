@@ -97,15 +97,19 @@ class TemplatePromptAssembler:
         return [{"role": "system", "content": text}, {"role": "user", "content": self.nudge}]
 
 
+# FAIRNESS NOTE (was a confound): earlier this template coached the LLM toward the winning solution
+# structure ("consider conditionals or terms in the state's higher powers"; a worked example of a
+# fixed gain failing on a super-linear plant). The named H1 rival (trace-less OPRO) gets no such hint,
+# so any advantage would conflate "harness/trace advantage" with "prompt-hint advantage" — the exact
+# thing H1 claims to isolate. The coaching is removed: both arms now get only the neutral partial-info
+# framing (f unknown, may be nonlinear, infer from history) and must discover the structure themselves.
 OBFUSCATED_TEMPLATE = """You govern a stochastic dynamical system whose update rule is
 
     x_(k+1) = f(x_k, u_k, noise)
 
 where the function f is UNKNOWN to you and MAY BE NONLINEAR. You are NOT told f. You must INFER its
 structure from the observed history of states and your past controls, then choose a control law that
-drives the state to target. Warning: a purely linear control law can be insufficient if the plant is
-nonlinear (for example, if it grows faster than linearly in the state, a fixed proportional gain that
-works near the target may fail to contain large excursions).
+drives the state to target.
 
 Objective: drive current_x to target_x = {target_x} while keeping control effort moderate.
 
@@ -120,8 +124,7 @@ Current state (step {current_step}): current_x={current_x}, previous_x={previous
 
 Return ONE Python expression for the control u_k (no statements, imports, or side effects), using only
 the allowed variables and safe math/np helpers. The system clips the result into its range for you, so
-do not reference any range name in the expression. Consider conditionals or terms in the state's higher
-powers if the history suggests the plant is nonlinear."""
+do not reference any range name in the expression."""
 
 
 def make_obfuscated_assembler(suppliable: set[str]) -> TemplatePromptAssembler:

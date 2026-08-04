@@ -200,8 +200,10 @@ class RandomAgent(BaseGovernmentAgent):
     def allowed_math_funcs(self):
          # Это нужно для проверки доступности math.sin в генераторе
          # В реальном LLM можно передать список доступных функций в промпт
-         from policy_utils import ALLOWED_MATH_NAMES
-         return ALLOWED_MATH_NAMES
+         # (было: `from policy_utils import ALLOWED_MATH_NAMES` — плоский импорт несуществующего
+         #  символа, падал при первом обращении; берём имена из актуального конфига песочницы)
+         from govsim.utils.policy_utils import DEFAULT_CONFIG
+         return list(DEFAULT_CONFIG.math_funcs.keys())
 
 
 # --- Агент, который НИЧЕГО не делает ---

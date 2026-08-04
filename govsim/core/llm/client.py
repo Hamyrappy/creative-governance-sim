@@ -55,10 +55,17 @@ class OpenAICompatClient:
 
     Args:
         base_url: e.g. ``https://api.openai.com/v1`` | ``https://openrouter.ai/api/v1`` |
-            ``http://localhost:11434/v1`` (Ollama) | ``http://localhost:8000/v1`` (vLLM).
+            ``http://localhost:11434/v1`` (Ollama) | ``http://localhost:8000/v1`` (vLLM) |
+            ``https://generativelanguage.googleapis.com/v1beta/openai/`` (Gemini).
             ``None`` uses the ``openai`` SDK default.
         api_key_env: environment variable holding the key (default ``OPENAI_API_KEY``).
         default_model: model id used when ``complete(model=...)`` is not given.
+        drop_params: wire-level parameters this endpoint does NOT accept, stripped before the call.
+            "OpenAI-compatible" is a family, not a standard: Gemini's compat layer hard-rejects
+            ``seed`` with a 400. Dropping is deliberately wire-only — the caller's ``seed`` still
+            enters the cache key, so a recorded tape stays keyed by the *logical* request and
+            replays byte-for-byte. (Cost: the provider no longer honours the seed, so live sampling
+            diversity across probe candidates must come from the prompt, not the seed field.)
     """
 
     def __init__(
@@ -68,11 +75,13 @@ class OpenAICompatClient:
         api_key_env: str = "OPENAI_API_KEY",
         default_model: str | None = None,
         timeout: float = 120.0,
+        drop_params: frozenset[str] | set[str] | None = None,
     ) -> None:
         self.base_url = base_url
         self.api_key_env = api_key_env
         self.default_model = default_model
         self.timeout = timeout
+        self.drop_params = frozenset(drop_params or ())
         self._client: Any = None  # the openai.OpenAI instance, created lazily
 
     def _ensure(self) -> Any:
@@ -122,6 +131,8 @@ class OpenAICompatClient:
             # Provider-specific top-level params (e.g. gpt-oss ``reasoning_effort="low"`` to stop it
             # over-thinking and returning empty content). Verified as a direct kwarg on the AIRI vLLM.
             kwargs.update(extra)
+        for name in self.drop_params:
+            kwargs.pop(name, None)
 
         resp = client.chat.completions.create(**kwargs)
         msg = resp.choices[0].message

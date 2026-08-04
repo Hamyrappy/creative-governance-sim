@@ -122,6 +122,10 @@ class Runner:
             token_cost=token_cost,
             terminated_at_step=terminated_at,
             creativity_metric=exp.creativity_metric.name if exp.creativity_metric else None,
+            harness_components=[
+                {"name": getattr(c, "name", type(c).__name__), "enabled": bool(getattr(c, "enabled", True))}
+                for c in exp.harness.components
+            ],
         )
 
     def _decision_step(self, exp: Experiment, system: Any, scratch: dict[str, dict]) -> None:
@@ -146,6 +150,13 @@ class Runner:
 
         for rid, (view, reqs) in per_regent.items():
             errors = [rejected_by_req[id(r)] for r in reqs if id(r) in rejected_by_req]
+            if not reqs:
+                # A decision that produced ZERO requests (LLM emitted no parseable tool-call / empty
+                # or truncated reply) is otherwise a silent no-op the TraceFeedback loop never sees —
+                # yet it is the single most common LLM failure mode. Surface it as an error so the
+                # corrective channel fires next turn. (A deliberately-passive regent has no harness
+                # reading this, so it stays harmless there.)
+                errors.append("no action produced: empty or unparseable regent reply; nothing was applied")
             outcome = Outcome(
                 requests=reqs,
                 report=report,

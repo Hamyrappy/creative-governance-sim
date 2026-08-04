@@ -24,8 +24,16 @@
   counted as worst-case, not dropped — the Vending-Bench tail-event lesson.
 
 ## Reporting
-- N seeds (recommend ≥ 20 for a headline claim; ≥ 5 for development), the seed list, the git commit,
-  the model snapshot, and the replay-tape hash — all already in the `RunRecord` / `ResultStore` row.
+- N seeds (recommend ≥ 20 for a headline claim; ≥ 5 for development), the seed list, and the git
+  commit — all in the `RunRecord` / `ResultStore` row, together with the per-regent model snapshot
+  (`regent_specs`) and the harness composition (`harness_components`, for the H3 ablation provenance).
+- The primary metric must be the quantity the claim is about — e.g. an "unseen post-shock regret"
+  claim is compared on `post_mse` (post-shock window), NOT whole-horizon `mse` (which averages in the
+  pre-shock half where a frozen controller is near-optimal and can invert the verdict).
+- `compare` refuses to call a result significant below `min_n=2` paired seeds (a single shared seed
+  gives a zero-width CI that would falsely "exclude 0") and flags `underpowered` below the dev floor.
+- *Not yet stored:* a content hash of the exact replay tape used. Until it is, pin reproducibility by
+  the committed tape files + git commit. (Tracked as a follow-up; do not claim a tape hash in a paper.)
 - Multiple comparisons: if reporting many secondary metrics, say so; control or label as exploratory.
 
 ## ☐ AUTHOR decision still open

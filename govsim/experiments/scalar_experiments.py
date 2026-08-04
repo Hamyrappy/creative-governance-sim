@@ -77,7 +77,7 @@ def cubic_nonlinear() -> Experiment:
         system_factory=factory,
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
         regents={"regent:0": ScriptedRegent(verb="set_control_input", expr="-1.2 * current_x")},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        objectives={"regent:0": _h1_loss()},
         schedule=EveryN(50),
         seeds=[0, 1, 2, 3, 4],
         horizon=200,
@@ -86,8 +86,8 @@ def cubic_nonlinear() -> Experiment:
             claim="a code-as-policy regent infers the nonlinear plant from partial info and lowers "
                   "post-shock regret vs a frozen pre-shock-optimal controller and trace-less OPRO",
             baseline="frozen LQR/numeric-DP for the linearization + trace-less OPRO",
-            primary_metric="mse",
-            falsification="no lower regret than the frozen-optimal baseline over seeds",
+            primary_metric="post_mse",  # POST-shock MSE (steps >= shock); not diluted by the pre-shock half
+            falsification="no lower post-shock regret than the frozen-optimal baseline over seeds",
         ),
         creativity_metric=CreativityMetric(
             name="functional-novelty", kind="functional_novelty",
@@ -105,6 +105,11 @@ def _replay_client() -> CachingReplayClient:
     inner = OpenAICompatClient(
         base_url=os.environ.get("OPENAI_BASE_URL"),
         api_key_env=os.environ.get("OPENAI_API_KEY_ENV", "OPENAI_API_KEY"),
+        # GOVSIM_LLM_DROP_PARAMS: comma-separated wire params this endpoint rejects (e.g. "seed"
+        # for the Gemini OpenAI-compat layer, which 400s on it). Cache keys are unaffected.
+        drop_params=frozenset(
+            p.strip() for p in os.environ.get("GOVSIM_LLM_DROP_PARAMS", "").split(",") if p.strip()
+        ),
     )
     return CachingReplayClient(inner, os.environ.get("GOVSIM_LLM_CACHE", "logs/llm_cache"),
                                mode=os.environ.get("GOVSIM_LLM_MODE", "cache"))
@@ -120,6 +125,17 @@ def _llm_opts() -> tuple[int | None, dict | None]:
 
 # Pre-shock linearization the FROZEN baselines (LQR) are built from — they cannot see the shock.
 _CUBIC_H1_A, _CUBIC_H1_B = 0.95, 0.5
+# The single structural-shock step for the cubic H1 arm. The headline metric is POST-shock only, so
+# this same constant seeds both the plant's ``shock_step`` and the objective's ``post_shock_step``
+# (keeping "when the shock fires" and "which window we score" provably in sync).
+_CUBIC_H1_SHOCK_STEP = 100
+
+
+def _h1_loss() -> "StabilizationLoss":
+    """The H1 objective: full-horizon score, but its pre-registered comparison metric (``post_mse``)
+    is windowed to AT-OR-AFTER the shock — so a paired ``compare`` measures the *post-shock regret*
+    the H1 claim is about, not a pre/post-shock average (the pre-shock half would dilute/invert it)."""
+    return StabilizationLoss(lam=0.1, post_shock_step=_CUBIC_H1_SHOCK_STEP)
 
 
 def _cubic_h1_factory():
@@ -133,7 +149,7 @@ def _cubic_h1_factory():
     # infers the cubic recovers. Tune to keep the strong arms bounded but the frozen baseline stressed.
     cfg = {"param_A": _CUBIC_H1_A, "param_B": _CUBIC_H1_B, "param_C": 0.0, "sigma_epsilon": 0.08,
            "target_x": 0.0, "u_range": (-2.0, 2.0), "cubic_coeff": 0.05, "state_exponent": 3,
-           "shock_step": 100, "shock_params": {"param_A": 1.03, "cubic_coeff": 0.10},
+           "shock_step": _CUBIC_H1_SHOCK_STEP, "shock_params": {"param_A": 1.03, "cubic_coeff": 0.10},
            "shock_state_kick": 0.8}
 
     def factory(seed: int) -> CubicSystem:
@@ -164,7 +180,7 @@ def cubic_nonlinear_llm() -> Experiment:
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
         regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0,
                                        max_tokens=max_tokens, extra=extra)},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        objectives={"regent:0": _h1_loss()},
         harness=Harness([TraceFeedback(), EpisodicMemory(k=3)]),  # the cheapest upgrades (doc-09 §5.2)
         schedule=EveryN(25),
         seeds=[0, 1, 2],
@@ -174,8 +190,8 @@ def cubic_nonlinear_llm() -> Experiment:
             claim="an LLM code-as-policy regent infers the nonlinear plant from partial info and lowers "
                   "post-shock regret vs a frozen pre-shock-optimal controller and trace-less OPRO",
             baseline="frozen LQR/numeric-DP for the linearization + trace-less OPRO",
-            primary_metric="mse",
-            falsification="no lower regret than the frozen-optimal baseline over seeds",
+            primary_metric="post_mse",  # POST-shock MSE (steps >= shock); not diluted by the pre-shock half
+            falsification="no lower post-shock regret than the frozen-optimal baseline over seeds",
         ),
         creativity_metric=CreativityMetric(
             name="functional-novelty", kind="functional_novelty",
@@ -233,7 +249,9 @@ def coupled_regime_shift() -> Experiment:
                                           "shock_magnitude_aux2": -0.8, "param_B_drift_sigma": 0.01}),
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "u_commanded")]),
         regents={"regent:0": ScriptedRegent(verb="set_control_input", expr="-1.2 * current_x")},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        # Score from AT-OR-AFTER the first periodic shock (step 60), so the pre-shock warm-up where a
+        # frozen controller is near-optimal is not averaged into the post-shock adaptation metric.
+        objectives={"regent:0": StabilizationLoss(lam=0.1, post_shock_step=60)},
         schedule=EveryN(20),
         seeds=[0, 1, 2, 3, 4],
         horizon=300,
@@ -242,7 +260,7 @@ def coupled_regime_shift() -> Experiment:
             claim="a code-as-policy regent recovers from periodic unseen regime shocks with lower "
                   "post-shock regret than a frozen pre-shock-optimal controller and trace-less OPRO",
             baseline="frozen LQR for the main-state linearization + trace-less OPRO",
-            primary_metric="mse",
+            primary_metric="post_mse",  # POST-first-shock MSE (steps >= 60); not diluted by the warm-up
             falsification="no lower post-shock regret than the frozen-optimal baseline over seeds",
         ),
         creativity_metric=CreativityMetric(
@@ -269,7 +287,7 @@ def cubic_nonlinear_opro() -> Experiment:
         regents={"regent:0": OPRORegent("set_control_input", _replay_client(), model, temperature=0.8,
                                         scoring="realized",  # FAIR: learns only from realized outcomes
                                         max_tokens=max_tokens, extra=extra)},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        objectives={"regent:0": _h1_loss()},
         harness=Harness([]),  # trace-LESS by construction: no components
         schedule=EveryN(25),
         seeds=[0, 1, 2],
@@ -278,7 +296,7 @@ def cubic_nonlinear_opro() -> Experiment:
             id="H1-adaptation",
             claim="trace-less OPRO is the baseline the harnessed LLM regent must beat on the nonlinear arm",
             baseline="this IS the named baseline (trace-less OPRO)",
-            primary_metric="mse",
+            primary_metric="post_mse",  # POST-shock MSE (steps >= shock); not diluted by the pre-shock half
             falsification="the harnessed LLM does NOT lower post-shock regret vs this baseline over seeds",
         ),
         creativity_metric=None,
@@ -296,7 +314,7 @@ def cubic_nonlinear_lqr() -> Experiment:
         system_factory=_cubic_h1_factory(),
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
         regents={"regent:0": LQRRegent("set_control_input", A=_CUBIC_H1_A, B=_CUBIC_H1_B, Q=1.0, R=0.1)},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        objectives={"regent:0": _h1_loss()},
         schedule=EveryN(25),
         seeds=[0, 1, 2],
         horizon=200,
@@ -304,7 +322,7 @@ def cubic_nonlinear_lqr() -> Experiment:
             id="H1-adaptation",
             claim="the frozen pre-shock-optimal LQR is the baseline the adaptive regent must beat post-shock",
             baseline="this IS the named frozen-optimal baseline",
-            primary_metric="mse",
+            primary_metric="post_mse",  # POST-shock MSE (steps >= shock); not diluted by the pre-shock half
             falsification="the adaptive regent does NOT lower post-shock regret vs this frozen LQR",
         ),
         creativity_metric=None,
@@ -333,7 +351,7 @@ def cubic_nonlinear_llm_obfuscated() -> Experiment:
         regents={"regent:0": LLMRegent(llm=_replay_client(), model=model, temperature=0.0,
                                        prompt_assembler=assembler, prompt_file="obfuscated",
                                        max_tokens=max_tokens, extra=extra)},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        objectives={"regent:0": _h1_loss()},
         harness=Harness([TraceFeedback(), EpisodicMemory(k=4)]),
         schedule=EveryN(25),
         seeds=[0, 1, 2],
@@ -343,8 +361,8 @@ def cubic_nonlinear_llm_obfuscated() -> Experiment:
             claim="under partial information (f unknown) the LLM infers the nonlinear plant from history "
                   "and lowers post-shock regret vs frozen-optimal and trace-less OPRO",
             baseline="frozen LQR/numeric-DP for the linearization + trace-less OPRO (cubic_nonlinear_opro)",
-            primary_metric="mse",
-            falsification="no lower regret than the frozen-optimal baseline over seeds",
+            primary_metric="post_mse",  # POST-shock MSE (steps >= shock); not diluted by the pre-shock half
+            falsification="no lower post-shock regret than the frozen-optimal baseline over seeds",
         ),
         creativity_metric=CreativityMetric(
             name="functional-novelty", kind="functional_novelty",
@@ -370,7 +388,7 @@ def cubic_nonlinear_llm_critic() -> Experiment:
         action_interface=ScalarLeverInterface([Lever("set_control_input", (-2.0, 2.0), "current_u")]),
         regents={"regent:0": LLMRegent(llm=client, model=model, temperature=0.0,
                                        max_tokens=max_tokens, extra=extra)},
-        objectives={"regent:0": StabilizationLoss(lam=0.1)},
+        objectives={"regent:0": _h1_loss()},
         harness=Harness([TraceFeedback(), EpisodicMemory(k=3),
                          Critic(client, model, max_tokens=max_tokens, extra=extra)]),
         schedule=EveryN(25),
@@ -380,7 +398,7 @@ def cubic_nonlinear_llm_critic() -> Experiment:
             id="H3-critic",
             claim="adding a critic (audit→revise) yields a separable gain over trace+memory alone",
             baseline="the same harness minus the Critic (leave-one-out, doc-09 §5.4)",
-            primary_metric="mse",
+            primary_metric="post_mse",
             falsification="the critic's paired bootstrap CI does not exclude 0 in single-add AND LOO",
         ),
         creativity_metric=None,

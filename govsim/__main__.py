@@ -71,8 +71,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"  stored {len(records)} run(s) in {store.db_path}")
         if args.plot:
             rows = store.query(experiment=exp.name)
-            out = store.plot(rows[0]["run_id"])
-            print(f"  plotted run {rows[0]['run_id']} -> {out}")
+            latest = rows[-1]["run_id"]  # newest run of this experiment (query is ordered by run_id)
+            out = store.plot(latest)
+            print(f"  plotted run {latest} -> {out}")
     elif args.plot:
         print("  (--plot needs --store to persist series first)", file=sys.stderr)
     return 0
@@ -104,16 +105,22 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     try:
         recs_a = Runner().run(exp_a)
         recs_b = Runner().run(exp_b)
+        a_by = metric_by_seed(recs_a, metric)  # raises KeyError if an arm's objective lacks the metric
+        b_by = metric_by_seed(recs_b, metric)
     except (RuntimeError, KeyError, ValueError) as e:
         print(f"compare failed: {e}", file=sys.stderr)
         return 1
 
-    a_by = metric_by_seed(recs_a, metric)
-    b_by = metric_by_seed(recs_b, metric)
     res = compare(a_by, b_by, lower_is_better=lower)
 
     arrow = "lower-is-better" if lower else "higher-is-better"
     print(f"=== compare '{args.exp_a}' (A) vs '{args.exp_b}' (B) on '{metric}' ({arrow}) ===")
+    if res["no_shared_seeds"]:
+        print("  WARNING: A and B share NO seeds — the paired design collapsed to n=0 (no verdict "
+              "possible). Give both arms the same --seeds.", file=sys.stderr)
+    elif res["underpowered"]:
+        print(f"  WARNING: only n={res['n']} paired seed(s) — below the stats-protocol development "
+              "floor of 5 (headline claims want ≥20). Treat any verdict as provisional.", file=sys.stderr)
     for s in res["seeds"]:
         print(f"  seed={s:<4} A={a_by[s]:.4f}  B={b_by[s]:.4f}  A-B={a_by[s]-b_by[s]:+.4f}")
     print(f"  paired mean(A-B)={res['point_estimate']:+.4f}  95% CI=[{res['ci_low']:+.4f}, {res['ci_high']:+.4f}]  (n={res['n']})")

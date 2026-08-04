@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Iterable, Mapping, MutableMapping, Set
 
+import ast as _ast
 import math as _math
 import numpy as _np
 import keyword
@@ -57,10 +58,12 @@ class SandboxConfig:
         "copysign": _math.copysign, "isfinite": _math.isfinite, "isnan": _math.isnan, "isinf": _math.isinf,
     })
 
-    # Разрешённые функции NumPy (проверенные безопасные, полезные для контроллеров)
+    # Разрешённые функции NumPy (проверенные безопасные, полезные для контроллеров).
+    # NB: arange/linspace/ones/zeros/full deliberately EXCLUDED — они материализуют массив
+    # произвольного размера из скаляра (напр. np.arange(10**9)) → неограниченная аллокация памяти
+    # каждый шаг. Оставлены только редьюсеры/поэлементные функции, чей размер ограничен входом.
     numpy_funcs: Mapping[str, Callable[..., Any]] = field(default_factory=lambda: {
         "array": _np.array, "asarray": _np.asarray,
-        "arange": _np.arange, "linspace": _np.linspace,
         "clip": _np.clip, "mean": _np.mean, "std": _np.std, "var": _np.var,
         "sum": _np.sum, "min": _np.min, "max": _np.max,
         "argmin": _np.argmin, "argmax": _np.argmax,
@@ -87,10 +90,19 @@ DEFAULT_CONFIG = SandboxConfig()
 
 # Внутренние утилиты
 
+# Real stdlib MODULES that RestrictedPython's ``utility_builtins`` injects into ``__builtins__``
+# (``random``, ``string``, ``unicodedata``, …). They are escape hatches — most dangerously the
+# un-seeded global ``random`` module, which would inject entropy outside the system's seeded
+# numpy Generator and destroy the byte-exact reproducibility guarantee. Strip them.
+_BANNED_UTILITY_NAMES = frozenset({"random", "string", "unicodedata", "whrandom"})
+
+
 def _build_safe_builtins(cfg: SandboxConfig) -> Dict[str, Any]:
     b: Dict[str, Any] = {}
     b.update(safe_builtins)
     b.update(utility_builtins)
+    for name in _BANNED_UTILITY_NAMES:  # defense-in-depth even though the whitelist normally blocks them
+        b.pop(name, None)
     py_builtins = __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__  # type: ignore
     for name in cfg.allowed_builtins:
         if name in py_builtins:
@@ -121,6 +133,44 @@ def _extract_identifiers(expr: str) -> Set[str]:
     return {t for t in toks if not keyword.iskeyword(t)}
 
 
+# Exponentiation is the one operator that turns a tiny expression into an unbounded CPU/memory bomb
+# (``9**9**9`` is a multi-gigabyte integer). We reject CHAINED powers and any power with a large
+# literal exponent; ordinary control terms like ``current_x ** 3`` stay allowed.
+_POW_EXPONENT_CAP = 8
+
+
+def _literal_number(node: "_ast.AST") -> float | None:
+    """The numeric value of a constant (optionally unary-signed), else None."""
+    if isinstance(node, _ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+        return float(node.value)
+    if isinstance(node, _ast.UnaryOp) and isinstance(node.op, (_ast.USub, _ast.UAdd)):
+        inner = _literal_number(node.operand)
+        if inner is not None:
+            return -inner if isinstance(node.op, _ast.USub) else inner
+    return None
+
+
+def _check_expression_safety(expression: str) -> None:
+    """Reject exponentiation bombs (chained ``a**b**c`` / a huge literal exponent) before compiling.
+
+    Best-effort: if the expression does not parse as a Python expression here, we leave the error to
+    the RestrictedPython compile step (which produces the proper feedback)."""
+    try:
+        tree = _ast.parse(expression, mode="eval")
+    except SyntaxError:
+        return
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.BinOp) and isinstance(node.op, _ast.Pow):
+            if isinstance(node.right, _ast.BinOp) and isinstance(node.right.op, _ast.Pow):
+                raise PolicyValidationError("chained exponentiation (a ** b ** c) is not allowed.")
+            exponent = _literal_number(node.right)
+            if exponent is not None and abs(exponent) > _POW_EXPONENT_CAP:
+                raise PolicyValidationError(
+                    f"exponent {exponent:g} exceeds the safe cap {_POW_EXPONENT_CAP} "
+                    "(guards against an exponentiation CPU/memory bomb)."
+                )
+
+
 # Публичный API
 
 def validate_and_compile_policy_expression(
@@ -136,6 +186,16 @@ def validate_and_compile_policy_expression(
     if not isinstance(expression, str) or not expression.strip():
         raise PolicyValidationError("Выражение политики не может быть пустым.")
 
+    # Non-ASCII rejection closes the Unicode-confusable whitelist bypass: Python NFKC-normalizes
+    # identifiers at compile time, so a fullwidth token like ``ｒａｎｄｏｍ`` compiles to the real
+    # ``random`` — yet the ASCII-only identifier extractor never sees it to whitelist-check it. A
+    # legitimate control law is pure ASCII, so requiring ASCII is both safe and sufficient here.
+    if not expression.isascii():
+        raise PolicyValidationError(
+            "Выражение политики должно содержать только ASCII-символы "
+            "(защита от обхода whitelist через Unicode-нормализацию идентификаторов)."
+        )
+
     if context_variable_names is None:
         context_variable_names = ()
 
@@ -148,10 +208,21 @@ def validate_and_compile_policy_expression(
             + ", ".join(unknown[:10])
         )
 
+    _check_expression_safety(expression)  # raises on an exponentiation bomb
+
     try:
-        return compile_restricted_eval(expression, filename="<policy_expression>")
+        result = compile_restricted_eval(expression, filename="<policy_expression>")
     except Exception as e:
         raise PolicyValidationError(f"Ошибка компиляции выражения: {e}") from e
+    # ``compile_restricted_eval`` does NOT raise on a syntax/restriction error — it returns a
+    # CompileResult with ``.code is None`` and the reason in ``.errors``. Honor the documented
+    # "raises PolicyValidationError on problems" contract so both sandbox entry points agree.
+    errors = getattr(result, "errors", None)
+    if errors:
+        raise PolicyValidationError("Ошибка компиляции выражения: " + "; ".join(str(e) for e in errors))
+    if getattr(result, "code", result) is None:
+        raise PolicyValidationError("Выражение не скомпилировалось (code=None).")
+    return result
 
 
 
@@ -178,18 +249,21 @@ def _ensure_code_object(maybe_code, *, expression_fallback: str | None = None):
     if isinstance(maybe_code, dict) and isinstance(maybe_code.get("code"), _CodeType):
         return maybe_code["code"]
 
-    # 4) пришла строка: скомпилируем сейчас
+    # 4) пришла строка: скомпилируем сейчас (compile_restricted_eval возвращает CompileResult,
+    #    поэтому берём из него .code — вернуть сам CompileResult в eval() нельзя)
     if isinstance(maybe_code, (str, bytes, bytearray)):
         try:
-            return compile_restricted_eval(maybe_code if isinstance(maybe_code, str) else maybe_code.decode("utf-8"),
-                                           filename="<policy_expression>")
+            src = maybe_code if isinstance(maybe_code, str) else maybe_code.decode("utf-8")
+            compiled = compile_restricted_eval(src, filename="<policy_expression>")
+            return getattr(compiled, "code", None)
         except Exception:
             return None
 
     # 5) как крайний случай: если дали fallback-строку выражения — попробуем по ней
     if expression_fallback and isinstance(expression_fallback, str):
         try:
-            return compile_restricted_eval(expression_fallback, filename="<policy_expression>")
+            compiled = compile_restricted_eval(expression_fallback, filename="<policy_expression>")
+            return getattr(compiled, "code", None)
         except Exception:
             return None
 

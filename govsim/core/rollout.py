@@ -48,7 +48,11 @@ def rollout(
         clone.rng = np.random.default_rng(seed)
     if requests:
         action_interface.apply(list(requests), clone)
-    traj: list[dict[str, float]] = [clone.metrics()]
+    # Record ONLY post-step rows — matching the real Runner, which appends metrics after each
+    # ``system.step()``. Seeding the trajectory with a pre-step row (where the freshly-installed
+    # lever has not yet been evaluated, so current_u is still 0) would score the objective on a
+    # different slice than the realized run this oracle is meant to predict.
+    traj: list[dict[str, float]] = []
     for _ in range(horizon):
         info = clone.step()
         traj.append(clone.metrics())

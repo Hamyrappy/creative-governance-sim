@@ -23,9 +23,10 @@ from govsim.core.experiment import RunRecord
 _COLUMNS = [
     "experiment", "system_id", "action_interface_id", "schedule_id", "hypothesis_id",
     "seed", "horizon", "git_commit", "regent_specs", "objective_ids", "score", "components",
-    "creativity_metric", "token_cost", "terminated_at_step", "created_at", "series_path", "llm_io_path",
+    "harness_components", "creativity_metric", "token_cost", "terminated_at_step", "created_at",
+    "series_path", "llm_io_path",
 ]
-_JSON_COLUMNS = {"regent_specs", "objective_ids", "score", "components"}
+_JSON_COLUMNS = {"regent_specs", "objective_ids", "score", "components", "harness_components"}
 
 
 class ResultStore:
@@ -41,6 +42,12 @@ class ResultStore:
     def _init_db(self) -> None:
         cols = ", ".join(f"{c} TEXT" if c in _JSON_COLUMNS or c.endswith("_path") else f"{c}" for c in _COLUMNS)
         self._conn.execute(f"CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY AUTOINCREMENT, {cols})")
+        # Lightweight forward-migration: add any column introduced after an older DB was created, so
+        # `add()` does not fail with "no such column" against a pre-existing runs.db.
+        existing = {row["name"] for row in self._conn.execute("PRAGMA table_info(runs)")}
+        for c in _COLUMNS:
+            if c not in existing:
+                self._conn.execute(f"ALTER TABLE runs ADD COLUMN {c} TEXT")
         self._conn.commit()
 
     def add(self, record: RunRecord) -> int:
@@ -58,6 +65,7 @@ class ResultStore:
             "objective_ids": json.dumps(record.objective_ids),
             "score": json.dumps(record.score),
             "components": json.dumps(record.components),
+            "harness_components": json.dumps(record.harness_components),
             "creativity_metric": record.creativity_metric,
             "token_cost": record.token_cost,
             "terminated_at_step": record.terminated_at_step,

@@ -95,13 +95,16 @@ class CubicSystem(LeverSystem):
         self.param_A0: float = float(p.get("param_A", 0.95))
         self.param_B0: float = float(p.get("param_B", 0.5))
         self.param_C0: float = float(p.get("param_C", 0.0))
-        self.sigma_epsilon: float = float(p.get("sigma_epsilon", 0.1))
+        # ``*0`` snapshots of EVERY plant param a shock may overwrite, so ``reset`` restores a truly
+        # pristine pre-shock plant (a shock that mutates sigma_epsilon/state_exponent/target_x/u_range
+        # would otherwise persist into the next "fresh" run of the same object).
+        self.sigma_epsilon0: float = float(p.get("sigma_epsilon", 0.1))
         tx = p.get("target_x", 0.0)
-        self.target_x: float | None = None if tx is None else float(tx)
+        self.target_x0: float | None = None if tx is None else float(tx)
         lo, hi = p.get("u_range", (-2.0, 2.0))
-        self.u_range: tuple[float, float] = (float(lo), float(hi))
+        self.u_range0: tuple[float, float] = (float(lo), float(hi))
         self.cubic_coeff0: float = float(p.get("cubic_coeff", 0.0))
-        self.state_exponent: int = int(p.get("state_exponent", 3))
+        self.state_exponent0: int = int(p.get("state_exponent", 3))
         # Optional UNSEEN structural shock (the H1 regime change): at ``shock_step`` the named plant
         # params are overwritten with new values. ``None`` (default) = no shock ⇒ a stationary plant
         # (the golden-master arm). Pre-shock-optimal controllers (frozen LQR) cannot anticipate it.
@@ -121,11 +124,15 @@ class CubicSystem(LeverSystem):
         self.previous_x: float = self.initial_x
         self.current_u: float = 0.0
         self._t: int = 0
-        # restore the (possibly shock-mutated) plant params to their initial values
+        # restore EVERY (possibly shock-mutated) plant param to its initial value
         self.param_A: float = self.param_A0
         self.param_B: float = self.param_B0
         self.param_C: float = self.param_C0
         self.cubic_coeff: float = self.cubic_coeff0
+        self.sigma_epsilon: float = self.sigma_epsilon0
+        self.state_exponent: int = self.state_exponent0
+        self.target_x: float | None = self.target_x0
+        self.u_range: tuple[float, float] = self.u_range0
         self._levers.clear()
 
     def step(self) -> StepInfo:
@@ -176,12 +183,25 @@ class CubicSystem(LeverSystem):
 
 
 class SIRSystem(LeverSystem):
-    """An SIR epidemic with lockdown + vaccination levers — a NON-economic proof of generality.
+    """An SIR/SIRS epidemic with lockdown + vaccination levers — a NON-economic proof of generality.
 
     The same core (Regent / Harness / Runner / ResultStore / cache) runs this unchanged: the
     regent emits ``{verb: "set_lockdown", payload: {"expr": "0.7 if I > 0.1 else 0.2"}}`` — a
-    sandboxed expression, no ``Mint``/``Transfer``/``Ledger`` anywhere. The β-jump at ``t==120``
-    is exactly H1's "unseen structural shock" (a variant), the same scientific spine as the cubic.
+    sandboxed expression, no ``Mint``/``Transfer``/``Ledger`` anywhere.
+
+    **Two kinds of structural shock, and only one of them is hard.** ``shock_factor`` raises
+    transmissibility (a more contagious variant); ``shock_params`` can overwrite *any* named plant
+    parameter, including ``lockdown_efficacy`` and ``vacc_efficacy`` — how much good each instrument
+    actually does.
+
+    The distinction is load-bearing. A rule of the form "lock down when prevalence exceeds θ" is
+    *feedback*, so it largely absorbs a transmissibility shock on its own: prevalence rises, the
+    rule triggers more often, and the frozen policy stays near-optimal. An **efficacy** shock is not
+    absorbed, because the observable the rule keys on no longer tells it what the lever is worth.
+    The rule then keeps paying full cost for a fraction of the benefit, and the correct response —
+    spend less on an instrument that stopped working, and substitute toward one that still does —
+    is not expressible as a different threshold on the same lever. That gap is the adaptation
+    headroom, and it is the epidemic reading of the Lucas critique.
     """
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
@@ -192,6 +212,26 @@ class SIRSystem(LeverSystem):
         self.noise_sigma: float = float(p.get("noise_sigma", 0.0))
         self.shock_step: int = int(p.get("shock_step", 120))
         self.shock_factor: float = float(p.get("shock_factor", 1.8))
+        # SIRS extension (both default to 0.0 ⇒ the classic SIR above is unchanged).
+        # ``waning`` returns recovered individuals to S at rate ω; ``import_rate`` seeds a small
+        # constant influx of infection. Together they turn a single burn-out epidemic into an
+        # ENDEMIC one. That matters for the H1 design and not only for realism: with pure SIR the
+        # epidemic can end before the variant arrives, and a policy of doing nothing then "wins"
+        # the post-shock window by making it empty. An endemic disease cannot be outlasted, so a
+        # governance rule has to keep being right rather than merely wait.
+        self.waning: float = float(p.get("waning", 0.0))
+        self.import_rate: float = float(p.get("import_rate", 0.0))
+        # Instrument efficacy: what fraction of each lever's nominal effect is actually realized.
+        # 1.0 reproduces the original dynamics exactly; a shock can drive either toward 0 (a
+        # compliance collapse, or a variant that escapes the vaccine).
+        self.lockdown_efficacy0: float = float(p.get("lockdown_efficacy", 1.0))
+        self.vacc_efficacy0: float = float(p.get("vacc_efficacy", 1.0))
+        self.vacc_rate: float = float(p.get("vacc_rate", 0.02))  # per-step share of S reachable
+        self.lockdown_cost: float = float(p.get("lockdown_cost", 1.0))
+        self.vacc_cost: float = float(p.get("vacc_cost", 0.5))
+        # Arbitrary named-parameter overwrite at the shock (as CubicSystem does), so the shock can
+        # hit the instruments and not only transmissibility.
+        self.shock_params: dict[str, float] = dict(p.get("shock_params", {}))
         self.reset(int(p.get("seed", 0)))
 
     @property
@@ -202,6 +242,8 @@ class SIRSystem(LeverSystem):
         self.rng = np.random.default_rng(seed)
         self.S, self.I, self.R = 0.99, 0.01, 0.0
         self.beta0 = self.beta0_init
+        self.lockdown_efficacy = self.lockdown_efficacy0
+        self.vacc_efficacy = self.vacc_efficacy0
         self.lockdown = 0.0
         self.vacc = 0.0
         self._t = 0
@@ -210,22 +252,41 @@ class SIRSystem(LeverSystem):
 
     def step(self) -> StepInfo:
         self._reeval_levers()
-        beta = self.beta0 * (1.0 - self.lockdown)
+        # The lever is the POLICY (how hard we lock down); efficacy is how much of it lands.
+        beta = self.beta0 * (1.0 - self.lockdown * self.lockdown_efficacy)
         noise = float(self.rng.normal(0.0, self.noise_sigma)) if self.noise_sigma > 0 else 0.0
-        new_i = max(0.0, beta * self.S * self.I + noise)
-        vaccinated = self.vacc * self.S * 0.02
-        self.S += -new_i - vaccinated
-        self.I += new_i - self.gamma * self.I
-        self.R += self.gamma * self.I + vaccinated
+        # Importation is scaled by S so it cannot manufacture infections out of an exhausted
+        # susceptible pool (which would break the S+I+R conservation the invariant test relies on).
+        seeded = self.import_rate * self.S
+        new_i = max(0.0, beta * self.S * self.I + noise + seeded)
+        new_i = min(new_i, self.S)  # never move more mass out of S than S holds
+        vaccinated = min(self.vacc * self.vacc_efficacy * self.S * self.vacc_rate, self.S - new_i)
+        recovered = self.gamma * self.I  # snapshot recoveries on I BEFORE mutating it, so the mass
+        waned = self.waning * self.R     # removed from I equals the mass added to R (S+I+R conserved)
+        self.S += -new_i - vaccinated + waned
+        self.I += new_i - recovered
+        self.R += recovered + vaccinated - waned
         self.S = max(0.0, self.S)
+        self.I = max(0.0, self.I)
+        self.R = max(0.0, self.R)
         if self._t == self.shock_step:
             self.beta0 *= self.shock_factor  # H1 unseen structural shock: a more transmissible variant
-        self.cum_cost += self.lockdown * 1.0 + self.vacc * 0.5
+            for name, value in self.shock_params.items():  # …and/or an instrument-efficacy collapse
+                setattr(self, name, float(value))
+        # Cost is paid on the POLICY, not on its effect — a lockdown nobody complies with still
+        # closes the shops. That asymmetry is what makes an efficacy shock expensive to ignore.
+        self.cum_cost += self.lockdown * self.lockdown_cost + self.vacc * self.vacc_cost
         self._t += 1
-        return StepInfo(terminated=self.I < 1e-4, truncated=False, info={})
+        # An ENDEMIC run (waning/importation on) has no burn-out to terminate at, so the
+        # extinction stop applies only to the classic SIR configuration.
+        endemic = self.waning > 0.0 or self.import_rate > 0.0
+        return StepInfo(terminated=(not endemic and self.I < 1e-4), truncated=False, info={})
 
     def observe(self, viewer_id: str = "regent:0") -> Observation:
         return Observation(
+            # Efficacy is deliberately NOT observable: the regent sees what it did and what
+            # happened, never the parameter that connects them. Inferring "the instrument stopped
+            # working" from the trace is the task, so publishing it here would delete the problem.
             vars={"S": self.S, "I": self.I, "R": self.R, "lockdown": self.lockdown, "vacc": self.vacc, "t": float(self._t)},
             scope=viewer_id,
             t=self._t,

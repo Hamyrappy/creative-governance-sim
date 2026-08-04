@@ -71,10 +71,15 @@ class EpisodicMemory(HarnessComponent):
     inject them as ``scratch["memory"]`` — the cheap, RAG-style learning baseline (doc-08 §6).
 
     Similarity is Euclidean over the numeric keys shared between the current view and a stored
-    state. Append-only; no rollout, no clone.
+    state, EXCLUDING non-state bookkeeping keys (the monotonically-growing ``step``/``t`` clock and
+    the constant ``target_x``). Including ``step`` would make every past state look maximally distant
+    from the present one, degrading "most similar state" retrieval into "most recent episode"; the
+    same clock would also dominate the episode ``score``. Append-only; no rollout, no clone.
     """
 
     name = "episodic_memory"
+    # keys that are bookkeeping, not controllable state — excluded from both similarity and score
+    _NON_STATE_KEYS = frozenset({"step", "t", "target_x"})
 
     def __init__(self, k: int = 3) -> None:
         self.k = k
@@ -86,19 +91,20 @@ class EpisodicMemory(HarnessComponent):
         ranked = sorted(self.episodes, key=lambda ep: self._distance(view.vars, ep["state"]))
         lines = []
         for ep in ranked[: self.k]:
-            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items())
+            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items() if k not in self._NON_STATE_KEYS)
             acts = "; ".join(f"{a['verb']}:{a['expr']}" for a in ep["actions"])
-            lines.append(f"- when [{state}] you did [{acts}] → score≈{ep['score']:.4g}")
+            lines.append(f"- when [{state}] you did [{acts}] → outcome≈{ep['score']:.4g}")
         scratch["memory"] = "\n".join(lines)
 
     def on_outcome(self, view: Observation, requests: list[ActionRequest], outcome: Outcome, scratch: dict) -> None:
         actions = [{"verb": r.verb, "expr": str(r.payload.get("expr", r.payload))} for r in requests]
-        score = sum(v for v in outcome.metrics.values() if isinstance(v, (int, float)))
+        score = sum(v for k, v in outcome.metrics.items()
+                    if isinstance(v, (int, float)) and k not in self._NON_STATE_KEYS)
         self.episodes.append({"state": dict(view.vars), "actions": actions, "score": score})
 
-    @staticmethod
-    def _distance(a: dict[str, float], b: dict[str, float]) -> float:
-        shared = set(a) & set(b)
+    @classmethod
+    def _distance(cls, a: dict[str, float], b: dict[str, float]) -> float:
+        shared = (set(a) & set(b)) - cls._NON_STATE_KEYS
         if not shared:
             return math.inf
         return math.sqrt(sum((a[k] - b[k]) ** 2 for k in shared))

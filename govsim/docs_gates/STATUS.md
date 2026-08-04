@@ -49,6 +49,11 @@ All bind to the **same shocked plant** (`_cubic_h1_factory`: cubic + an unseen s
 
 Run, e.g.: `govsim compare cubic_nonlinear_llm_obfuscated cubic_nonlinear_opro --seeds 0..N`.
 
+> **Headline metric = `post_mse`** (the post-shock window, ≥ `shock_step`), NOT whole-horizon `mse`:
+> every H1 arm's `primary_metric` is `post_mse`, so a paired `compare` isolates *post-shock regret* —
+> the pre-shock half (where the frozen LQR is near-optimal) no longer dilutes/inverts the verdict.
+> `compare` also warns below n=5 and refuses to call n<2 "significant" (a single-seed CI is degenerate).
+
 > **☐ AUTHOR — the regime-severity knob.** The default shock (`scalar_experiments._cubic_h1_factory`,
 > `param_A`→1.03, `cubic_coeff`→0.10, kick 0.8) is dialed to run **bounded + measurable** (the shock
 > ~doubles the loss; nobody diverges). Empirically, milder ⇒ frozen-LQR ≈ adaptive (a likely **null**,

@@ -13,6 +13,33 @@
   and the Phase-2 harness machinery** of 09 (the H1 *result* — a multi-seed live comparison + author
   sign-off — is the remaining science step; see STATUS.md).
 
+## ADR-0016 — Review-fix batch: post-shock metric, sandbox hardening, fair OPRO, stats floor (2026-07-07)
+**Decision:** a batch of correctness/methodology fixes from a full scientific + engineering review:
+- **H1 headline metric is now `post_mse`** (post-shock window), not whole-horizon `mse`. Every H1 arm
+  binds `StabilizationLoss(post_shock_step=shock_step)`; `compare` defaults to `post_mse`. The score
+  (full-horizon) is unchanged, so golden-master is stable. *Why:* the claim is "lower **post-shock**
+  regret", but averaging in the 100 pre-shock steps (where a frozen LQR is near-optimal) can invert the
+  verdict.
+- **Sandbox:** reject non-ASCII expressions (closes a Unicode/NFKC whitelist bypass that reached the
+  un-seeded global `random`, breaking reproducibility); reject chained/huge-exponent power bombs; drop
+  `arange`/`linspace` (unbounded allocation) and `random`/`string` modules from the sandbox.
+- **OPRO `realized` mode** now explore/exploits (deterministic schedule) and **validates before deploy**,
+  instead of deploying a fresh temp-0.8 proposal every decision — otherwise the FAIR H1 rival was
+  silently crippled by permanent exploration cost.
+- **Stats:** `compare` will not call a result significant below `min_n=2` paired seeds (a single shared
+  seed gives a zero-width CI that falsely "excludes 0") and flags `underpowered`; `metric_by_seed` now
+  raises on an unknown metric instead of fabricating NaN → "no significant difference"; `collapse_summary`
+  keeps a non-finite (diverged) score as `worst_score=-inf` instead of dropping it.
+- **SIR** now conserves S+I+R (recoveries snapshot `I` before mutation); `CubicSystem.reset` restores
+  ALL shockable params; `rollout` records post-step rows only (matches the Runner's slice); a zero-action
+  regent decision surfaces an `Outcome.error` so `TraceFeedback` fires; `RunRecord` carries
+  `harness_components` (H3 ablation provenance); the obfuscated H1 prompt no longer coaches the solution
+  structure (a prompt-hint confound vs OPRO).
+**Why:** the compared quantity must equal the claimed quantity; the primary sandbox control must not be
+bypassable; a named baseline must not be handicapped; and a degenerate CI must not read as a win.
+**Status:** done; 16 regression tests in `tests/test_review_fixes.py`. Seed count for the headline claim
+(≥20) and the regime-severity knob remain ☐ AUTHOR calls (STATUS.md).
+
 ## ADR-0015 — `CoupledSystem` migrated to `LeverSystem`; lever drives `u_commanded` (2026-06-15)
 **Decision:** the legacy `CoupledLinearStochasticSystem` is migrated onto `LeverSystem`/`RollableSystem`;
 the lever writes `u_commanded` and `step()` smooths it into `current_u` (`u_eff`), so the existing

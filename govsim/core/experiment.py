@@ -113,4 +113,7 @@ class RunRecord:
     token_cost: float = 0.0
     terminated_at_step: int | None = None
     creativity_metric: str | None = None
+    # Harness composition + per-component ``enabled`` flags — the provenance an H3 ablation needs to
+    # tell "full stack" from "stack minus component X" apart at query time (doc-09 §5.4).
+    harness_components: list[dict[str, Any]] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)

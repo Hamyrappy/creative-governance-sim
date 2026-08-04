@@ -12,8 +12,11 @@ arm it is compared against). So "code-as-policy + trace beats trace-less OPRO" i
 Two scoring modes:
   - ``realized`` (the FAIR H1 baseline): the archive credits each law with the realized ``Objective``
     over the interval it was actually deployed (the Runner supplies ``scratch["_last_realized_score"]``).
-    OPRO then explores — it deploys the new proposal to measure it — exactly like a trace-less reasoner
-    that learns only from outcomes it observed. Use this against the harnessed LLM.
+    OPRO follows a deterministic explore/exploit schedule — it deploys a fresh proposal to *measure* it
+    during warm-up and periodically, but otherwise re-deploys its incumbent-best law — exactly like a
+    trace-less reasoner that both learns from observed outcomes AND exploits what it has learned. (A
+    pure-explore variant that never re-deploys its best law would be a silently crippled rival.) Use
+    this against the harnessed LLM.
   - ``rollout`` (generous, self-contained): score candidates on a true-plant clone before committing the
     incumbent best. This makes OPRO an oracle optimizer (more information than the harnessed LLM gets),
     so it is a *strong* baseline, kept for ablations and replay-determinism. Needs a ``RollableSystem``.
@@ -38,7 +41,8 @@ class OPRORegent(Regent):
     def __init__(self, verb: str, llm: Any, model: str, *, id: str = "regent:0",
                  temperature: float = 0.8, seed: int = 0, scoring: str = "rollout",
                  probe_horizon: int = 30, probe_seeds: tuple[int, ...] = (0, 1, 2),
-                 archive_cap: int = 16, top_k: int = 8,
+                 archive_cap: int = 16, top_k: int = 8, explore_warmup: int = 3,
+                 explore_period: int = 4,
                  max_tokens: int | None = None, extra: dict[str, Any] | None = None) -> None:
         super().__init__(id)
         if scoring not in ("rollout", "realized"):
@@ -56,6 +60,14 @@ class OPRORegent(Regent):
         self.probe_seeds = tuple(probe_seeds)
         self.archive_cap = archive_cap
         self.top_k = top_k
+        # Realized-mode explore/exploit schedule (deterministic ⇒ replay-stable): explore (deploy &
+        # measure a fresh proposal) during the first ``explore_warmup`` decisions and every
+        # ``explore_period``-th decision thereafter; otherwise EXPLOIT the incumbent-best archived law.
+        # Without this, realized OPRO would deploy a fresh temp-0.8 proposal at EVERY decision and never
+        # its best law, so its realized loss would be permanent exploration cost — a silently crippled
+        # H1 rival (the harnessed LLM would "beat" it on OPRO's un-exploited exploration, not on trace).
+        self.explore_warmup = explore_warmup
+        self.explore_period = max(1, explore_period)
         self.max_tokens = max_tokens
         self.extra = extra
 
@@ -114,12 +126,34 @@ class OPRORegent(Regent):
                 return [ActionRequest(self.id, self.verb, {"expr": archive[-1][0]})]
             return reqs
 
-        # 'realized' mode: DEPLOY the new proposal so its realized score can be measured next interval.
-        if isinstance(new_expr, str):
+        # 'realized' mode: epsilon-greedy over the archive.
+        idx = scratch.get("_opro_realized_idx", 0)
+        scratch["_opro_realized_idx"] = idx + 1
+
+        # Validate the proposal BEFORE deploying: a malformed law would be rejected by ``apply`` and the
+        # system would keep the PREVIOUS lever, so crediting the malformed law with that realized score
+        # (the old bug) is wrong. Only an actually-installable law may be deployed & credited.
+        new_valid = isinstance(new_expr, str)
+        if new_valid:
+            ctx = scratch.get("_rollout")
+            if ctx is not None:
+                try:
+                    new_valid = ctx.action_interface.validate(reqs[0], ctx.system, self.id).ok
+                except Exception:
+                    new_valid = False
+
+        explore = (not archive) or idx < self.explore_warmup or (idx % self.explore_period == 0)
+        if explore and new_valid:  # deploy & measure a fresh proposal
             scratch["_opro_pending"] = new_expr
             return [ActionRequest(self.id, self.verb, {"expr": new_expr})]
-        if archive:  # no parseable proposal ⇒ fall back to the incumbent best
-            return [ActionRequest(self.id, self.verb, {"expr": archive[-1][0]})]
+        if archive:  # EXPLOIT the incumbent best (re-credit it so its realized estimate refines)
+            best = archive[-1][0]
+            scratch["_opro_pending"] = best
+            return [ActionRequest(self.id, self.verb, {"expr": best})]
+        if new_valid:  # nothing archived yet ⇒ deploy the valid proposal to seed the archive
+            scratch["_opro_pending"] = new_expr
+            return [ActionRequest(self.id, self.verb, {"expr": new_expr})]
+        scratch["_opro_pending"] = None  # no valid proposal and empty archive ⇒ nothing to credit
         return reqs
 
     def _record(self, scratch: Scratch, view: Observation, messages: list[dict], resp: Any) -> None:

@@ -7,6 +7,7 @@ Everything here is pure and deterministic given its inputs (the bootstrap uses a
 
 from __future__ import annotations
 
+import math
 import statistics
 from typing import Any, Mapping, Sequence
 
@@ -15,7 +16,7 @@ import numpy as np
 # Metrics where SMALLER is better (losses/costs); used to orient "A beats B" when not told.
 _LOWER_IS_BETTER_HINTS = {
     "mse", "msu", "loss", "cost", "cum_cost", "total_infected", "peak_infected", "regret",
-    "mean_abs_x", "final_abs_x",
+    "mean_abs_x", "final_abs_x", "post_mse", "post_msu", "post_loss",
 }
 
 
@@ -72,19 +73,25 @@ def paired_diff(a_by_seed: Mapping[int, float], b_by_seed: Mapping[int, float]) 
 
 def compare(a_by_seed: Mapping[int, float], b_by_seed: Mapping[int, float], *,
             lower_is_better: bool = True, n_boot: int = 10_000, alpha: float = 0.05,
-            seed: int = 0) -> dict[str, Any]:
+            seed: int = 0, min_n: int = 2, dev_floor: int = 5) -> dict[str, Any]:
     """Paired bootstrap comparison of A vs B over shared seeds.
 
     ``a_better_than_b`` is True iff the whole CI lies on the winning side of 0 (the stats-protocol
-    "CI excludes 0" rule, oriented by ``lower_is_better``).
+    "CI excludes 0" rule, oriented by ``lower_is_better``) AND there are at least ``min_n`` paired
+    seeds. The floor matters: a single shared seed gives a zero-WIDTH bootstrap CI that trivially
+    "excludes 0", which would falsely read as a significant win — so significance is suppressed below
+    ``min_n``. ``underpowered`` flags ``n < dev_floor`` (the stats-protocol development floor); a
+    headline claim wants ≥20. ``no_shared_seeds`` flags the pathological empty pairing (n == 0).
     """
     seeds, diffs = paired_diff(a_by_seed, b_by_seed)
+    n = len(seeds)
     point, lo, hi = bootstrap_ci(diffs, n_boot=n_boot, alpha=alpha, seed=seed)
-    excludes_zero = lo > 0 or hi < 0
-    a_better = (hi < 0) if lower_is_better else (lo > 0)
+    reliable = n >= min_n  # below the floor a degenerate CI must not be called "significant"
+    excludes_zero = reliable and (lo > 0 or hi < 0)
+    a_better = excludes_zero and ((hi < 0) if lower_is_better else (lo > 0))
     return {
         "seeds": seeds,
-        "n": len(seeds),
+        "n": n,
         "diffs": diffs,
         "point_estimate": point,
         "ci_low": lo,
@@ -92,6 +99,8 @@ def compare(a_by_seed: Mapping[int, float], b_by_seed: Mapping[int, float], *,
         "excludes_zero": excludes_zero,
         "a_better_than_b": a_better,
         "lower_is_better": lower_is_better,
+        "underpowered": n < dev_floor,
+        "no_shared_seeds": n == 0,
     }
 
 
@@ -99,7 +108,9 @@ def metric_by_seed(records: Sequence[Any], metric: str, regent_id: str = "regent
     """Extract ``{seed: value}`` for ``metric`` from a list of ``RunRecord``s.
 
     Looks in ``components[regent_id]`` first (where MSE/MSU/cost live), then the special name
-    ``"score"`` (the Objective scalar for ``regent_id``).
+    ``"score"`` (the Objective scalar for ``regent_id``). Raises ``KeyError`` for a metric the
+    objective does not emit — a mistyped/mis-registered ``primary_metric`` must fail LOUD, not
+    silently become NaN that ``compare`` then reports as "no significant difference".
     """
     out: dict[int, float] = {}
     for rec in records:
@@ -109,7 +120,11 @@ def metric_by_seed(records: Sequence[Any], metric: str, regent_id: str = "regent
         elif metric == "score":
             out[rec.seed] = float(rec.score.get(regent_id, float("nan")))
         else:
-            out[rec.seed] = float("nan")
+            raise KeyError(
+                f"metric {metric!r} not emitted for {regent_id!r} on run seed={getattr(rec, 'seed', '?')}"
+                f" (available: {sorted(comps) + ['score']}). Check the experiment's primary_metric and"
+                " the Objective.components it maps to."
+            )
     return out
 
 
@@ -118,11 +133,17 @@ def collapse_summary(records: Sequence[Any], regent_id: str = "regent:0") -> dic
     drop a diverged run — it is the tail event the headline claim must survive)."""
     terminated = [rec for rec in records if rec.terminated_at_step is not None]
     scores = [rec.score.get(regent_id, float("nan")) for rec in records]
-    finite = [s for s in scores if s == s]  # drop NaN for aggregates only
+    finite = [s for s in scores if math.isfinite(s)]
+    nonfinite = [s for s in scores if not math.isfinite(s)]
+    # A diverged run (NaN/inf score) is the tail event the headline claim must survive — it must NOT
+    # be silently dropped from the worst-case. Any non-finite score ⇒ worst-case is unbounded-bad
+    # (score is higher-is-better), so worst_score = -inf; the count is surfaced explicitly.
+    worst = float("-inf") if nonfinite else (min(finite) if finite else float("nan"))
     return {
         "n_runs": len(records),
         "n_terminated": len(terminated),
         "terminated_seeds": [r.seed for r in terminated],
-        "worst_score": min(finite) if finite else float("nan"),
+        "n_nonfinite_score": len(nonfinite),
+        "worst_score": worst,
         "mean_score": statistics.fmean(finite) if finite else float("nan"),
     }

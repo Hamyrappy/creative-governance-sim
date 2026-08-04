@@ -74,3 +74,43 @@ class LQRRegent(Regent):
     def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
         expr = f"{-self.gain!r} * {self.state_var}"
         return [ActionRequest(regent_id=self.id, verb=self.verb, payload={"expr": expr})]
+
+
+class OracleRegent(LQRRegent):
+    """The CLAIRVOYANT full-information reference: it is handed the *post*-shock plant.
+
+    It feedback-linearizes the nonlinearity and then applies the LQR gain of the post-shock
+    linearization::
+
+        u = -K·x  -  (g/B)·x**p ,      K = LQR(A_post, B, Q, R)
+
+    so (absent clipping) the closed loop collapses to ``x_{k+1} = (A_post - B·K)·x + ε`` — the
+    linear-quadratic optimum for the *shifted* plant, with the cubic term exactly cancelled.
+
+    It is not a rival any regent could be: it reads parameters that are, by construction, invisible
+    to every other arm (the shock is unseen and ``f`` is unknown under the obfuscated prompt). Its
+    only job is to **anchor the achievable end of the scale**. With the frozen pre-shock LQR
+    anchoring the other end, post-shock loss becomes a normalized regret
+
+        R = (L(arm) − L(oracle)) / (L(frozen) − L(oracle))
+
+    where R=0 is clairvoyant and R=1 is "did no better than never adapting". That turns a
+    unit-bound MSE into a quantity comparable across systems, severities, and models — and it makes
+    the severity knob auditable: a regime with no gap between frozen and oracle has no headroom, so
+    a null result there is a statement about the *environment*, not about the regent.
+    """
+
+    def __init__(self, verb: str, A_post: float, B: float, Q: float = 1.0, R: float = 1.0,
+                 cubic_coeff_post: float = 0.0, state_exponent: int = 3,
+                 state_var: str = "current_x", id: str = "regent:0") -> None:
+        super().__init__(verb, A_post, B, Q, R, state_var=state_var, id=id)
+        if B == 0.0:
+            raise ValueError("OracleRegent needs a non-zero control gain B to cancel the nonlinearity")
+        self.cancel_coeff = cubic_coeff_post / B
+        self.state_exponent = state_exponent
+
+    def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
+        expr = f"{-self.gain!r} * {self.state_var}"
+        if self.cancel_coeff:
+            expr += f" - {self.cancel_coeff!r} * {self.state_var} ** {self.state_exponent}"
+        return [ActionRequest(regent_id=self.id, verb=self.verb, payload={"expr": expr})]
