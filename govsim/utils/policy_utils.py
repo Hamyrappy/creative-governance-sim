@@ -41,7 +41,7 @@ class PolicyValidationError(ValueError):
 
 @dataclass(frozen=True)
 class SandboxConfig:
-    """Определяет, что разрешено внутри выражений политики."""
+    """Declares what a policy expression is allowed to reference."""
     # Узкий набор встроенных поверх safe_builtins/utility_builtins
     allowed_builtins: Iterable[str] = ("abs", "min", "max", "round", "float", "int", "len")
 
@@ -179,12 +179,15 @@ def validate_and_compile_policy_expression(
     *,
     config: SandboxConfig = DEFAULT_CONFIG,
 ):
-    """
-    Валидация идентификаторов и компиляция RestrictedPython-код-объекта.
-    Бросает PolicyValidationError при проблемах.
+    """Validate identifiers and compile a RestrictedPython code object.
+
+    Raises ``PolicyValidationError`` on any problem. **The message is user-facing in a specific
+    sense**: the ``TraceFeedback`` harness component forwards it verbatim into the next prompt, so it
+    is read by the model that wrote the rejected expression. It therefore has to be actionable and
+    in the prompt's language.
     """
     if not isinstance(expression, str) or not expression.strip():
-        raise PolicyValidationError("Выражение политики не может быть пустым.")
+        raise PolicyValidationError("A policy expression must be a non-empty string.")
 
     # Non-ASCII rejection closes the Unicode-confusable whitelist bypass: Python NFKC-normalizes
     # identifiers at compile time, so a fullwidth token like ``ｒａｎｄｏｍ`` compiles to the real
@@ -192,8 +195,8 @@ def validate_and_compile_policy_expression(
     # legitimate control law is pure ASCII, so requiring ASCII is both safe and sufficient here.
     if not expression.isascii():
         raise PolicyValidationError(
-            "Выражение политики должно содержать только ASCII-символы "
-            "(защита от обхода whitelist через Unicode-нормализацию идентификаторов)."
+            "A policy expression must contain only ASCII characters. (Python NFKC-normalizes "
+            "identifiers at compile time, so a non-ASCII look-alike would bypass the name whitelist.)"
         )
 
     if context_variable_names is None:
@@ -204,8 +207,9 @@ def validate_and_compile_policy_expression(
     unknown = sorted(x for x in ids_in_expr if x not in allowed_ids)
     if unknown:
         raise PolicyValidationError(
-            "В выражении встречены неожиданные имена (не входят в контекст/whitelist): "
+            "The expression uses names that are not available here: "
             + ", ".join(unknown[:10])
+            + ". Use only the allowed context variables and safe math helpers."
         )
 
     _check_expression_safety(expression)  # raises on an exponentiation bomb
@@ -213,15 +217,15 @@ def validate_and_compile_policy_expression(
     try:
         result = compile_restricted_eval(expression, filename="<policy_expression>")
     except Exception as e:
-        raise PolicyValidationError(f"Ошибка компиляции выражения: {e}") from e
+        raise PolicyValidationError(f"The expression failed to compile: {e}") from e
     # ``compile_restricted_eval`` does NOT raise on a syntax/restriction error — it returns a
     # CompileResult with ``.code is None`` and the reason in ``.errors``. Honor the documented
     # "raises PolicyValidationError on problems" contract so both sandbox entry points agree.
     errors = getattr(result, "errors", None)
     if errors:
-        raise PolicyValidationError("Ошибка компиляции выражения: " + "; ".join(str(e) for e in errors))
+        raise PolicyValidationError("The expression failed to compile: " + "; ".join(str(e) for e in errors))
     if getattr(result, "code", result) is None:
-        raise PolicyValidationError("Выражение не скомпилировалось (code=None).")
+        raise PolicyValidationError("The expression produced no code object (it is not a single expression).")
     return result
 
 
@@ -284,7 +288,7 @@ def evaluate_safe_policy_code(
     # Нормализуем то, что нам передали как "скомпилированное"
     code_obj = _ensure_code_object(compiled_code)
     if code_obj is None:
-        print("Ошибка ВЫПОЛНЕНИЯ выражения политики: передан неподдерживаемый формат 'compiled_code'.")
+        print("Policy expression RUNTIME error: unsupported 'compiled_code' format.")
         return None
 
     safe_locals: Dict[str, Any] = dict(simulation_context)
@@ -320,7 +324,7 @@ def evaluate_safe_policy_code(
     try:
         return eval(code_obj, safe_globals, safe_locals)
     except Exception as e:
-        print(f"Ошибка ВЫПОЛНЕНИЯ выражения политики: {e}")
+        print(f"Policy expression RUNTIME error: {e}")
         return None
 
 
