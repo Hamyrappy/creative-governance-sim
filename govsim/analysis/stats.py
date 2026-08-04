@@ -378,6 +378,58 @@ def channel_liveness(
     }
 
 
+def policy_responsiveness(
+    baseline_policies: Sequence[str],
+    treated_policies: Sequence[str],
+    *,
+    min_shift: float = 0.05,
+) -> dict[str, Any]:
+    """Did adding a harness channel change what the agent actually ENACTED?
+
+    The fifth gate, and the one that catches a failure the other four cannot. ``channel_liveness``
+    asks whether a channel delivered information; this asks whether the *model* used it. Both can
+    fail independently, and a model that ignores its harness produces a perfect, clean, entirely
+    uninformative null: the prompts differ, the loss table shows near-identical arms, and the
+    obvious reading — "this component doesn't help" — is wrong. The true statement is "this model
+    cannot be studied with this instrument".
+
+    Measured directly: we hit a model that emitted the identical constant policy on 400/400
+    decisions regardless of observation *or* harness content. Its ablation was flat to four decimal
+    places, and meant nothing.
+
+    Returns the total-variation distance between the two enacted-policy distributions, the share of
+    decisions spent on a single policy (a constant-policy agent is not governing), and whether the
+    arm is responsive enough to interpret.
+    """
+    base = list(baseline_policies)
+    treat = list(treated_policies)
+    if not base or not treat:
+        return {"responsive": False, "tv_distance": 0.0, "top_share": 1.0,
+                "reason": "one of the arms enacted nothing"}
+
+    def _dist(xs: list[str]) -> dict[str, float]:
+        c: dict[str, float] = {}
+        for x in xs:
+            c[x] = c.get(x, 0.0) + 1.0
+        return {k: v / len(xs) for k, v in c.items()}
+
+    d_base, d_treat = _dist(base), _dist(treat)
+    keys = set(d_base) | set(d_treat)
+    tv = 0.5 * sum(abs(d_base.get(k, 0.0) - d_treat.get(k, 0.0)) for k in keys)
+    top_share = max(_dist(treat).values())
+    degenerate = top_share >= 1.0 - min_shift
+    responsive = bool(tv >= min_shift)
+    reason = ""
+    if degenerate:
+        reason = (f"the treated arm spent {100 * top_share:.0f}% of its decisions on ONE policy — "
+                  f"it is emitting a constant, not governing")
+    elif not responsive:
+        reason = (f"enacted-policy distributions differ by only {tv:.3f} (< {min_shift}); the "
+                  f"channel reached the prompt but not the behaviour")
+    return {"responsive": responsive and not degenerate, "tv_distance": tv,
+            "top_share": top_share, "degenerate": degenerate, "reason": reason}
+
+
 def minimum_detectable_effect(
     per_seed_diffs: Sequence[float],
     *,

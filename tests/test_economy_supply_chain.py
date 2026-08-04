@@ -188,6 +188,22 @@ def test_delay_shock_opens_an_arrival_gap():
     assert system.lead_time == 6
 
 
+def test_a_misspelled_shock_parameter_is_refused_rather_than_silently_dropped():
+    """A typo in ``shock_params`` must not produce an arm that reports itself as shocked, runs the
+    unshocked dynamics, and returns a null indistinguishable from a finding."""
+    system = SupplyChainEconomy({"shock_step": 3, "shock_params": {"lead_tim": 6}})
+    system.reset(0)
+    with pytest.raises(KeyError, match="lead_tim"):
+        for _ in range(5):
+            system.step()
+    # The correctly spelled name still works.
+    ok = SupplyChainEconomy({"shock_step": 3, "shock_params": {"lead_time": 6}})
+    ok.reset(0)
+    for _ in range(5):
+        ok.step()
+    assert ok.lead_time == 6
+
+
 def test_efficacy_shock_changes_the_trajectory_and_costs_more():
     params = {"shock_step": SHOCK_AT, "shock_params": {"fulfilment_efficacy": 0.35}}
     _, plain = _run(SENSIBLE, seed=0, steps=200)
@@ -256,6 +272,45 @@ def test_empty_post_shock_window_scores_worst_case_not_zero():
     assert comps["post_loss"] == float("inf")
     assert comps["post_short_units"] == float("inf")
     assert math.isfinite(comps["loss"])
+
+
+def test_a_single_row_post_shock_window_is_also_worst_case():
+    """One row is not a milder version of zero rows — it is the same exploit, one row along.
+
+    Every component is a DIFFERENCE across the window, so a lone row differences against itself and
+    scores 0.0: a *better* post_loss than any window containing real post-shock time. A horizon of
+    exactly ``shock_step`` produces exactly that, and ``post_loss`` is the platform's calibration
+    metric, so a scenario configured that way would calibrate the reference on a perfect score
+    earned by having no evidence.
+    """
+    obj = SupplyChainCost(post_shock_step=SHOCK_AT)
+    params = {"shock_step": SHOCK_AT, "shock_params": {"lead_time": 6}}
+    _, one_row = _run(SENSIBLE, steps=SHOCK_AT, params=params)
+    assert len([r for r in one_row if r["t"] >= SHOCK_AT]) == 1
+    assert obj.components(one_row)["post_loss"] == float("inf")
+    # …and two rows — the shortest window that measures anything — is finite and positive.
+    _, two_rows = _run(SENSIBLE, steps=SHOCK_AT + 1, params=params)
+    assert len([r for r in two_rows if r["t"] >= SHOCK_AT]) == 2
+    assert 0.0 < obj.components(two_rows)["post_loss"] < float("inf")
+    # An entirely empty trajectory is no evidence either, and must not score a perfect 0.0.
+    assert obj.components([])["post_loss"] == float("inf")
+
+
+def test_the_post_shock_baseline_row_is_the_last_pre_shock_row():
+    """The differencing baseline must sit exactly at the break, or the window mis-attributes cost.
+
+    The shock fires in the step entered with ``_t == shock_step``, which emits the row ``t ==
+    shock_step + 1``. So the row ``t == shock_step`` is the last PRE-shock one, and using it as the
+    subtrahend makes ``post_*`` cover precisely the post-shock steps — no shared step, none dropped.
+    """
+    params = {"shock_step": SHOCK_AT, "shock_params": {"lead_time": 6}}
+    obj = SupplyChainCost(post_shock_step=SHOCK_AT)
+    _, trajectory = _run(SENSIBLE, steps=120, params=params)
+    post = [r for r in trajectory if r["t"] >= SHOCK_AT]
+    assert post[0]["t"] == SHOCK_AT and post[1]["t"] == SHOCK_AT + 1
+    assert obj.components(trajectory)["post_order_units"] == pytest.approx(
+        trajectory[-1]["cum_order_units"] - trajectory[SHOCK_AT - 1]["cum_order_units"]
+    )
 
 
 def test_costs_are_differenced_across_the_window_not_read_as_a_running_total():

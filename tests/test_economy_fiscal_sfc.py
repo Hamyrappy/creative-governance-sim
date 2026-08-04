@@ -162,6 +162,45 @@ def test_reset_draws_new_parameters_and_restores_shocked_ones():
     assert system.M_h + system.M_g == pytest.approx(system.money_total)
 
 
+#: Every scalar parameter a ``shock_params`` entry can overwrite, with a value distinct from its
+#: default. Enumerated rather than spot-checked because the failure is silent: an unrestored
+#: parameter leaks into the NEXT run of the same object, and that run still looks self-consistent.
+_SHOCKABLE = {
+    "tax_compliance": 0.35, "tax_distortion": 0.9, "gov_base_spend": 25.0,
+    "noise_sigma": 5.0, "debt_limit": 50.0, "alpha_income": 0.42, "alpha_wealth": 0.33,
+    "y_potential": 85.0, "transfer_cap": 5.0, "tax_rate_cap": 0.2,
+}
+
+
+@pytest.mark.parametrize("name,value", sorted(_SHOCKABLE.items()))
+def test_reset_restores_every_shockable_parameter(name, value):
+    # ``y_potential`` is the one that made this a real bug rather than a tidiness rule: a fall in
+    # potential output is the textbook macro shock, it is published in observe() AND read by the
+    # objective, so a version that survived reset() would move the target of every later "fresh"
+    # run of the same object — silently rescoring the whole arm against a goalpost nobody set.
+    system = FiscalSFCEconomy({"shock_step": 2, "shock_params": {name: value}})
+    system.reset(0)
+    pristine = getattr(system, name)
+    assert pristine != value, f"{name}: pick a shock value that differs from the default"
+    for _ in range(5):
+        system.step()
+    assert getattr(system, name) == value, f"{name}: the shock never landed"
+    system.reset(0)
+    assert getattr(system, name) == pristine, f"{name} leaked across reset()"
+
+
+def test_a_potential_output_shock_does_not_leak_into_the_next_run():
+    # The end-to-end version of the above: what a re-used system object PUBLISHES after a reset.
+    system = FiscalSFCEconomy({"shock_step": 2, "shock_params": {"y_potential": 85.0}})
+    system.reset(0)
+    for _ in range(10):
+        system.step()
+    system.reset(0)
+    system.step()
+    assert system.observe().vars["y_potential"] == 100.0
+    assert system.metrics()["y_potential"] == 100.0
+
+
 # --- the shock actually changes behaviour ------------------------------------------------------
 
 def test_shock_changes_behaviour_only_after_the_shock_step():

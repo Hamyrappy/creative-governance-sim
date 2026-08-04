@@ -246,6 +246,20 @@ def test_cumulative_totals_are_differenced_across_the_window():
                       comps["post_welfare"] - comps["post_cost"] - 0.02 * comps["post_depletion"])
 
 
+def test_a_zero_row_run_also_scores_the_post_shock_window_worst_case():
+    """The degenerate case of the test above, which the original guard let through: a run that
+    produced NO rows at all has zero post-shock evidence, so it must be worst-cased too. It used to
+    score post_loss = 0.0 — better than every real policy — making 'terminate before the first
+    step' the winning post-shock move. The full-horizon score stays 0.0 and finite."""
+    comps = CommonsWelfare(post_shock_step=SHOCK_STEP).components([])
+    assert comps["post_loss"] == float("inf")
+    assert comps["post_welfare"] == float("-inf")
+    assert comps["loss"] == 0.0
+    # A zero-row run must not beat a real governed run on the pre-registered comparison metric.
+    real = CommonsWelfare(post_shock_step=SHOCK_STEP).components(_run(COLLAPSE, 0, "0.18 * stock"))
+    assert real["post_loss"] < comps["post_loss"]
+
+
 def test_objective_is_empty_trajectory_safe_and_describes_its_mandate():
     objective = CommonsWelfare()
     assert objective.evaluate([]) == 0.0

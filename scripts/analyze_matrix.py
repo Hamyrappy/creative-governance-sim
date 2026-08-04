@@ -107,12 +107,154 @@ def no_action_rate(stores: list[ResultStore], experiment: str, model: str | None
             if not path or not Path(path).exists():
                 continue
             for call in json.loads(Path(path).read_text(encoding="utf-8")):
-                if call.get("regent") == "critic":
+                if call.get("regent_id") == "critic":
                     continue
                 total += 1
-                if not (call.get("tool_calls") or []):
+                if not _call_produced_an_action(call):
                     empty += 1
     return empty, total
+
+
+def _call_produced_an_action(call: dict) -> bool:
+    """Did this recorded call yield an action the Runner would have applied?
+
+    Must use the SAME parser the Runner uses. An earlier version counted only native
+    ``tool_calls`` and therefore reported 100% no-action for a model that answers through the JSON
+    fallback — which is a supported path, exercised by smaller models that cannot emit tool calls
+    reliably. The gate would have disqualified a perfectly functional arm, which is the most
+    expensive kind of false positive a validity gate can have: it discards real data and looks
+    rigorous doing it.
+    """
+    from govsim.core.action import ActionSpace, VerbSpec
+    from govsim.core.llm.client import LLMResponse
+    from govsim.regents.llm_regent import parse_action_requests
+
+    resp = LLMResponse(text=call.get("response_text") or "",
+                       tool_calls=list(call.get("tool_calls") or []))
+    # A permissive space: we are asking "did the model produce SOMETHING parseable", not "was it
+    # valid for this world" — the interface rejects invalid verbs separately and that rejection is
+    # itself surfaced through the trace channel.
+    verbs = {tc.get("name") for tc in (call.get("tool_calls") or []) if tc.get("name")}
+    verbs |= {"set_lockdown", "set_vaccination", "set_control_input"}
+    space = ActionSpace(verbs=[VerbSpec(name=v) for v in sorted(verbs)], context_vars=[])
+    return bool(parse_action_requests(resp, space, "regent:0"))
+
+
+def enacted_policies(stores: list[ResultStore], experiment: str, model: str | None) -> list[str]:
+    """Every policy the agent actually installed in this arm, in order, as ``verb=expr`` strings.
+
+    The raw material for the responsiveness gate. We read what was *enacted* rather than what was
+    said, because the question is whether the harness changed the agent's behaviour, and only the
+    installed law reaches the world.
+    """
+    from govsim.core.action import ActionSpace, VerbSpec
+    from govsim.core.llm.client import LLMResponse
+    from govsim.regents.llm_regent import parse_action_requests
+
+    space = ActionSpace(
+        verbs=[VerbSpec(name="set_lockdown"), VerbSpec(name="set_vaccination"),
+               VerbSpec(name="set_control_input")],
+        context_vars=[],
+    )
+    out: list[str] = []
+    for store in stores:
+        for row in store.query(experiment=experiment):
+            if model:
+                spec = (row.get("regent_specs") or {}).get(REGENT, {})
+                if spec.get("model") not in (None, model):
+                    continue
+            path = row.get("llm_io_path")
+            if not path or not Path(path).exists():
+                continue
+            for call in json.loads(Path(path).read_text(encoding="utf-8")):
+                if call.get("regent_id") == "critic":
+                    continue
+                resp = LLMResponse(text=call.get("response_text") or "",
+                                   tool_calls=list(call.get("tool_calls") or []))
+                for req in parse_action_requests(resp, space, REGENT):
+                    out.append(f"{req.verb}={req.payload.get('expr')}")
+    return out
+
+
+def _prompts_by_decision(stores: list[ResultStore], experiment: str,
+                         model: str | None) -> dict[tuple[int, int], str]:
+    """``{(seed, step): prompt text}`` for an arm, so arms can be compared decision-by-decision.
+
+    Keyed rather than positional: a positional zip silently compares seed 3's step 7 against seed
+    4's step 2 the moment one arm has a missing record, and reports the resulting garbage as a
+    difference.
+    """
+    out: dict[tuple[int, int], str] = {}
+    for store in stores:
+        for row in store.query(experiment=experiment):
+            if model:
+                spec = (row.get("regent_specs") or {}).get(REGENT, {})
+                if spec.get("model") not in (None, model):
+                    continue
+            path = row.get("llm_io_path")
+            if not path or not Path(path).exists():
+                continue
+            seed = int(row.get("seed", -1))
+            for call in json.loads(Path(path).read_text(encoding="utf-8")):
+                if call.get("regent_id") == "critic":
+                    continue
+                text = "\n".join(
+                    (m.get("content") or "") for m in (call.get("messages") or [])
+                    if isinstance(m, dict)
+                )
+                out[(seed, int(call.get("step", -1)))] = text
+    return out
+
+
+def _responsiveness_report(stores: list[ResultStore], cells: dict[str, str],
+                           model: str | None) -> list[str]:
+    """Gate 5: did the harness change BEHAVIOUR, not merely the prompt?
+
+    The four earlier gates all pass on a model that reads nothing. Channel liveness confirms the
+    channel injected; anchor consistency confirms the references are current; the no-action gate
+    confirms the agent acted; freshness confirms the code is current. A model can clear all four and
+    still emit one constant on every decision, in which case every arm is the same experiment and
+    the flat table is a property of the subject, not of the harness.
+
+    We measured exactly this on a 0.8B model: 400/400 decisions were ``set_lockdown=0.5``, a constant
+    that ignores the epidemic entirely, and adding episodic memory moved it to 378/400. The losses
+    agreed to four decimal places across six arms. Reported as "no harness effect", that would have
+    been a false null about harnesses instead of a true statement about the model.
+
+    Returns human-readable lines; the caller decides whether to fail.
+    """
+    from govsim.analysis.stats import policy_responsiveness
+
+    lines: list[str] = []
+    base = enacted_policies(stores, cells["bare"], model) if "bare" in cells else []
+    if not base:
+        return ["  responsiveness: no baseline arm on record — cannot judge"]
+    base_prompts = _prompts_by_decision(stores, cells["bare"], model)
+    for label, exp in cells.items():
+        if label == "bare":
+            continue
+        # Stage 1: did the channel reach the prompt at all? Measured by comparing the actual
+        # prompts decision-by-decision rather than by grepping for a header string, which goes
+        # stale the moment a component's wording changes.
+        theirs = _prompts_by_decision(stores, exp, model)
+        shared = set(base_prompts) & set(theirs)
+        moved = sum(1 for k in shared if base_prompts[k] != theirs[k])
+        live = moved / len(shared) if shared else 0.0
+        if live < 0.01:
+            # NOT deafness. TraceFeedback, for instance, reports rejected actions; when the agent
+            # emits only valid actions it has nothing to say, and an arm whose prompt never changed
+            # SHOULD score identically to bare. Calling that a null about the component would be
+            # backwards — the component was never on trial.
+            lines.append(f"  SILENT {label:<12} the channel altered {100 * live:.0f}% of prompts; "
+                         f"it never fired, so this arm is a duplicate of bare by construction")
+            continue
+        # Stage 2: the channel spoke. Did the agent's enacted behaviour change?
+        rep = policy_responsiveness(base, enacted_policies(stores, exp, model))
+        mark = "ok    " if rep["responsive"] else "DEAF  "
+        lines.append(f"  {mark}{label:<12} channel live on {100 * live:.0f}% of prompts, "
+                     f"TV={rep['tv_distance']:.3f}, top-policy-share={100 * rep['top_share']:.0f}%"
+                     + (f"\n         <- {rep['reason']}" if rep["reason"] else ""))
+    return lines
 
 
 #: Files whose content determines what a run MEANS. A record produced before any of these last
@@ -343,6 +485,20 @@ def main() -> int:
         print("       harness channels lengthen the prompt and invite longer reasoning — so the")
         print("       ablation would be measuring truncation. Raise GOVSIM_LLM_MAX_TOKENS and re-run")
         print("       before believing anything below.")
+
+    # ---- 1c. VALIDITY GATE: did the harness change BEHAVIOUR, or only the prompt? --------------
+    print("\n=== validity: policy responsiveness to harness content ===")
+    labels = {n.removeprefix("epidemic_llm_"): n for n in all_arms}
+    resp_lines = _responsiveness_report(store, labels, args.model)
+    for line in resp_lines:
+        print(line)
+    deaf = [ln for ln in resp_lines if ln.strip().startswith("DEAF")]
+    if deaf:
+        print("\n  [!!] At least one arm enacted essentially the SAME policies as the no-harness arm.")
+        print("       The channel reached the prompt (see channel liveness) but not the behaviour, so")
+        print("       that contrast is not a test of the component — it is a measurement of whether")
+        print("       this model reads its scaffold at all. Report it as a capability floor, NOT as a")
+        print("       null result about the harness.")
 
     # ---- 2. factorial attribution -------------------------------------------------------------
     factorial = None

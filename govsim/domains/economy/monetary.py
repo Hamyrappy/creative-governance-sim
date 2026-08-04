@@ -67,9 +67,21 @@ class MonetaryEconomy(LeverSystem):
 
     ``shock_params`` overwrites any named plant parameter at ``shock_step`` (the mechanism
     ``CubicSystem``/``SIRSystem`` use). The intended break is ``{"transmission": 0.1}``: a liquidity
-    trap / broken monetary transmission, with ``rate_cost`` untouched. A milder collapse leaves less
-    headroom — at ``transmission=0.25`` the optimal constant rate moves only a little and a frozen
-    rule is nearly right — so calibrate the severity rather than assuming it.
+    trap / broken monetary transmission, with ``rate_cost`` untouched.
+
+    Severity and price both have to be calibrated, and neither is a taste question. Sweeping the
+    best *constant* rate over 24 seeds at the defaults (horizon 200, break at 100) gives an interior
+    optimum in every cell and this adaptation headroom (frozen pre-break optimum ÷ post-break
+    optimum, on the post-break window)::
+
+        λ \\ transmission     0.30   0.20   0.10   0.05
+        0.10                 1.00   1.02   1.09   1.16
+        0.15                 1.03   1.09   1.22   1.32
+        0.25                 1.13   1.26   1.47   1.61
+
+    A mild collapse is worth nothing: at ``transmission=0.30`` the optimal rate barely moves and a
+    frozen rule is already right. Headroom needs BOTH a severe break and an instrument priced
+    highly enough that abandoning it is the correct response.
 
     Cost accrues on the rate the authority *sets*, never on the effect it achieves: a restrictive
     stance is politically and financially expensive whether or not it reaches anybody's borrowing
@@ -109,8 +121,13 @@ class MonetaryEconomy(LeverSystem):
         self.rho_y_bounds: tuple[float, float] = tuple(p.get("rho_y_bounds", (0.40, 0.74)))  # type: ignore[assignment]
         self.phi_bounds: tuple[float, float] = tuple(p.get("phi_bounds", (0.10, 0.30)))  # type: ignore[assignment]
         # -- saturation band (the boundedness guarantee of last resort) --
-        self.gap_band: float = float(p.get("gap_band", 25.0))
-        self.inflation_band: float = float(p.get("inflation_band", 25.0))
+        # Snapshotted like every other plant parameter, and for a sharper reason than the rest:
+        # these two ARE the boundedness guarantee. Left un-snapshotted they were both the live
+        # value and the pristine one, so ``shock_params={"gap_band": 3.0}`` permanently shrank the
+        # band on the object and every later ``reset()`` handed the next run a quietly different
+        # world — including the pre-shock arm it is compared against.
+        self.gap_band0: float = float(p.get("gap_band", 25.0))
+        self.inflation_band0: float = float(p.get("inflation_band", 25.0))
         # -- the unseen structural break --
         ss = p.get("shock_step")
         self.shock_step: int | None = None if ss is None else int(ss)
@@ -137,6 +154,8 @@ class MonetaryEconomy(LeverSystem):
         self.transmission: float = self.transmission0
         self.rate_cost: float = self.rate_cost0
         self.rate_range: tuple[float, float] = self.rate_range0
+        self.gap_band: float = self.gap_band0
+        self.inflation_band: float = self.inflation_band0
         self.rho_y: float = float(np.clip(
             self.rho_y_init * np.exp(self.rng.normal(0.0, self.rho_y_sigma)), *self.rho_y_bounds))
         self.phi: float = float(np.clip(
@@ -330,10 +349,15 @@ class DualMandateLoss(Objective):
             "final_rate": rates[-1] if rates else 0.0,
         }
         post_rows = self._post_shock_rows(trajectory)
-        if self.post_shock_step is not None and trajectory and not post_rows:
+        if self.post_shock_step is not None and not post_rows:
             # The run ended BEFORE the break, so there is no post-shock data. An empty window must
             # not score 0.0: that would make "end the run early" the optimal post-shock policy and a
             # reference calibrated against it would be measuring termination, not governance.
+            # Note the guard does NOT also require a non-empty ``trajectory``. It used to, which
+            # left the worst case scoring best: a run that produced NO rows at all (an arm that
+            # collapsed at t=0) fell through to the ordinary path, and since burden and cost are
+            # both non-negative its ``post_loss`` came out 0.0 — the global minimum of the metric,
+            # beating every real run. A window with no rows is a window with no rows.
             inf = float("inf")
             base.update({"post_mandate_burden": inf, "post_rate_cost": inf,
                          "post_mean_rate": inf, "post_loss": inf})

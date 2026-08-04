@@ -20,6 +20,19 @@ was an artifact of the calibration metric, not a fact about the worlds.
 Running this *before* committing to a flagship domain is the difference between "we found no
 effect" and "we chose a world where no effect was findable".
 
+**Coverage.** The scalar and epidemic domains below are written out inline. The five economy worlds
+(``govsim/domains/economy``) are NOT: each reads its config, shock, levers, objective, horizon and
+cadence out of the registered ``_World`` in ``govsim/experiments/economy_experiments.py`` and
+supplies only a policy family. A headroom number measured on a world that has drifted from the
+world the arms run in is worse than no number, because it still looks like evidence; here they are
+the same object and cannot drift.
+
+**Two numbers, not one.** ``headroom`` is a RATIO and is only interpretable while both losses are
+positive. ``CommonsWelfare`` is a net welfare measure, so a good policy scores below zero there and
+the ratio flips sign or runs to +inf — which reads like a spectacular result and is an artifact of
+the sign. The absolute ``gap`` (``L(frozen) - L(oracle)``) is well-defined in every case and is
+reported alongside; when the ratio is not valid the report says so rather than printing a number.
+
     uv run python scripts/headroom_audit.py --seeds 8
 """
 
@@ -27,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -176,6 +190,132 @@ def domain_sir(lam: float = 0.02):
     )
 
 
+# --------------------------------------------------------------------------------------------
+# The economy library (``govsim/domains/economy``) — five worlds, four of them carrying an
+# INSTRUMENT_EFFICACY break and one carrying a DELAY.
+#
+# Each spec below reads its world, its shock, its levers, its objective, its horizon and its
+# decision cadence straight out of the registered ``_World`` in
+# ``govsim/experiments/economy_experiments.py``, and supplies ONLY the policy family. That import
+# is the point of the design: a headroom number measured on a world that has quietly drifted from
+# the world the arms actually run in is worse than no number at all, because it looks like
+# evidence. Here the two cannot drift — they are the same object.
+#
+# The family is the one thing the audit must own, because it is the shared *language* of both
+# references, and "the oracle was weak" must never be the explanation for a small headroom. Each
+# one below therefore spans the institutional shapes that world's authority could plausibly
+# legislate AND contains both corners, so a corner optimum shows up as a corner rather than as a
+# missing option.
+# --------------------------------------------------------------------------------------------
+
+
+def _economy(key: str, family: PolicyFamily, note: str = "") -> dict:
+    from govsim.experiments.economy_experiments import WORLDS_BY_KEY
+
+    w = WORLDS_BY_KEY[key]
+    return dict(
+        name=f"{key} ({w.scenario.kind.value}, {w.scenario.name}){(' — ' + note) if note else ''}",
+        # ``pre`` is the SAME config with the scenario not armed, so the two references differ in
+        # when they were allowed to look and in nothing else.
+        pre=_mk(w.system_cls, dict(w.base)),
+        shocked=_mk(w.system_cls, w.shocked_config),
+        iface=ScalarLeverInterface(list(w.levers)),
+        objective=w.objective(),
+        family=family,
+        schedule=EveryN(w.decide_every),
+        horizon=w.horizon,
+        calib_metric="loss", score_metric="post_loss",
+    )
+
+
+def domain_monetary():
+    """Policy rate against a transmission collapse. The Lucas critique's own case.
+
+    The family is a Taylor rule with a free intercept, which matters: the correct answer to a
+    disconnected instrument is to stop leaning AND to sit lower than the neutral rate would have
+    you sit, and a family with the intercept pinned at neutral could not express it. ``g = 0``
+    reduces the rule to a constant rate, so the pure no-feedback institution is in the language.
+    """
+    return _economy("monetary", PolicyFamily(
+        verb="set_policy_rate",
+        template="{base} + {g} * (inflation - inflation_target + 0.5 * output_gap)",
+        grid={"base": [0.0, 2.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0],
+              "g": [0.0, 0.5, 1.0, 2.0]},
+    ))
+
+
+def domain_fiscal():
+    """Tax rate + transfer against a compliance collapse. Two instruments, searched jointly.
+
+    Jointly because the whole content of the break is that one instrument's price survives while
+    its yield does not, so the response is a re-balancing BETWEEN the two. A family that fixed the
+    tax rate and searched only the transfer could not express the response and would report the
+    world as headroom-free for a reason that is about the family.
+    """
+    return _economy("fiscal", PolicyFamily(
+        verb="set_transfer",
+        template="min(40.0, {g0} + {g} * (y_potential - output))",
+        grid={"g0": [0.0, 5.0, 10.0, 20.0],
+              "g": [0.0, 0.25, 0.5],
+              "tau": [0.0, 0.05, 0.10, 0.20, 0.30]},
+        extra_laws={"set_tax_rate": "{tau}"},
+    ))
+
+
+def domain_commons():
+    """Quota + reserve against an enforcement collapse — the instrument-SUBSTITUTION case.
+
+    The family has to span both instruments or the audit measures the wrong thing entirely: at zero
+    compliance the quota channel has gain zero, so the only response that exists is to close water
+    instead, and a quota-only oracle would be as helpless as the frozen rule and report ~1.0x.
+    ``h = 0`` is a total ban and ``h = 1, esc = 0`` is an unconstraining quota, so both corners of
+    the harvest rule are in the language alongside the constant-escapement shapes between them.
+    """
+    return _economy("commons", PolicyFamily(
+        verb="set_quota",
+        template="max(0.0, {h} * (stock - {esc} * capacity))",
+        grid={"h": [0.0, 0.25, 0.5, 1.0],
+              "esc": [0.0, 0.2, 0.4, 0.6],
+              "res": [0.0, 0.2, 0.4, 0.8]},
+        extra_laws={"set_reserve": "{res}"},
+    ))
+
+
+def domain_supply_chain():
+    """Order-up-to policy against a tripled lead time — the library's one DELAY arm.
+
+    ``ShockKind.DELAY`` is listed in ``govsim/scenarios.py`` as NOT YET MEASURED, and this is the
+    measurement. The family spans a constant order (``s = g = 0``), a chase-demand rule
+    (``s = 1``), and order-up-to rules with a free target and a free correction gain — because a
+    delay shock breaks the *gain*, and a family without a free gain could not adapt to it even in
+    principle.
+    """
+    return _economy("supply_chain", PolicyFamily(
+        verb="set_order",
+        template="max(0.0, {c} + {s} * recent_demand + {g} * (backlog - inventory))",
+        grid={"c": [0.0, 10.0],
+              "s": [0.0, 1.0, 3.0, 5.0],
+              "g": [0.0, 0.5, 1.0]},
+    ))
+
+
+def domain_opinion():
+    """Moderation against an efficacy collapse. A threshold institution with a floor.
+
+    ``thr = 0.0`` makes the rule fire always, so every constant level is in the family — which is
+    what lets the audit find "spend nothing" if that is the post-break optimum. That matters here
+    more than elsewhere: the world's own sweep says the severe-collapse answer IS zero, and zero is
+    precisely the response a threshold on a rising observable cannot produce.
+    """
+    return _economy("opinion", PolicyFamily(
+        verb="set_moderation",
+        template="{a} if polarization > {thr} else {b}",
+        grid={"a": [0.0, 0.2, 0.4, 0.6, 1.0],
+              "thr": [0.0, 0.1, 0.25],
+              "b": [0.0, 0.3]},
+    ))
+
+
 DOMAINS = [
     domain_cubic, domain_coupled,
     lambda: domain_sir(0.02),
@@ -183,6 +323,8 @@ DOMAINS = [
     lambda: domain_sir_efficacy(0.02, 0.25),
     lambda: domain_sir_efficacy(0.02, 0.00),
     lambda: domain_sir_efficacy(0.08, 0.25),
+    # the economy library
+    domain_monetary, domain_fiscal, domain_commons, domain_supply_chain, domain_opinion,
 ]
 
 
@@ -204,23 +346,44 @@ def audit(spec: dict, seeds: list[int]) -> dict:
     oracle_cal = calibrate(fam, system_factory=spec["shocked"], action_interface=iface,
                            objective=spec["objective"], schedule=sched, seeds=seeds,
                            horizon=hz, metric=sm)
-    print(f"  frozen (pre-shock optimal):  {frozen_cal.best_expr}")
-    print(f"  oracle (post-shock optimal): {oracle_cal.best_expr}")
+    # Re-score with the FULL law set, not with ``best_expr``. ``best_expr`` renders only the
+    # family's primary verb, so on a multi-instrument family (``extra_laws``) it silently drops
+    # every other lever and the re-scored reference governs with one hand — while the calibration
+    # that chose it used both. That is not a small error: it produced a commons headroom of 0.82x,
+    # i.e. a clairvoyant oracle scoring WORSE than the frozen rule it is defined to dominate, which
+    # is impossible and is the only reason the bug was visible at all. Every pre-existing domain in
+    # this file has a single-verb family, so nothing caught it until the economy library landed.
+    frozen_law = frozen_cal.best_laws if fam.extra_laws else frozen_cal.best_expr
+    oracle_law = oracle_cal.best_laws if fam.extra_laws else oracle_cal.best_expr
+    print(f"  frozen (pre-shock optimal):  {frozen_law}")
+    print(f"  oracle (post-shock optimal): {oracle_law}")
 
     kw = dict(verb=fam.verb, system_factory=spec["shocked"], action_interface=iface,
               objective=spec["objective"], schedule=sched, seeds=seeds, horizon=hz, metric=sm)
-    frozen_loss = _score_expr(frozen_cal.best_expr, **kw)
-    oracle_loss = _score_expr(oracle_cal.best_expr, **kw)
+    frozen_loss = _score_expr(frozen_law, **kw)
+    oracle_loss = _score_expr(oracle_law, **kw)
     h = headroom(frozen_loss, oracle_loss)
-    same = frozen_cal.best_expr == oracle_cal.best_expr
+    same = frozen_law == oracle_law
+    # The RATIO is only interpretable while both losses are positive. Some objectives here are net
+    # welfare measures (``CommonsWelfare`` is catch value minus costs), so a good policy can score
+    # BELOW zero and the ratio then flips sign or blows up to +inf — a number that reads like an
+    # enormous result and means nothing. The absolute gap is well-defined in every case, so report
+    # it always and let it stand in when the ratio cannot.
+    gap = frozen_loss - oracle_loss
+    ratio_ok = math.isfinite(h) and oracle_loss > 0 and frozen_loss > 0
+    verdict = (f"HEADROOM = {h:.2f}x  (frozen carries {100 * (h - 1):.0f}% excess loss)"
+               if ratio_ok else
+               f"HEADROOM RATIO UNDEFINED (a loss is <= 0 — this objective is a net welfare "
+               f"measure); absolute gap = {gap:.5f}")
     print(f"  on the SHOCKED world ({sm}): frozen={frozen_loss:.5f}  oracle={oracle_loss:.5f}  "
-          f"=> HEADROOM = {h:.2f}x  (frozen carries {100*(h-1):.0f}% excess loss)"
+          f"=> {verdict}"
           f"{'   [!] identical policies — the shock does not move the optimum' if same else ''}")
     sys.stdout.flush()
     return {
-        "domain": spec["name"], "frozen_expr": frozen_cal.best_expr,
-        "oracle_expr": oracle_cal.best_expr, "frozen_loss": frozen_loss,
-        "oracle_loss": oracle_loss, "headroom": h, "metric": sm,
+        "domain": spec["name"], "frozen_expr": frozen_law,
+        "oracle_expr": oracle_law, "frozen_loss": frozen_loss,
+        "oracle_loss": oracle_loss, "headroom": h, "headroom_ratio_valid": ratio_ok,
+        "gap": gap, "metric": sm,
         "family_size": fam.size(), "same_policy": same,
     }
 
@@ -240,7 +403,9 @@ def main() -> int:
 
     print("\n=== headroom ranking (higher = more room for adaptation to matter) ===")
     for r in sorted(rows, key=lambda r: -r["headroom"]):
-        print(f"  {r['headroom']:>8.2f}x  {r['domain']}")
+        ratio = f"{r['headroom']:>8.2f}x" if r["headroom_ratio_valid"] else "     n/a "
+        flag = "  [!] same policy both sides" if r["same_policy"] else ""
+        print(f"  {ratio}  gap={r['gap']:>12.4f}  {r['domain']}{flag}")
     if args.json:
         Path(args.json).write_text(json.dumps(rows, indent=2), encoding="utf-8")
         print(f"\nwrote {args.json}")

@@ -88,9 +88,14 @@ class FiscalSFCEconomy(LeverSystem):
         self.m_h_init: float = float(p.get("m_h_init", 120.0))
         self.m_g_init: float = float(p.get("m_g_init", 0.0))
         self.debt_limit0: float = float(p.get("debt_limit", 400.0))
-        self.transfer_cap: float = float(p.get("transfer_cap", 40.0))
-        self.tax_rate_cap: float = float(p.get("tax_rate_cap", 0.6))
-        self.y_potential: float = float(p.get("y_potential", 100.0))
+        # ``*0`` snapshots of EVERY remaining parameter a shock may overwrite. The three below are
+        # not hypothetical targets: a fall in potential output is the standard macro shock, and
+        # ``y_potential`` is both published in ``observe`` and read by the objective, so a shock that
+        # survived ``reset`` would silently move the target of every later "fresh" run of the same
+        # object — and the contaminated runs would still look self-consistent.
+        self.transfer_cap0: float = float(p.get("transfer_cap", 40.0))
+        self.tax_rate_cap0: float = float(p.get("tax_rate_cap", 0.6))
+        self.y_potential0: float = float(p.get("y_potential", 100.0))
         # -- per-seed heterogeneity (lognormal, so the draws stay positive) -----------------------
         self.alpha_income_sigma: float = float(p.get("alpha_income_sigma", 0.10))
         self.alpha_wealth_sigma: float = float(p.get("alpha_wealth_sigma", 0.18))
@@ -126,6 +131,9 @@ class FiscalSFCEconomy(LeverSystem):
         self.gov_base_spend = self.gov_base_spend0
         self.noise_sigma = self.noise_sigma0
         self.debt_limit = self.debt_limit0
+        self.transfer_cap = self.transfer_cap0
+        self.tax_rate_cap = self.tax_rate_cap0
+        self.y_potential = self.y_potential0
         self.tax_rate = 0.0
         self.transfer = 0.0
         self.output = 0.0

@@ -330,10 +330,17 @@ class CommonsWelfare(Objective):
             "min_stock_frac": min(stocks) if stocks else 0.0,
         }
         post_rows = self._post_shock_rows(trajectory)
-        if self.post_shock_step is not None and trajectory and not post_rows:
+        if self.post_shock_step is not None and not post_rows:
             # The run ended before the break, so there is no post-shock evidence. Scoring an empty
             # window as 0.0 would make "end the run early" the optimal post-shock policy and the
             # reference would be calibrated on early termination rather than on governance.
+            # NOTE the absence of an `and trajectory` guard. A run that produced NO rows at all is
+            # the most extreme version of exactly this failure — zero post-shock evidence — and it
+            # used to fall through to the ordinary branch and score post_loss = 0.0, which beat
+            # every genuine policy. "Terminate before the first step" must not be the winning move.
+            # ``evaluate`` and the full-horizon ``loss`` still return 0.0 on an empty trajectory:
+            # only the post-shock window, which is the pre-registered H1 comparison metric, is
+            # worst-cased here.
             inf = float("inf")
             base.update({"post_welfare": -inf, "post_cost": inf, "post_depletion": inf,
                          "post_loss": inf, "post_min_stock_frac": 0.0})

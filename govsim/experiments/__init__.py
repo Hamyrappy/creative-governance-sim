@@ -41,3 +41,4 @@ def available() -> list[str]:
 # Importing these modules registers their experiments (keep at the bottom to avoid a cycle).
 from govsim.experiments import scalar_experiments  # noqa: E402,F401
 from govsim.experiments import governance_experiments  # noqa: E402,F401
+from govsim.experiments import economy_experiments  # noqa: E402,F401
