@@ -394,6 +394,35 @@ The pre-registered prediction is asymmetric rather than a hedge: outcome feedbac
 effect, failure trace should do nothing here, and memory may well be neutral or harmful across the
 break for the reason just given.
 
+\subsection{Interrogating the null: why realized-score history is not enough}
+\label{sec:ctx-outcome}
+
+Outcome feedback did not carry the effect, and the first thing we checked was whether it was wired
+at all---a silent plumbing failure and a genuine null are indistinguishable in a results table. It
+was wired: the recorded prompts contain lines of the form
+\begin{quote}\ttfamily\small
+you deployed [set\_lockdown: 0.9; set\_vaccination: 0.5] and it scored -11.2680
+\end{quote}
+So the null is real, and the transcripts explain it. The scores come from different phases of an
+evolving epidemic. A score moves both because the policy changed and because the world moved on, so
+under non-stationarity \emph{the outcome signal is confounded with exactly the non-stationarity it
+is supposed to reveal}. In the recorded runs the regent sees its first and best-scoring policy
+followed by progressively worse scores and walks away from the good policy---which is the rational
+response to a confounded signal, not a failure of reasoning.
+
+That diagnosis has an obvious remedy, so we built it and registered it as an arm. Contextual outcome
+feedback reports each score \emph{next to the state it was earned in}, and explicitly flags the case
+where the same law scored differently in a comparable state. Two identical policies producing
+different results under comparable conditions is the cleanest available evidence that something
+outside the policy changed---which is precisely the inference an unobservable instrument failure
+requires. Its control is the naive channel at the same call budget, so the contrast isolates
+\emph{contextualization} rather than \emph{feedback}.
+
+We report this as a finding about harness design rather than as a repair. The literature enumerates
+memory, reflection, and feedback as scaffold component types; what this regime shows is that a
+component's \emph{type} does not determine whether its signal is identifiable, and that under
+non-stationarity the identification question is the one that decides whether the component works.
+
 \section{Experimental design}
 \label{sec:design}
 
