@@ -34,11 +34,19 @@ EPIDEMIC_IFACE = ScalarLeverInterface([
 # exceeds θ". It is what a public-health rule actually looks like, and it is deliberately the same
 # language for both references, so the comparison is about *when* the parameters were chosen and
 # never about who had the richer vocabulary.
+# The family spans BOTH instruments. This is not an embellishment: the regent arms can set
+# vaccination as well as lockdown, so a reference confined to lockdown is not a weaker opponent, it
+# is an unfair one — any arm would beat it partly by using a lever the reference was forbidden. It
+# also turns out to matter substantively: calibrated jointly, the pre-break optimum uses NO
+# vaccination and the post-break optimum uses the maximum, so the correct response to the instrument
+# failure is substitution rather than withdrawal.
 EPIDEMIC_FAMILY = PolicyFamily(
     verb="set_lockdown",
     template="{a} if I > {thr} else 0.0",
-    grid={"a": [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9],
-          "thr": [0.002, 0.01, 0.03, 0.06, 0.10, 0.16, 0.25, 0.40, 0.70]},
+    grid={"a": [0.0, 0.3, 0.45, 0.6, 0.75, 0.9],
+          "thr": [0.002, 0.01, 0.03, 0.06, 0.10, 0.16, 0.25, 0.40],
+          "v": [0.0, 0.1, 0.25, 0.5]},
+    extra_laws={"set_vaccination": "{v}"},
 )
 
 # The WIDE reference vocabulary. A regent that emits code is not confined to the threshold form, so
@@ -52,15 +60,19 @@ EPIDEMIC_FAMILIES = {
     "proportional": PolicyFamily(
         verb="set_lockdown",
         template="{g} * I + {b}",
-        grid={"g": [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0],
-              "b": [0.0, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75]},
+        grid={"g": [0.0, 0.5, 1.0, 2.0, 4.0, 8.0],
+              "b": [0.0, 0.05, 0.15, 0.35, 0.6],
+              "v": [0.0, 0.1, 0.25, 0.5]},
+        extra_laws={"set_vaccination": "{v}"},
     ),
     "threshold_floor": PolicyFamily(
         verb="set_lockdown",
         template="{a} if I > {thr} else {b}",
-        grid={"a": [0.15, 0.45, 0.75, 0.9],
+        grid={"a": [0.45, 0.75, 0.9],
               "thr": [0.01, 0.06, 0.16, 0.40],
-              "b": [0.0, 0.05, 0.15, 0.3]},
+              "b": [0.0, 0.05, 0.15, 0.3],
+              "v": [0.0, 0.25, 0.5]},
+        extra_laws={"set_vaccination": "{v}"},
     ),
 }
 
@@ -128,19 +140,19 @@ def run(name: str, seeds: list[int]) -> dict:
 
     skw = dict(verb=fam.verb, system_factory=s["shocked"], action_interface=iface, objective=obj,
                schedule=sched, seeds=seeds, horizon=hz)
-    fl = _score_expr(frozen.best_expr, metric="loss", **skw)
-    bl = _score_expr(best_fixed.best_expr, metric="loss", **skw)
-    fl_post = _score_expr(frozen.best_expr, metric="post_loss", **skw)
-    ol_post = _score_expr(oracle.best_expr, metric="post_loss", **skw)
+    fl = _score_expr(frozen.best_laws, metric="loss", **skw)
+    bl = _score_expr(best_fixed.best_laws, metric="loss", **skw)
+    fl_post = _score_expr(frozen.best_laws, metric="post_loss", **skw)
+    ol_post = _score_expr(oracle.best_laws, metric="post_loss", **skw)
 
     # The clairvoyant adaptor, scored the same way as everything else.
-    sl = _score_switching(frozen.best_expr, oracle.best_expr, s, seeds, metric="loss")
+    sl = _score_switching(frozen.best_laws, oracle.best_laws, s, seeds, metric="loss")
 
     h_full = headroom(fl, sl)
     h_vs_fixed = headroom(bl, sl)
-    print(f"  frozen      : {frozen.best_expr}")
-    print(f"  best_fixed  : {best_fixed.best_expr}   (hindsight, whole horizon, '{best_fixed_name}')")
-    print(f"  oracle(post): {oracle.best_expr}")
+    print(f"  frozen      : {frozen.best_laws}")
+    print(f"  best_fixed  : {best_fixed.best_laws}   (hindsight, whole horizon, '{best_fixed_name}')")
+    print(f"  oracle(post): {oracle.best_laws}")
     print(f"  switching   : [{frozen.best_expr}]  ->  [{oracle.best_expr}]  at t={s['shock_step']}")
     print(f"  full-horizon loss: frozen={fl:.4f}  best_fixed={bl:.4f}  switching={sl:.4f}")
     print(f"  headroom  frozen/switching = {h_full:.3f}x   best_fixed/switching = {h_vs_fixed:.3f}x")
@@ -150,12 +162,14 @@ def run(name: str, seeds: list[int]) -> dict:
     return {
         "verb": fam.verb,
         "switch_step": s["shock_step"],
-        "frozen": {"expr": frozen.best_expr, "params": frozen.best_params,
-                   "loss": fl, "post_loss": fl_post},
-        "best_fixed": {"expr": best_fixed.best_expr, "params": best_fixed.best_params,
-                       "loss": bl, "family": best_fixed_name},
-        "oracle": {"expr": oracle.best_expr, "params": oracle.best_params, "post_loss": ol_post},
-        "switching": {"pre_expr": frozen.best_expr, "post_expr": oracle.best_expr, "loss": sl},
+        "frozen": {"expr": frozen.best_expr, "laws": frozen.best_laws,
+                   "params": frozen.best_params, "loss": fl, "post_loss": fl_post},
+        "best_fixed": {"expr": best_fixed.best_expr, "laws": best_fixed.best_laws,
+                       "params": best_fixed.best_params, "loss": bl, "family": best_fixed_name},
+        "oracle": {"expr": oracle.best_expr, "laws": oracle.best_laws,
+                   "params": oracle.best_params, "post_loss": ol_post},
+        "switching": {"pre_expr": frozen.best_expr, "post_expr": oracle.best_expr,
+                      "pre_laws": frozen.best_laws, "post_laws": oracle.best_laws, "loss": sl},
         "headroom": h_full,
         "headroom_vs_best_fixed": h_vs_fixed,
         "provenance": {
@@ -169,7 +183,7 @@ def run(name: str, seeds: list[int]) -> dict:
     }
 
 
-def _score_switching(pre_expr: str, post_expr: str, s: dict, seeds: list[int], metric: str) -> float:
+def _score_switching(pre_expr, post_expr, s: dict, seeds: list[int], metric: str) -> float:
     """Score the clairvoyant adaptor through the normal Runner path, so it is comparable."""
     import math
     import statistics as st

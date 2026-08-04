@@ -19,6 +19,7 @@ across a paired comparison is the world seed (the basis of the H3 ablation / sta
 
 from __future__ import annotations
 
+import functools
 import subprocess
 from typing import Any
 
@@ -29,7 +30,15 @@ from govsim.core.rollout import RolloutContext
 from govsim.core.system import RollableSystem
 
 
+@functools.lru_cache(maxsize=1)
 def _git_commit() -> str:
+    """The provenance stamp for a RunRecord, resolved once per process.
+
+    Cached because a calibration sweep is thousands of short runs, and spawning a git subprocess per
+    run made the sweep spend most of its wall-clock in process creation rather than simulation. The
+    commit cannot change under a running process in any way we would want to record differently, so
+    there is nothing to lose by resolving it once.
+    """
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=5

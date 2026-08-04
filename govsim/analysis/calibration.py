@@ -35,7 +35,7 @@ from typing import Any, Callable, Iterable
 
 from govsim.core.experiment import Experiment, Hypothesis
 from govsim.core.objective import Objective
-from govsim.core.regent import ScriptedRegent
+from govsim.core.regent import MultiScriptedRegent, ScriptedRegent
 from govsim.core.runner import Runner
 from govsim.core.schedule import Schedule
 
@@ -49,14 +49,26 @@ class PolicyFamily:
     ``"{a} if I > {thr} else 0.0"`` for a threshold institution. The family is the *language* both
     references share, so it should be expressive enough that "the oracle is weak" is never the
     explanation for a small headroom.
+
+    ``extra_laws`` lets one family govern SEVERAL instruments jointly: a second mapping of
+    ``verb -> template`` rendered from the same grid. A regime whose correct response to a broken
+    instrument is "use the other one" cannot be scored against a reference confined to the broken
+    one, because that reference cannot express the response the experiment is about.
     """
 
     verb: str
     template: str
     grid: dict[str, list[float]]
+    extra_laws: dict[str, str] = field(default_factory=dict)
 
     def render(self, params: dict[str, float]) -> str:
         return self.template.format(**{k: repr(v) for k, v in params.items()})
+
+    def render_all(self, params: dict[str, float]) -> dict[str, str]:
+        """``{verb: expression}`` for every instrument this family governs."""
+        p = {k: repr(v) for k, v in params.items()}
+        return {self.verb: self.template.format(**p),
+                **{v: t.format(**p) for v, t in self.extra_laws.items()}}
 
     def combinations(self) -> Iterable[dict[str, float]]:
         names = list(self.grid)
@@ -75,11 +87,14 @@ class CalibrationResult:
     best_params: dict[str, float]
     best_expr: str
     best_loss: float
+    #: ``{verb: expression}`` for every instrument the family governs (== ``{verb: best_expr}``
+    #: for a single-instrument family).
+    best_laws: dict[str, str] = field(default_factory=dict)
     all_losses: list[tuple[dict[str, float], float]] = field(default_factory=list)
 
 
 def _score_expr(
-    expr: str,
+    expr: str | dict[str, str],
     *,
     verb: str,
     system_factory: Callable[[int], Any],
@@ -90,12 +105,18 @@ def _score_expr(
     horizon: int,
     metric: str,
 ) -> float:
-    """Mean of ``metric`` over seeds for a fixed control law. ``inf`` if any seed blew up."""
+    """Mean of ``metric`` over seeds for a fixed control law. ``inf`` if any seed blew up.
+
+    ``expr`` may be a single expression for ``verb`` or a ``{verb: expression}`` mapping when the
+    reference policy governs several instruments at once.
+    """
+    regent = (MultiScriptedRegent(expr) if isinstance(expr, dict)
+              else ScriptedRegent(verb=verb, expr=expr))
     exp = Experiment(
         name=f"calib:{verb}",
         system_factory=system_factory,
         action_interface=action_interface,
-        regents={"regent:0": ScriptedRegent(verb=verb, expr=expr)},
+        regents={"regent:0": regent},
         objectives={"regent:0": objective},
         schedule=schedule,
         seeds=seeds,
@@ -133,7 +154,7 @@ def calibrate(
     """
     scored: list[tuple[dict[str, float], float]] = []
     for params in family.combinations():
-        expr = family.render(params)
+        expr = family.render_all(params) if family.extra_laws else family.render(params)
         loss = _score_expr(
             expr, verb=family.verb, system_factory=system_factory,
             action_interface=action_interface, objective=objective, schedule=schedule,
@@ -145,6 +166,7 @@ def calibrate(
     return CalibrationResult(
         best_params=best_params,
         best_expr=family.render(best_params),
+        best_laws=family.render_all(best_params),
         best_loss=best_loss,
         all_losses=scored,
     )

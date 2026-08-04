@@ -149,3 +149,27 @@ prevent.
   unaffected (no prompt depends on the scoring window), so every arm is re-scored on the identical
   recorded runs rather than re-sampled. **H1/H1b/H3/H4 above are to be read against full-horizon
   `loss` with `best_fixed` as the named non-adaptive rival.**
+
+- **2026-08-04 — REFERENCE FAMILY WIDENED to span both instruments.**
+
+  *The flaw.* The reference policies were calibrated over lockdown only, while every treatment arm
+  can set lockdown **and** vaccination. That does not make the reference a weaker opponent, it makes
+  it an unfair one: an arm would beat it partly by using an instrument the reference was forbidden.
+
+  *Why it matters substantively, not just formally.* Calibrated jointly, the pre-break optimum uses
+  **no** vaccination and the post-break optimum uses the **maximum**. So the correct response to the
+  instrument failure is *substitution* toward the instrument that still works — a far better
+  governance task than the withdrawal the single-lever calibration implied, and it removes the
+  degeneracy where the clairvoyant answer was close to "do nothing".
+
+  *The fix.* `PolicyFamily` gained `extra_laws`, and all three reference vocabularies (threshold,
+  proportional, threshold-with-floor) now carry a standing vaccination term. Re-calibrated at n=20.
+  This is the limitation the paper had already flagged as future work; it is now in the design.
+
+- **2026-08-04 — MODEL PANEL REDUCED by the provider's daily quota.**
+  The free tier turned out to allow **500 requests per model per day**, and one arm costs 400 calls
+  (20 seeds × 20 reviews). Only the `gemma` family has enough headroom for the full 2³ factorial. The
+  panel is therefore: `gemma-4-31b-it` (full factorial), `gemma-4-26b-a4b-it` (reduced arm set), and
+  `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite` contributing the no-harness arm only before
+  exhausting their quota. Reported as a partial replication, and as a constraint on inference rather
+  than a design choice.

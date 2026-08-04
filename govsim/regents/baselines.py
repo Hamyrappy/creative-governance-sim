@@ -89,8 +89,8 @@ class SwitchingRegent(Regent):
     It is given both laws and the exact switch time, none of which any other arm can see.
     """
 
-    def __init__(self, verb: str, pre_expr: str, post_expr: str, switch_step: int,
-                 id: str = "regent:0") -> None:
+    def __init__(self, verb: str, pre_expr: str | dict[str, str], post_expr: str | dict[str, str],
+                 switch_step: int, id: str = "regent:0") -> None:
         super().__init__(id)
         self.verb = verb
         self.pre_expr = pre_expr
@@ -98,8 +98,13 @@ class SwitchingRegent(Regent):
         self.switch_step = switch_step
 
     def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
-        expr = self.pre_expr if view.t < self.switch_step else self.post_expr
-        return [ActionRequest(regent_id=self.id, verb=self.verb, payload={"expr": expr})]
+        # A law may govern several instruments at once: the whole point of the substitution regime
+        # is that the right answer to a broken lever is to reach for a different one, and a
+        # reference that can only speak about the broken lever cannot express that.
+        laws = self.pre_expr if view.t < self.switch_step else self.post_expr
+        if isinstance(laws, str):
+            laws = {self.verb: laws}
+        return [ActionRequest(regent_id=self.id, verb=v, payload={"expr": e}) for v, e in laws.items()]
 
 
 class OracleRegent(LQRRegent):

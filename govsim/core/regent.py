@@ -51,3 +51,21 @@ class ScriptedRegent(Regent):
 
     def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
         return [ActionRequest(regent_id=self.id, verb=self.verb, payload={"expr": self.expr})]
+
+
+class MultiScriptedRegent(Regent):
+    """Deterministic baseline over SEVERAL levers at once: ``{verb: expression}``.
+
+    Needed once a reference policy has to say something about more than one instrument. A regime
+    whose answer to a broken lever is "use the other one" cannot be measured against a reference
+    confined to the broken lever --- the reference would be unable to express the very response the
+    experiment is about, and every arm would beat it for the wrong reason.
+    """
+
+    def __init__(self, laws: dict[str, str], id: str = "regent:0") -> None:
+        super().__init__(id)
+        self.laws = dict(laws)
+
+    def decide(self, view: Observation, space: ActionSpace, scratch: Scratch) -> list[ActionRequest]:
+        return [ActionRequest(regent_id=self.id, verb=verb, payload={"expr": expr})
+                for verb, expr in self.laws.items()]
