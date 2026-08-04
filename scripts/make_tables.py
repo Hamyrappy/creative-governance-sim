@@ -60,31 +60,45 @@ def pending(name: str, caption: str, label: str) -> str:
 
 
 def headroom_table(calib: dict, surface: list[dict] | None) -> str:
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+    from govsim.analysis import diagnose
+
     rows = []
     for regime, d in sorted(calib.items()):
+        # Recomputed from the stored losses when the artifact predates the decomposition. It is an
+        # exact function of three numbers already in the file, so this cannot disagree with a
+        # freshly-calibrated entry — it just saves re-running an hour of search to add a ratio.
+        g = d.get("diagnosis") or diagnose(
+            d["frozen"]["loss"], d["best_fixed"]["loss"], d["switching"]["loss"])
         rows.append(
-            f"{esc(regime)} & \\texttt{{{esc(d['frozen']['expr'])}}} & "
-            f"\\texttt{{{esc(d['best_fixed']['expr'])}}} & "
-            f"{num(d['frozen']['loss'])} & {num(d['best_fixed']['loss'])} & "
-            f"{num(d['switching']['loss'])} & "
-            f"\\textbf{{{num(d['headroom_vs_best_fixed'], 3)}}} \\\\"
+            f"{esc(regime)} & {num(d['frozen']['loss'])} & {num(d['best_fixed']['loss'])} & "
+            f"{num(d['switching']['loss'])} & {num(g.get('staleness'), 3)} & "
+            f"\\textbf{{{num(g.get('adaptation_headroom'), 3)}}} & "
+            f"{num(g.get('robustness_headroom'), 3)} \\\\"
         )
     body = "\n".join(rows)
     return f"""\\begin{{table}}[t]\\centering\\small
-\\caption{{\\textbf{{What adaptation is worth, by regime.}} Every reference is calibrated by
-exhaustive search over the same policy vocabulary and scored on the same broken world over the same
-seeds; they differ only in what they were allowed to know. \\emph{{frozen}} is optimal before the
-break and held through it. \\emph{{best fixed}} is the best single law over the whole broken horizon
-chosen in hindsight---the non-adaptive ceiling, and the reference an adaptation claim has to beat.
-\\emph{{switching}} enacts the pre-break optimum and then the post-break optimum at the exact break.
-The last column, $\\headroom = L_{{\\text{{fixed}}}}/L_{{\\text{{switch}}}}$, is what changing
-behaviour is worth over the best a \\emph{{fixed}} rule could ever have done; $\\approx 1$ means no
-controller could demonstrate adaptation there, however attentive.}}
+\\caption{{\\textbf{{Decomposing what a stale rule costs.}} All references are calibrated by
+exhaustive search over the same policy vocabulary, on the same broken world, over the same seeds;
+they differ only in what they were allowed to know. \\emph{{staleness}}
+$=L_{{\\text{{frozen}}}}/L_{{\\text{{switch}}}}$ is what the pre-break-optimal rule costs after the
+break---the quantity a study of institutional rigidity usually reports, and on its own ambiguous.
+It factors into \\emph{{adaptation headroom}} $=L_{{\\text{{fixed}}}}/L_{{\\text{{switch}}}}$, the
+part recoverable \\emph{{only}} by changing behaviour mid-run, and \\emph{{robustness headroom}}
+$=L_{{\\text{{frozen}}}}/L_{{\\text{{fixed}}}}$, the part recoverable by having legislated a better
+standing rule in the first place. The severe regime is the instructive case: a large staleness cost
+with \\emph{{no}} adaptation headroom at all. There the polity needed a better rule, not a more
+attentive government---and reporting staleness alone would have called it an adaptation failure and
+prescribed the wrong remedy.}}
 \\label{{tab:headroom}}
-\\begin{{tabular}}{{@{{}}l l l r r r r@{{}}}}
+\\begin{{tabular}}{{@{{}}l r r r r r r@{{}}}}
 \\toprule
-regime & frozen rule & best fixed (hindsight) & $L_{{\\text{{frozen}}}}$ &
-$L_{{\\text{{fixed}}}}$ & $L_{{\\text{{switch}}}}$ & $\\headroom$ \\\\
+& \\multicolumn{{3}}{{c}}{{full-horizon loss}} & \\multicolumn{{3}}{{c}}{{decomposition}} \\\\
+\\cmidrule(lr){{2-4}} \\cmidrule(lr){{5-7}}
+regime & frozen & best fixed & switching & staleness & \\textbf{{adaptation}} & robustness \\\\
 \\midrule
 {body}
 \\bottomrule

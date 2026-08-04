@@ -282,7 +282,41 @@ def normalized_regret(arm_loss: float, frozen_loss: float, oracle_loss: float) -
 
 
 def headroom(frozen_loss: float, oracle_loss: float) -> float:
-    """``L(frozen)/L(oracle)`` — the factor by which adaptation could reduce post-shock loss."""
+    """``L(frozen)/L(oracle)`` — the factor by which the reference gap could be closed.
+
+    Which gap depends on which reference is passed. See :func:`diagnose` for the decomposition that
+    makes the distinction explicit, and prefer it when reporting.
+    """
     if oracle_loss <= 0 or not math.isfinite(oracle_loss):
         return float("inf")
     return frozen_loss / oracle_loss
+
+
+def diagnose(frozen_loss: float, best_fixed_loss: float, switching_loss: float) -> dict[str, float]:
+    """Separate "the standing rule is costly" from "the standing rule must change".
+
+    These are routinely conflated, and they call for different remedies. Three references make the
+    difference computable:
+
+        staleness = L(frozen) / L(switching)
+            what the pre-break-optimal rule costs after the break. This is the quantity a study of
+            institutional rigidity usually reports, and on its own it is ambiguous.
+
+        adaptation_headroom = L(best_fixed) / L(switching)
+            the part of that cost recoverable ONLY by changing behaviour mid-run, because it is
+            what remains after the best possible *standing* rule has been chosen with hindsight.
+
+        robustness_headroom = L(frozen) / L(best_fixed)
+            the remainder: recoverable by having legislated a different standing rule in the first
+            place, with no adaptation at all.
+
+    ``staleness ≈ adaptation × robustness`` by construction. A regime can have a large staleness
+    cost and *zero* adaptation headroom — we measure one — and there the finding is that the polity
+    needed a better rule, not a more attentive government. Reporting only staleness would have
+    called that an adaptation failure, and prescribed the wrong fix.
+    """
+    return {
+        "staleness": headroom(frozen_loss, switching_loss),
+        "adaptation_headroom": headroom(best_fixed_loss, switching_loss),
+        "robustness_headroom": headroom(frozen_loss, best_fixed_loss),
+    }

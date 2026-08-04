@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from govsim.analysis import (
-    PolicyFamily, calibrate, calibrate_families, calibrate_switching, headroom,
+    PolicyFamily, calibrate, calibrate_families, calibrate_switching, diagnose, headroom,
 )
 from govsim.analysis.calibration import _score_expr
 from govsim.core.schedule import EveryN
@@ -164,22 +164,28 @@ def run(name: str, seeds: list[int]) -> dict:
         action_interface=iface, objective=obj, schedule=sched, seeds=seeds, horizon=hz,
         metric="loss")
 
-    h_full = headroom(fl, sl)
-    h_vs_fixed = headroom(bl, sl)
+    d = diagnose(fl, bl, sl)
+    h_full, h_vs_fixed = d["staleness"], d["adaptation_headroom"]
     print(f"  frozen      : {frozen.best_laws}")
     print(f"  best_fixed  : {best_fixed.best_laws}   (hindsight, whole horizon, '{best_fixed_name}')")
     print(f"  oracle(post): {oracle.best_laws}")
     print(f"  switching   : {pre_laws}")
     print(f"                ->  {post_laws}   at t={s['shock_step']}")
     print(f"  full-horizon loss: frozen={fl:.4f}  best_fixed={bl:.4f}  switching={sl:.4f}")
-    print(f"  headroom  frozen/switching = {h_full:.3f}x   best_fixed/switching = {h_vs_fixed:.3f}x")
+    print(f"  staleness (frozen/switch)      = {d['staleness']:.3f}x   "
+          f"<- what the stale rule costs")
+    print(f"  ADAPTATION headroom (fixed/sw) = {d['adaptation_headroom']:.3f}x   "
+          f"<- recoverable ONLY by changing behaviour")
+    print(f"  robustness headroom (fro/fix)  = {d['robustness_headroom']:.3f}x   "
+          f"<- recoverable by legislating a better standing rule")
     if h_vs_fixed < 1.0:
         print("  [!!] the clairvoyant adaptor is WORSE than the best fixed law. That is impossible "
               "for a genuine upper bound (switching subsumes not-switching), so the switching "
               "search is under-powered — widen top_k or the vocabulary before trusting this cell.")
     elif h_vs_fixed < 1.05:
-        print("  [!] the best FIXED law nearly matches the clairvoyant adaptor — adaptation buys "
-              "almost nothing here even over the full horizon")
+        print(f"  [!] adaptation buys ~nothing here: the best FIXED law matches the adaptor. The "
+              f"{100 * (d['staleness'] - 1):.0f}% the stale rule costs is a RULE-DESIGN problem, "
+              f"not an adaptation problem — a better standing rule recovers it without adapting.")
     return {
         "verb": fam.verb,
         "switch_step": s["shock_step"],
@@ -191,8 +197,9 @@ def run(name: str, seeds: list[int]) -> dict:
                    "params": oracle.best_params, "post_loss": ol_post},
         "switching": {"pre_expr": pre_laws[fam.verb], "post_expr": post_laws[fam.verb],
                       "pre_laws": pre_laws, "post_laws": post_laws, "loss": sl},
-        "headroom": h_full,
+        "headroom": h_full,               # == staleness, kept for artifact compatibility
         "headroom_vs_best_fixed": h_vs_fixed,
+        "diagnosis": d,
         "provenance": {
             "n_seeds": len(seeds), "seeds": seeds, "family_template": fam.template,
             "family_grid": fam.grid, "family_size": fam.size(),

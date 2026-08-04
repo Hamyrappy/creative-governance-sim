@@ -191,6 +191,34 @@ were allowed to look. Both are then scored on the same broken world over the sam
      {\Lpost(\pi_{\mathrm{frozen}}) - \Lpost(\pi_{\mathrm{oracle}})}.
 \end{equation}
 
+\subsection{The decomposition: costly is not the same as un-adaptive}
+\label{sec:decomposition}
+
+A single ratio is not enough, and the reason matters. Let $\pi_{\mathrm{fixed}}$ be the best
+\emph{fixed} law over the whole broken horizon chosen in hindsight, and $\pi_{\mathrm{switch}}$ the
+best (pre-leg, post-leg) pair. Then
+\begin{equation}
+\underbrace{\frac{L(\pi_{\mathrm{frozen}})}{L(\pi_{\mathrm{switch}})}}_{\text{staleness}}
+\;=\;
+\underbrace{\frac{L(\pi_{\mathrm{fixed}})}{L(\pi_{\mathrm{switch}})}}_{\text{adaptation headroom}}
+\;\times\;
+\underbrace{\frac{L(\pi_{\mathrm{frozen}})}{L(\pi_{\mathrm{fixed}})}}_{\text{robustness headroom}} .
+\end{equation}
+
+Staleness is what studies of institutional rigidity report: how much worse the old rule is after the
+break. It answers no design question on its own, because it conflates two remedies. The adaptation
+term is recoverable \emph{only} by changing behaviour mid-run. The robustness term is recoverable by
+having legislated a different standing rule at the outset, with no adaptation whatsoever.
+
+We measure a regime where these come apart completely: total instrument failure produces a
+staleness cost of $1.51\times$ and an adaptation headroom of exactly $1.00\times$---the optimal
+policy is the same before and after the break, and the pre-break-optimal rule was simply the wrong
+rule to have written. An agent evaluated there would appear to fail at adaptation while in fact
+there was no adaptation to be done. \Cref{tab:headroom} reports all three columns for every regime,
+and we take the practical implication seriously: \emph{a costly rule and a rule that must change are
+different diagnoses, and only the second is a case for a more attentive government.}
+
+\medskip
 $\Rreg = 0$ is clairvoyant and $\Rreg = 1$ is ``did no better than never adapting''. We do not clip
 $\Rreg$. Values below $0$ are possible and informative, because the oracle is optimal only
 \emph{within} $\policyfam$ while a code-emitting regent is not confined to it; values above $1$ mean

@@ -44,20 +44,20 @@
       "post_loss": 11.26796162424795
     },
     "switching": {
-      "pre_expr": "0.9 if I > 0.01 else 0.0",
-      "post_expr": "0.45 if I > 0.16 else 0.0",
+      "pre_expr": "0.75 if I > 0.01 else 0.0",
+      "post_expr": "0.0 if I > 0.002 else 0.0",
       "pre_laws": {
-        "set_lockdown": "0.9 if I > 0.01 else 0.0",
-        "set_vaccination": "0.0"
-      },
-      "post_laws": {
-        "set_lockdown": "0.45 if I > 0.16 else 0.0",
+        "set_lockdown": "0.75 if I > 0.01 else 0.0",
         "set_vaccination": "0.5"
       },
-      "loss": 22.983534419664952
+      "post_laws": {
+        "set_lockdown": "0.0 if I > 0.002 else 0.0",
+        "set_vaccination": "0.5"
+      },
+      "loss": 21.267143473898198
     },
-    "headroom": 1.217048603560791,
-    "headroom_vs_best_fixed": 1.097699336433325,
+    "headroom": 1.3152720065426546,
+    "headroom_vs_best_fixed": 1.1862905101629198,
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -118,7 +118,7 @@
       "horizon": 200,
       "decide_every": 10,
       "primary_metric": "loss (full horizon)",
-      "calibrated_at": "2026-08-04T16:46:34+00:00"
+      "calibrated_at": "2026-08-04T17:01:55+00:00"
     }
   },
   "scalar": {
@@ -172,6 +172,11 @@
     },
     "headroom": 1.1248811296541568,
     "headroom_vs_best_fixed": 1.0387372924169687,
+    "diagnosis": {
+      "staleness": 1.1248811296541568,
+      "adaptation_headroom": 1.0387372924169687,
+      "robustness_headroom": 1.0829313030985397
+    },
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -222,7 +227,7 @@
       "horizon": 200,
       "decide_every": 10,
       "primary_metric": "loss (full horizon)",
-      "calibrated_at": "2026-08-04T16:47:55+00:00"
+      "calibrated_at": "2026-08-04T17:14:21+00:00"
     }
   },
   "epidemic_severe": {
@@ -270,20 +275,20 @@
       "post_loss": 11.841708478962659
     },
     "switching": {
-      "pre_expr": "0.9 if I > 0.03 else 0.0",
-      "post_expr": "0.9 if I > 0.25 else 0.0",
+      "pre_expr": "0.0 if I > 0.002 else 0.0",
+      "post_expr": "0.0 if I > 0.002 else 0.0",
       "pre_laws": {
-        "set_lockdown": "0.9 if I > 0.03 else 0.0",
+        "set_lockdown": "0.0 if I > 0.002 else 0.0",
         "set_vaccination": "0.0"
       },
       "post_laws": {
-        "set_lockdown": "0.9 if I > 0.25 else 0.0",
+        "set_lockdown": "0.0 if I > 0.002 else 0.0",
         "set_vaccination": "0.0"
       },
-      "loss": 29.35538640367725
+      "loss": 27.12498781832652
     },
-    "headroom": 1.39610491595043,
-    "headroom_vs_best_fixed": 0.9240208064482729,
+    "headroom": 1.5109020340318327,
+    "headroom_vs_best_fixed": 1.0,
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -344,7 +349,7 @@
       "horizon": 200,
       "decide_every": 10,
       "primary_metric": "loss (full horizon)",
-      "calibrated_at": "2026-08-04T16:49:26+00:00"
+      "calibrated_at": "2026-08-04T17:12:33+00:00"
     }
   }
 }

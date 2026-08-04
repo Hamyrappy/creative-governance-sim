@@ -1,21 +1,26 @@
 \begin{table}[t]\centering\small
-\caption{\textbf{What adaptation is worth, by regime.} Every reference is calibrated by
-exhaustive search over the same policy vocabulary and scored on the same broken world over the same
-seeds; they differ only in what they were allowed to know. \emph{frozen} is optimal before the
-break and held through it. \emph{best fixed} is the best single law over the whole broken horizon
-chosen in hindsight---the non-adaptive ceiling, and the reference an adaptation claim has to beat.
-\emph{switching} enacts the pre-break optimum and then the post-break optimum at the exact break.
-The last column, $\headroom = L_{\text{fixed}}/L_{\text{switch}}$, is what changing
-behaviour is worth over the best a \emph{fixed} rule could ever have done; $\approx 1$ means no
-controller could demonstrate adaptation there, however attentive.}
+\caption{\textbf{Decomposing what a stale rule costs.} All references are calibrated by
+exhaustive search over the same policy vocabulary, on the same broken world, over the same seeds;
+they differ only in what they were allowed to know. \emph{staleness}
+$=L_{\text{frozen}}/L_{\text{switch}}$ is what the pre-break-optimal rule costs after the
+break---the quantity a study of institutional rigidity usually reports, and on its own ambiguous.
+It factors into \emph{adaptation headroom} $=L_{\text{fixed}}/L_{\text{switch}}$, the
+part recoverable \emph{only} by changing behaviour mid-run, and \emph{robustness headroom}
+$=L_{\text{frozen}}/L_{\text{fixed}}$, the part recoverable by having legislated a better
+standing rule in the first place. The severe regime is the instructive case: a large staleness cost
+with \emph{no} adaptation headroom at all. There the polity needed a better rule, not a more
+attentive government---and reporting staleness alone would have called it an adaptation failure and
+prescribed the wrong remedy.}
 \label{tab:headroom}
-\begin{tabular}{@{}l l l r r r r@{}}
+\begin{tabular}{@{}l r r r r r r@{}}
 \toprule
-regime & frozen rule & best fixed (hindsight) & $L_{\text{frozen}}$ &
-$L_{\text{fixed}}$ & $L_{\text{switch}}$ & $\headroom$ \\
+& \multicolumn{3}{c}{full-horizon loss} & \multicolumn{3}{c}{decomposition} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+regime & frozen & best fixed & switching & staleness & \textbf{adaptation} & robustness \\
 \midrule
-epidemic & \texttt{0.9 if I > 0.01 else 0.0} & \texttt{0.9 if I > 0.25 else 0.0} & 27.972 & 27.114 & 23.736 & \textbf{1.142} \\
-scalar & \texttt{-(1.3 * current\_x + 3.0 * current\_x ** 3)} & \texttt{-(1.9 * current\_x + 3.0 * current\_x ** 3)} & 0.036 & 0.033 & 0.032 & \textbf{1.039} \\
+epidemic & 27.972 & 25.229 & 21.267 & 1.315 & \textbf{1.186} & 1.109 \\
+epidemic\_severe & 40.983 & 27.125 & 27.125 & 1.511 & \textbf{1.000} & 1.511 \\
+scalar & 0.036 & 0.033 & 0.032 & 1.125 & \textbf{1.039} & 1.083 \\
 \bottomrule
 \end{tabular}
 \end{table}

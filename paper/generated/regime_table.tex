@@ -9,18 +9,18 @@ express.}
 \begin{tabular}{@{}l l@{}}
 \toprule
 frozen: optimal before the break, held through it & \texttt{0.9 if I > 0.01 else 0.0} \\
-best fixed law in hindsight (whole horizon) & \texttt{0.9 if I > 0.25 else 0.0}
+best fixed law in hindsight (whole horizon) & \texttt{0.6 if I > 0.002 else 0.0}
   {\footnotesize (best of proportional, threshold, threshold\_floor $\to$ 'threshold')} \\
 clairvoyant switch at $\shockstep=100$ &
-  \texttt{0.9 if I > 0.01 else 0.0} $\to$ \texttt{0.9 if I > 0.25 else 0.0} \\
+  \texttt{0.75 if I > 0.01 else 0.0} $\to$ \texttt{0.0 if I > 0.002 else 0.0} \\
 \midrule
 full-horizon loss: frozen / best fixed / switching &
-  27.972 / 27.114 / 23.736 \\
+  27.972 / 25.229 / 21.267 \\
 what adaptation is worth ($L_{\text{fixed}}/L_{\text{switch}}$) &
-  \textbf{1.142} \\
+  \textbf{1.186} \\
 what a stale rule costs ($L_{\text{frozen}}/L_{\text{switch}}$) &
-  1.178 \\
-calibration grid & 63 laws, 20 seeds, horizon 200 \\
+  1.315 \\
+calibration grid & 192 laws, 20 seeds, horizon 200 \\
 \bottomrule
 \end{tabular}
 \end{table}
