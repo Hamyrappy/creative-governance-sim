@@ -6,6 +6,7 @@
 % Fallbacks so the document still compiles before the figure code has run.
 \providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
 \providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
+\providecommand{\MDEFraction}{?}
 
 \title{\bfseries When Does Adaptation Have Room to Matter?\\
 \large Measuring adaptation headroom, and attributing it to harness components,\\
@@ -84,17 +85,20 @@ from the outside the two are indistinguishable from a genuine null.
 
 \paragraph{Contributions.}
 \begin{enumerate}[leftmargin=1.4em]
-\item \textbf{Adaptation headroom as a pre-experiment diagnostic} (\cref{sec:headroom}). We define
-$\headroom$ as the post-shock loss ratio between a pre-shock-optimal and a post-shock-optimal policy
-calibrated in one shared family, and a normalized regret $\Rreg$ that places any controller on the
-scale between them. Both are computed before an agent is run, and they make the severity of a
-designed shock an auditable choice rather than a researcher degree of freedom.
+\item \textbf{A decomposition of what a stale rule costs, computed before any agent is run}
+(\cref{sec:headroom,sec:decomposition}). Three references calibrated in one shared vocabulary---the
+pre-break optimum held fixed, the best \emph{fixed} rule in hindsight, and the best clairvoyant
+\emph{switch}---factor staleness exactly into an adaptation headroom and a robustness headroom, and
+place any controller on a normalized scale between the last two. Because it is computed first, it
+makes the severity of a designed shock an auditable choice rather than a researcher degree of
+freedom.
 
 \item \textbf{A structural result about which shocks are worth studying}
-(\cref{sec:which-shocks}). Measuring $\headroom$ across three environments, we find that feedback
-policies absorb shocks to the state dynamics---so those regimes are near-null by construction---but
-cannot absorb shocks to instrument efficacy. We report the near-null regimes rather than discarding
-them, and retain one as a declared negative control.
+(\cref{sec:which-shocks}). Measuring across four calibrated regimes, we find that feedback policies
+absorb shocks to the state dynamics---so those regimes are near-null by construction---but cannot
+absorb shocks to instrument efficacy. Adaptation headroom is a narrow band in both the severity of
+the break and the price of intervention, and non-monotone in each. We report the near-null regimes
+rather than discarding them, and retain one as a declared negative control.
 
 \item \textbf{Governance by executable policy code, in a domain where the code is the point}
 (\cref{sec:regent}). Existing LLM-as-authority systems emit scalars or fixed-schema objects. Our
@@ -541,7 +545,7 @@ tables below are generated from the analysis artifact and are empty until it exi
 normalized regret; the shaded band is the minimum detectable effect around the no-harness arm. It is
 wide enough to swallow the entire distance from the arms to the non-adaptive ceiling, which is the
 honest reading of this experiment: the configurations are indistinguishable from one another
-\emph{and} the design could not have separated them unless a component were worth roughly $40\%$ of
+\emph{and} the design could not have separated them unless a component were worth roughly $\MDEFraction\%$ of
 everything adaptation is worth here. Reporting the bar ordering without the band would invite a
 conclusion the data does not carry.}
 \label{fig:regret}
