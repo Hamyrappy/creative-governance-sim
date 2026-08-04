@@ -231,7 +231,21 @@ that it cannot be outlasted.
 
 \input{generated/headroom_table}
 
-The pattern in \cref{tab:headroom} has a mechanical explanation. A policy of the form ``intervene
+\begin{figure}[t]\centering
+\includegraphics[width=0.82\linewidth]{generated/fig_headroom_surface}
+\caption{\textbf{Headroom over the cost weight $\lambda$ and post-break instrument efficacy.}
+Cells marked ``='' are ones where the calibrated pre- and post-break policies are \emph{identical}:
+the break provably does not move the optimum, so nothing can be learned there. The band is bounded
+on both sides and for the same reason---at $\lambda \le 0.02$ permanent maximal lockdown is optimal
+and at $\lambda = 0.3$ doing nothing is, and a corner optimum is invariant to the regime. Only
+$6/20$ cells combine a moved optimum with $\headroom \ge 1.5$. The red box is the pre-registered
+operating point; note that it is inside the usable band rather than at its maximum, which is
+deliberate---selecting the cell that maximizes the effect is the researcher degree of freedom this
+measurement exists to remove.}
+\label{fig:surface}
+\end{figure}
+
+The pattern in \cref{tab:headroom,fig:surface} has a mechanical explanation. A policy of the form ``intervene
 when the observable exceeds $\theta$'' is feedback. When a shock raises the state's magnitude---a
 more transmissible pathogen, a less stable plant---the rule fires more often on its own, and remains
 close to optimal without anyone changing it. The observable still means what it meant.
@@ -265,6 +279,24 @@ optimum on both sides of the break. Because $S+I+R$ is conserved, no arm can div
 comparison is between two real policies rather than between two blow-ups.
 
 \input{generated/regime_table}
+
+\begin{figure}[t]\centering
+\includegraphics[width=0.72\linewidth]{generated/fig_policy_divergence}
+\caption{\textbf{One seed, three institutions.} Before the break the frozen rule is the good
+policy: it suppresses prevalence to near zero, which is exactly why it was selected. After the
+break it keeps enacting maximal lockdown, pays a cumulative cost of ${\sim}175$ against the
+oracle's ${\sim}0$, and gets a \emph{worse} epidemic for it, because each unit of lockdown now buys
+a quarter of what it used to. The clairvoyant response is to stop, and the regent's proportional
+rule approximates that while retaining a small standing response.}
+\label{fig:divergence}
+\end{figure}
+
+\Cref{fig:divergence} also makes the regime's main limitation legible rather than hidden: because
+lockdown is the only instrument that carries real weight here, the clairvoyant response after the
+break is close to ``stop intervening''. The inference problem is still a genuine one---the efficacy
+parameter is never observable, and the only evidence available is that the same policy started
+producing worse outcomes---but the \emph{action} it licenses is a simple one. We return to this in
+\cref{sec:limitations}.
 
 \section{The regent and its harness}
 \label{sec:regent}
@@ -376,6 +408,15 @@ that produced an effect would be the exact failure this paper is about.
 with graded, bounded headroom. The scalar plant's headroom is either negligible or catastrophic
 with a razor-thin transition between them, which we report as a finding about first-order plants
 rather than working around.
+
+\paragraph{The clairvoyant response is a simple action.} Because lockdown is the only instrument
+carrying real weight in this regime, the post-break optimum is close to ``stop intervening''. The
+\emph{inference} is not trivial---efficacy is unobservable and the only evidence is a policy whose
+results decayed---but the resulting action is. A stronger version of this environment gives the
+authority a second instrument that survives the break, so the correct response is substitution
+rather than withdrawal, and an agent cannot succeed by merely detecting that something is wrong. We
+have specified that regime and not yet run it; the present result should be read as evidence about
+detecting an instrument failure, not about reallocating around one.
 
 \paragraph{The model is a governance abstraction, not an epidemiological claim.} Compartmental
 dynamics with a compliance-driven efficacy collapse are a stylized setting for studying rules under

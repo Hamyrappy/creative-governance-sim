@@ -313,7 +313,12 @@ class SIRSystem(LeverSystem):
         return self._t
 
     def metrics(self) -> dict[str, float]:
-        return {"S": self.S, "I": self.I, "R": self.R, "infected": self.I, "cum_cost": self.cum_cost, "t": float(self._t)}
+        # The enacted lever values are part of the record, not just the state they produced: the
+        # governance question is what the institution *did*, and a trajectory that omits the policy
+        # cannot answer it (nor plot it). Efficacy stays out — it is unobservable by design.
+        return {"S": self.S, "I": self.I, "R": self.R, "infected": self.I,
+                "lockdown": self.lockdown, "vacc": self.vacc,
+                "cum_cost": self.cum_cost, "t": float(self._t)}
 
 
 class CompanySystem(LeverSystem):
