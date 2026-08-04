@@ -138,3 +138,30 @@ def test_mde_states_the_cost_of_halving_it():
 def test_mde_is_undefined_rather_than_optimistic_on_one_point():
     res = minimum_detectable_effect([1.0])
     assert res["mde"] == float("inf")
+
+
+# --- anchor provenance ------------------------------------------------------------------------
+
+def test_reference_regents_persist_the_policy_they_enacted():
+    """The anchor gate can only compare what was recorded, and it silently stopped being recorded.
+
+    Switching the references from ScriptedRegent (which holds ``expr``) to MultiScriptedRegent
+    (which holds ``laws``) left the gate reading a field that no longer existed, so it skipped every
+    check and passed vacuously — a gate that had caught a real stale-anchor bug days earlier. This
+    pins the provenance rather than the gate, because the gate was fine; the record was empty.
+    """
+    from govsim.core.regent import MultiScriptedRegent, ScriptedRegent
+    from govsim.core.runner import _regent_spec
+    from govsim.regents import SwitchingRegent
+
+    multi = _regent_spec(MultiScriptedRegent({"set_lockdown": "0.9 if I > 0.01 else 0.0",
+                                              "set_vaccination": "0.5"}))
+    assert "laws" in multi and multi["laws"]["set_vaccination"] == "0.5"
+
+    single = _regent_spec(ScriptedRegent(verb="set_lockdown", expr="0.5 * I"))
+    assert single["expr"] == "0.5 * I"
+
+    switching = _regent_spec(SwitchingRegent("set_lockdown", {"set_lockdown": "0.9"},
+                                             {"set_lockdown": "0.0"}, 100))
+    assert switching["pre_expr"] == {"set_lockdown": "0.9"}
+    assert switching["switch_step"] == 100

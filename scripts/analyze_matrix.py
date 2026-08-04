@@ -136,12 +136,24 @@ def _anchors_match_calibration(stores: list[ResultStore]) -> bool:
         for store in stores:
             for row in store.query(experiment=arm):
                 spec = (row.get("regent_specs") or {}).get(REGENT, {})
-                # ScriptedRegent persists `expr`; MultiScriptedRegent persists neither, so fall
-                # back to accepting it rather than failing on a shape we cannot inspect.
-                got = spec.get("expr")
-                if got is not None and got not in expected:
-                    print(f"  anchor mismatch in {arm} (seed {row['seed']}): stored {got!r} is not "
-                          f"in the calibrated {sorted(expected)!r}", file=sys.stderr)
+                # ScriptedRegent persists `expr`; MultiScriptedRegent persists `laws`. Accept either
+                # shape, and treat a row carrying NEITHER as a failure rather than a pass: a record
+                # that does not say which policy it enacted cannot be checked, and silently passing
+                # such rows is how this gate spent a day being vacuous.
+                if "laws" in spec:
+                    got = set((spec.get("laws") or {}).values())
+                elif "expr" in spec:
+                    got = {spec["expr"]}
+                else:
+                    print(f"  anchor UNCHECKABLE in {arm} (seed {row['seed']}): the stored "
+                          f"regent_spec records no policy ({sorted(spec)}). Re-run the reference "
+                          f"arms with a build that persists it.", file=sys.stderr)
+                    ok = False
+                    break
+                if not got <= expected:
+                    print(f"  anchor mismatch in {arm} (seed {row['seed']}): stored "
+                          f"{sorted(got)!r} is not within the calibrated {sorted(expected)!r}",
+                          file=sys.stderr)
                     ok = False
                 break  # one row per arm is enough to detect a stale store
     return ok

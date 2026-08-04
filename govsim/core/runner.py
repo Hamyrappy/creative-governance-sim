@@ -48,10 +48,20 @@ def _git_commit() -> str:
         return "unknown"
 
 
+#: Regent attributes worth persisting as provenance. ``laws``/``pre_expr``/``post_expr`` are here
+#: because the anchor-consistency gate compares a stored reference run against the calibration
+#: artifact, and it can only do that if the enacted policy was actually recorded. It was not:
+#: switching the references to ``MultiScriptedRegent`` (which holds ``laws``, not ``expr``) left the
+#: gate reading a field that no longer existed, so it skipped every check and passed vacuously —
+#: a gate that had caught a real stale-anchor bug days earlier.
+_SPEC_ATTRS = ("model", "prompt_file", "temperature", "verb", "expr", "laws",
+               "pre_expr", "post_expr", "switch_step", "kp", "kd", "gain")
+
+
 def _regent_spec(regent: Regent) -> dict[str, Any]:
-    """Best-effort provenance for a regent (type + any pinned model/prompt/expr fields)."""
+    """Best-effort provenance for a regent (type + any pinned model/prompt/policy fields)."""
     spec: dict[str, Any] = {"type": type(regent).__name__}
-    for attr in ("model", "prompt_file", "temperature", "verb", "expr", "kp", "kd", "gain"):
+    for attr in _SPEC_ATTRS:
         if hasattr(regent, attr):
             spec[attr] = getattr(regent, attr)
     return spec
