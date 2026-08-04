@@ -231,20 +231,44 @@ def plot_regret(analysis: dict) -> Path | None:
     order = [a for a in labels if any(r["arm"] == a for r in arms)]
     vals = {r["arm"]: r for r in arms}
 
-    fig, ax = plt.subplots(figsize=(5.6, 3.0))
-    xs = range(len(order))
+    fig, ax = plt.subplots(figsize=(6.0, 3.4))
+    xs = list(range(len(order)))
     ys = [vals[a].get("R") for a in order]
-    cols = ["#8E9AAF" if "opro" in a else ("#1E8449" if vals[a].get("R", 9) < 0.5 else "#1F4E79")
+    cols = ["#8E9AAF" if "opro" in a else ("#1E8449" if (vals[a].get("R") or 9) < 0.5 else "#1F4E79")
             for a in order]
     ax.bar(xs, [y if y is not None else 0 for y in ys], color=cols, width=0.62)
+
+    # The resolution band. Bars this close together are only interpretable next to the smallest
+    # difference the design could have resolved; without it the figure invites the reader to read
+    # the ordering of near-identical bars as a result.
+    power = analysis.get("power") or {}
+    anchors = analysis.get("anchors") or {}
+    budget = None
+    if anchors.get("frozen_mean") is not None and anchors.get("oracle_mean") is not None:
+        budget = anchors["frozen_mean"] - anchors["oracle_mean"]
+    base_r = vals.get("epidemic_llm_bare", {}).get("R")
+    half = None
+    if power.get("mde") and budget and base_r is not None:
+        half = power["mde"] / budget  # MDE expressed on the R scale
+        ax.axhspan(base_r - half, base_r + half, color="#C9A227", alpha=0.15, zorder=0,
+                   label=f"below the detectable effect ($\\pm${half:.2f})")
+
     ax.axhline(1.0, color=C_FROZEN, lw=1.1, ls="--")
     ax.axhline(0.0, color=C_ORACLE, lw=1.1, ls="--")
-    ax.text(len(order) - 0.4, 1.0, " frozen", color=C_FROZEN, fontsize=7.5, va="center")
-    ax.text(len(order) - 0.4, 0.0, " oracle", color=C_ORACLE, fontsize=7.5, va="center")
-    ax.set_xticks(list(xs), [labels[a] for a in order], fontsize=8)
+    # Anchor labels sit in reserved space to the right of the last bar, so they never land on one.
+    ax.set_xlim(-0.6, len(order) - 0.5 + 1.15)
+    ax.text(len(order) - 0.35, 1.0, " best fixed law\n in hindsight", color=C_FROZEN,
+            fontsize=7.5, va="center")
+    ax.text(len(order) - 0.35, 0.0, " clairvoyant\n switch", color=C_ORACLE,
+            fontsize=7.5, va="center")
+    if half is not None:
+        ax.legend(loc="upper left", fontsize=7, frameon=False)
+    ax.set_ylim(-0.05, 1.35)
+    ax.set_xticks(xs, [labels[a] for a in order], fontsize=8)
     ax.set_ylabel(r"normalized regret $\mathcal{R}$")
     ax.set_xlabel("harness configuration  (T=trace, O=outcome, M=memory, C=critic)")
-    ax.set_title("How much of the available headroom each harness recovers", fontsize=9.5, pad=6)
+    ax.set_title("No harness configuration is distinguishable from no harness at all",
+                 fontsize=9.5, pad=6)
     out = FIG / "fig_regret_by_arm.pdf"
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)

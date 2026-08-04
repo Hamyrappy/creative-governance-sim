@@ -469,6 +469,19 @@ sampled, temperature-bearing decision-maker compatible with a reproducibility cl
 tables below are generated from the analysis artifact and are empty until it exists.]}}
 
 \input{generated/arms_table}
+
+\begin{figure}[t]\centering
+\includegraphics[width=0.78\linewidth]{generated/fig_regret_by_arm}
+\caption{\textbf{Every harness configuration, against what the design could resolve.} Bars are
+normalized regret; the shaded band is the minimum detectable effect around the no-harness arm. It is
+wide enough to swallow the entire distance from the arms to the non-adaptive ceiling, which is the
+honest reading of this experiment: the configurations are indistinguishable from one another
+\emph{and} the design could not have separated them unless a component were worth roughly $40\%$ of
+everything adaptation is worth here. Reporting the bar ordering without the band would invite a
+conclusion the data does not carry.}
+\label{fig:regret}
+\end{figure}
+
 \input{generated/factorial_table}
 \input{generated/crossmodel_table}
 

@@ -1,4 +1,13 @@
 \begin{table}[t]\centering\small
-\caption{Cross-model replication.}\label{tab:crossmodel}
-\emph{\textcolor{red}{Pending: the analysis artifact does not yet contain this table (cross\_model).}}
+\caption{\textbf{Cross-model replication.} Mean normalized regret $\Rreg$ on the same paired
+seeds and the same anchors. The question is whether the harness ordering replicates outside a single
+model, not whether the models are equally strong.}
+\label{tab:crossmodel}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+model & no harness & outcome only & all three \\
+\midrule
+\texttt{gemma-4-31b-it} & 0.438 & 0.574 & --- \\
+\bottomrule
+\end{tabular}
 \end{table}
