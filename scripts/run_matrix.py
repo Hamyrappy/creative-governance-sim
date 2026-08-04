@@ -50,6 +50,12 @@ GROUPS = {
     # thousands of paid calls, not after.
     "epidemic": REFERENCES + FACTORIAL + ["epidemic_opro"],
     "epidemic-factorial": FACTORIAL,
+    # The cross-model replication panel. The full 2^3 factorial is run once, on the primary model,
+    # because component *attribution* needs all eight cells; the other models only have to answer
+    # "does the effect replicate outside one model?", for which the three rungs no-harness /
+    # outcome-only / full-harness suffice at a fraction of the call budget.
+    "epidemic-lite": ["epidemic_llm_bare", "epidemic_llm_outcome",
+                      "epidemic_llm_trace_outcome_memory"],
     "epidemic-refs": REFERENCES,
     "epidemic-critic": ["epidemic_llm_critic"],
     "scalar": ["scalar_frozen", "scalar_oracle", "scalar_llm_full"],

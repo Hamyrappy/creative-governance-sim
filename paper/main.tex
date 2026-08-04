@@ -1,0 +1,411 @@
+\documentclass[11pt]{article}
+\input{preamble}
+% Overrides the "pending" defaults once scripts/make_tables.py has real numbers to state.
+\IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
+
+\title{\bfseries When Does Adaptation Have Room to Matter?\\
+\large Measuring adaptation headroom, and attributing it to harness components,\\
+for language-model controllers that govern through executable policy code}
+
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Language-model agents are increasingly proposed as policy-makers for simulated societies and
+economies, and a fast-growing literature asks whether the surrounding \emph{harness}---the code that
+decides what the model is shown and remembers---can be optimized or evolved. Both literatures share
+a blind spot: they report whether an agent adapted without first establishing whether the
+environment left any room to adapt \emph{into}. We make that quantity explicit. For a structural
+break at $\shockstep$, we calibrate two references inside one shared policy family: the policy that
+was optimal before the break and is then held fixed, and the policy that is optimal after it. Their
+loss ratio is the \emph{adaptation headroom} $\headroom$, and it bounds what any controller could
+possibly recover.
+
+Measuring $\headroom$ before running anything changes what we study. Across a scalar control plant,
+a coupled multi-state plant, and an epidemic-governance model, we find that shocks to the
+\emph{state dynamics} leave almost no headroom ($\headroom \approx 1.0$--$1.14$): a feedback rule
+absorbs them by construction, because the observable it keys on still tells it what to do. Shocks to
+\emph{instrument efficacy}---the lever keeps costing what it cost and stops working---are not
+absorbed, because no setting of the observable reveals the lever's new worth. This is the
+Lucas critique in miniature, and it is, as far as we can measure, the only regime in which the
+adaptation question is answerable at all.
+
+On that regime we place a regent that governs by emitting sandboxed executable Python policy---not
+a scalar, not a schema-bound JSON object---and we run a pre-registered $2^3$ factorial over three
+harness channels (failure trace, realized-outcome feedback, episodic memory) at a matched
+language-model call budget, on $20$ paired seeds, across several models.
+\ResultsAbstractSentence
+We release the environment, the calibration procedure, the pre-registration, and the recorded
+model-call tapes that make every run replayable without an API key.
+\end{abstract}
+
+% The one sentence of the abstract that depends on data. Defined here so a draft compiled before
+% the sweep finishes says so, rather than quietly asserting a number nobody measured.
+\providecommand{\ResultsAbstractSentence}{\textcolor{red}{[results sentence pending the completed
+sweep]}}
+
+\section{Introduction}
+
+A recurring proposal in computational social science is to put a language model in the seat of a
+governing authority---setting tax rates \citep{wang2025taxagent}, running a macroeconomy
+\citep{li2023econagent}, or managing a commons \citep{piatti2024govsim}---and to ask whether it
+governs well. A parallel and much faster-moving literature asks a different question about the same
+systems: how much of an agent's competence lives not in the model but in the \emph{harness} around
+it, the code deciding what to store, retrieve, and present
+\citep{lee2026metaharness,chen2026agentspec,ning2026codeasharness}, and whether that harness can
+itself be searched or evolved \citep{hu2024adas,zhang2024aflow,zhang2025dgm}.
+
+Both literatures are, right now, being asked hard questions about their evidence.
+\citet{wang2026rethinking} report that automatic harness evolution does not reliably beat
+budget-matched test-time scaling and generalizes poorly, in part because it is evaluated on the same
+benchmark used to search. \citet{chen2026agentspec} find that scaffold performance is dominated by
+component \emph{interaction}, which invalidates the one-at-a-time ablations most papers report. And
+across LLM social simulation, \citet{ye2026trails} show headline conclusions moving by up to
+$76$ percentage points under minor perturbations that were never audited.
+
+We think a more basic problem sits underneath these. Studies of adaptation to a changing world
+report the adapting agent's performance against a non-adapting baseline, and treat the difference as
+the effect. But that difference is bounded above by a property of the environment that is almost
+never reported: how much better \emph{anything} could have done by adapting. If a shock leaves a
+fixed rule near-optimal, then a null result says nothing about the agent; if a shock makes every
+policy diverge, the comparison is between two collapses. Neither is a finding about governance, and
+from the outside the two are indistinguishable from a genuine null.
+
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=1.4em]
+\item \textbf{Adaptation headroom as a pre-experiment diagnostic} (\cref{sec:headroom}). We define
+$\headroom$ as the post-shock loss ratio between a pre-shock-optimal and a post-shock-optimal policy
+calibrated in one shared family, and a normalized regret $\Rreg$ that places any controller on the
+scale between them. Both are computed before an agent is run, and they make the severity of a
+designed shock an auditable choice rather than a researcher degree of freedom.
+
+\item \textbf{A structural result about which shocks are worth studying}
+(\cref{sec:which-shocks}). Measuring $\headroom$ across three environments, we find that feedback
+policies absorb shocks to the state dynamics---so those regimes are near-null by construction---but
+cannot absorb shocks to instrument efficacy. We report the near-null regimes rather than discarding
+them, and retain one as a declared negative control.
+
+\item \textbf{Governance by executable policy code, in a domain where the code is the point}
+(\cref{sec:regent}). Existing LLM-as-authority systems emit scalars or fixed-schema objects. Our
+regent emits a sandboxed Python expression that the environment re-evaluates every step, so the
+enacted policy is a legible artifact---which is also a direct answer to the auditability objection
+that \citet{zhong2026separating} raise against putting a language model in the control path at all.
+
+\item \textbf{Factorial harness attribution across a structural break, at matched budget}
+(\cref{sec:design,sec:results}). We run the full $2^3$ design over three
+\emph{different kinds} of information, estimate interactions rather than assuming them away, correct
+across the family, and match the model-call budget across arms---the three things the harness
+literature is currently being told it does not do.
+\end{enumerate}
+
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Harnesses as an object of study.}
+The lineage from prompt- and pipeline-level optimization
+\citep{yang2023opro,fernando2023promptbreeder,khattab2023dspy,yuksekgonul2024textgrad} to explicit
+search over agent architectures \citep{hu2024adas,zhang2024aflow,zhang2025dgm} now has an explicit
+harness-optimization branch: \citet{lee2026metaharness} search over harness \emph{source code};
+\citet{chen2026agentspec} type and recombine scaffold components under controlled composition;
+\citet{xu2026lifeharness} transfer a harness across models; \citet{kim2026interplay} pair harness
+design with environment shift. We claim no novelty for the idea that the harness is worth studying,
+nor for the term \emph{meta-harness}, which \citet{lee2026metaharness} introduced. Our contribution
+is orthogonal: a way to know, in advance, whether a given environment can measure a harness
+difference at all, and an application to a shock type that literature has not isolated.
+
+\paragraph{Code as policy.}
+Emitting executable code as the action is established in robotics
+\citep{liang2022codeaspolicies}, reward design \citep{ma2023eureka}, and algorithm discovery
+\citep{novikov2025alphaevolve}. Closest to us, \citet{guo2026codeevolution} synthesize control
+policies by LLM-driven evolutionary search and argue for their inspectability; they name no concrete
+control domain and do not treat non-stationarity. \citet{bosio2025combining} report the relevant
+caution: language models are poor at separating program \emph{structure} from numeric
+\emph{parameters}, so a code-emitting controller may be doing constant-tuning in disguise. We test
+that directly by widening our reference family until it contains the functional form the regent
+discovered (\cref{sec:wide-oracle}).
+
+\paragraph{LLM authorities and the auditability objection.}
+\citet{wang2025taxagent} have an LLM set tax rates; \citet{li2023econagent} drive macroeconomic
+agents; \citet{piatti2024govsim} study commons governance. In each the action is a number or a
+fixed-schema record. Against this, \citet{zhong2026separating} argue for confining the LLM to
+\emph{diagnosis} and leaving control to deterministic formulas, reporting both an accuracy advantage
+and a traceability one. Policy-as-code is a substantive reply---the enacted rule is a short, readable
+expression that can be diffed and archived---but only if inspectability is measured rather than
+asserted, which is why we report the enacted policies themselves alongside the losses.
+
+\paragraph{Adaptation after a structural break.}
+That a policy rule's own effect changes when the regime changes is the Lucas critique
+\citep{lucas1976critique}, and that a measure targeted by policy ceases to be a good measure is
+Goodhart's \citep{goodhart1984monetary}. The nearest empirical neighbor is
+\citet{decurto2026narratives}, who compare adaptive against frozen policy under a mid-simulation
+structural perturbation with paired seeds and effect sizes; their agent emits a five-field
+parameterized object rather than code, and, like the non-stationary in-context RL literature
+\citep{run2026icrlsurvey}, they report the adaptive-versus-frozen gap without bounding it from above.
+
+\paragraph{Methodological norms.}
+We adopt the emerging reproducibility expectations for LLM social simulation
+\citep{sarangi2026ease,ye2026trails,luo2026preconditions,li2026policypractice}: a pre-registered
+primary metric, paired seeds, released code and configuration, and---because the decisive actor is a
+sampled model---a recorded call tape that replays every reported run byte-for-byte without a key.
+
+\section{Governance as control under a structural break}
+\label{sec:setting}
+
+A \emph{world} is a discrete-time stochastic system with state $x_t$, evolving under parameters
+$\phi_t$ and a control $u_t$ supplied by an \emph{institution}. At each decision step the regent
+observes a partial view $o_t$ and installs a control law $\pi$; the world re-evaluates
+$u_t = \mathrm{clip}(\pi(o_t))$ at \emph{every} step, not only at decision steps, so an institution
+is a standing rule rather than a sequence of one-off interventions. This is the distinction between
+governing and micromanaging, and it is what makes the emitted policy an object with content.
+
+A \emph{structural break} at $\shockstep$ replaces $\phi_{\shockstep}$ with $\phi'$ without
+announcement. Nothing in $o_t$ names the break; the regent can only infer it from the divergence
+between what its policy used to achieve and what it now achieves. We score the post-break window,
+\begin{equation}
+\Lpost(\pi) \;=\; \frac{1}{T-\shockstep}\sum_{t=\shockstep}^{T}\ell\bigl(x_t, u_t\bigr),
+\end{equation}
+because the pre-break window is one where a pre-break-optimal rule is optimal by definition, and
+averaging it in dilutes---and at plausible parameter settings inverts---the comparison.
+
+\section{Adaptation headroom}
+\label{sec:headroom}
+
+Fix a policy family $\policyfam$: a functional form together with the grid its parameters range
+over. Define
+\begin{align}
+\pi_{\mathrm{frozen}} &= \arg\min_{\pi \in \policyfam} \; L_{\mathrm{pre}}(\pi),
+&\pi_{\mathrm{oracle}} &= \arg\min_{\pi \in \policyfam} \; \Lpost(\pi),
+\end{align}
+where $L_{\mathrm{pre}}$ is the loss on the stationary pre-break world and $\Lpost$ is the
+post-break loss on the world that actually breaks. The two differ in exactly one respect: when they
+were allowed to look. Both are then scored on the same broken world over the same seeds, giving
+\begin{equation}
+\headroom \;=\; \frac{\Lpost(\pi_{\mathrm{frozen}})}{\Lpost(\pi_{\mathrm{oracle}})},
+\qquad
+\Rreg(\pi) \;=\;
+\frac{\Lpost(\pi) - \Lpost(\pi_{\mathrm{oracle}})}
+     {\Lpost(\pi_{\mathrm{frozen}}) - \Lpost(\pi_{\mathrm{oracle}})}.
+\end{equation}
+
+$\Rreg = 0$ is clairvoyant and $\Rreg = 1$ is ``did no better than never adapting''. We do not clip
+$\Rreg$. Values below $0$ are possible and informative, because the oracle is optimal only
+\emph{within} $\policyfam$ while a code-emitting regent is not confined to it; values above $1$ mean
+the controller did actively worse than leaving the old rule alone, which is the failure mode a
+governance paper most needs to be able to report.
+
+Three properties make this worth the compute it costs. It is computed \emph{before} any agent runs,
+so the severity of a designed shock stops being a free parameter tuned until the result appears. It
+is unitless, so epidemic burden and control-effort loss land on one scale. And it fails loudly:
+when $\pi_{\mathrm{frozen}} = \pi_{\mathrm{oracle}}$, the shock provably does not move the optimum,
+and no experiment in that regime can say anything about adaptation.
+
+\begin{takeaway}
+An adaptation result without a headroom measurement is unfalsifiable in one direction: a null cannot
+be distinguished from an environment in which no effect was available.
+\end{takeaway}
+
+\subsection{Two calibration traps}
+\label{sec:traps}
+
+Both of the following produced clean, plausible, and wrong numbers in our own first pass, and we
+report them because they are easy to repeat.
+
+\emph{Calibrating on a component instead of the objective.} Optimizing a reference for mean squared
+error, or for cumulative infections, while the objective also prices control effort or lockdown
+cost, drives every reference to a corner of the grid---use the maximum lever always. Corner optima
+are regime-invariant, so every environment we tested reported $\headroom \approx 1.0$. That was an
+artifact of the calibration metric, not a property of the worlds.
+
+\emph{Letting an empty post-shock window score zero.} If a run can terminate before $\shockstep$,
+then a policy that ends the episode early has an empty post-shock window, and a mean over no rows is
+$0$---a perfect score. In the epidemic model this made ``let it burn out'' the optimal post-shock
+policy. We score an empty window as $+\infty$ and, more fundamentally, make the disease endemic so
+that it cannot be outlasted.
+
+\section{Which shocks leave room to adapt}
+\label{sec:which-shocks}
+
+\input{generated/headroom_table}
+
+The pattern in \cref{tab:headroom} has a mechanical explanation. A policy of the form ``intervene
+when the observable exceeds $\theta$'' is feedback. When a shock raises the state's magnitude---a
+more transmissible pathogen, a less stable plant---the rule fires more often on its own, and remains
+close to optimal without anyone changing it. The observable still means what it meant.
+
+An \emph{instrument} shock breaks that. When the lever's efficacy falls while its price does not, no
+threshold on the observable recovers the right behaviour, because the mapping from observation to
+correct action has changed rather than the observation. The rule keeps paying full price for a
+fraction of the effect, and---worse---responds to the resulting deterioration by intervening
+\emph{harder}, which is precisely wrong. Recovering requires inferring an unobservable parameter
+from the mismatch between intent and result.
+
+\begin{takeaway}
+Feedback policies absorb shocks to the state and cannot absorb shocks to the instrument. Benchmarks
+built on the former will report nulls regardless of the agent.
+\end{takeaway}
+
+\subsection{The flagship regime: epidemic governance under instrument failure}
+\label{sec:regime}
+
+An endemic SIRS disease circulates with waning immunity and a small rate of imported cases
+\citep{kermack1927contribution}. The authority holds two levers, lockdown intensity and vaccination
+effort, each carrying a standing per-step cost, and minimizes infection burden plus $\lambda$ times
+intervention cost. At $\shockstep = 100$ of $200$ steps, lockdown efficacy falls to a quarter:
+compliance collapses. Transmissibility is unchanged, so the break is purely instrumental. Efficacy
+is never observable.
+
+$\lambda$ is a substantive parameter, not a nuisance. Priced too low, maximal permanent lockdown is
+optimal and no shock can move it; priced too high, doing nothing is optimal for the same reason. We
+report the whole $\lambda \times$ efficacy surface and select an operating point with an interior
+optimum on both sides of the break. Because $S+I+R$ is conserved, no arm can diverge, so every
+comparison is between two real policies rather than between two blow-ups.
+
+\input{generated/regime_table}
+
+\section{The regent and its harness}
+\label{sec:regent}
+
+\subsection{Policy as executable code}
+
+At each decision the regent emits one Python expression over a declared set of observable names,
+which is validated, compiled under a restricted grammar, and installed as the standing rule. No
+statements, imports, attribute access, or side effects are permitted; the returned value is clipped
+into the lever's admissible range. A policy is therefore a short, readable, diffable object:
+
+\begin{lstlisting}[language=Python]
+0.9 if I > 0.01 else 0.0      # a threshold institution
+0.5 * I                       # a proportional response
+0.6 if I > 0.25 else 0.15     # a threshold with a standing floor
+\end{lstlisting}
+
+Two things follow. The expressible set is strictly larger than any fixed-schema action---conditionals
+and arbitrary functional forms are available without anyone having anticipated them---which is what
+lets a regent leave the family its reference is optimal within. And the enacted rule is auditable in
+the ordinary sense: it can be read, archived, and compared across time steps, which is the property
+\citet{zhong2026separating} argue an LLM controller cannot offer.
+
+\subsection{Three channels, not three flavours of one}
+\label{sec:channels}
+
+The harness is an ordered stack of components that communicate only through an additive scratch
+dictionary, so removing one is a clean intervention. We ablate three, chosen because they carry
+\emph{different kinds} of information:
+
+\begin{description}[leftmargin=0em,style=nextline]
+\item[Failure trace] The last action's rejection or runtime error. This is a channel about
+\emph{malformedness}. A regent emitting valid policy sees nothing from it, ever.
+\item[Outcome feedback] The realized objective earned by the law the regent actually deployed over
+the interval since its previous decision, with the preceding entries retained. This is the
+institutional analogue of monitoring and evaluation, and it is the only channel in the stack from
+which an unobservable efficacy collapse is inferable at all: two consecutive entries reading ``same
+policy, worse result'' is the entire evidence available.
+\item[Episodic memory] The $k$ most similar past (state, action, outcome) episodes by state
+distance. Retrieved precedent, which is informative about recurring situations and, notably,
+\emph{misleading} across a structural break, because the most similar past state may belong to a
+regime that no longer exists.
+\end{description}
+
+The pre-registered prediction is asymmetric rather than a hedge: outcome feedback should carry the
+effect, failure trace should do nothing here, and memory may well be neutral or harmful across the
+break for the reason just given.
+
+\section{Experimental design}
+\label{sec:design}
+
+\paragraph{Pre-registration.} The primary metric ($\Lpost$), the anchors, the seed count, the
+factorial structure, the correction procedure, and the directional predictions were fixed before the
+treatment arms were run, and are recorded in the repository at the commit named in
+\cref{app:repro}. The calibration of both anchors is a generated artifact carrying its own seed
+count and search grid.
+
+\paragraph{Paired seeds.} All arms run the identical $20$ world seeds. Seeds vary population
+heterogeneity ($\beta_0$, $\gamma$, initial prevalence) and per-step incidence noise. This matters
+more than it sounds: with a noiseless compartmental model every seed yields the same trajectory, a
+paired design pairs identical numbers, and a bootstrap reports a zero-width interval as a result.
+
+\paragraph{Budget matching.} Every language-model arm decides on the same schedule and therefore
+issues the same number of model calls per run, so no arm can win by being allowed to think more
+often---the objection \citet{wang2026rethinking} raise against the harness literature. The critic arm
+is the sole exception; it buys extra calls and is reported separately and labelled as such.
+
+\paragraph{Statistics.} Comparisons are paired per seed and summarized by a percentile bootstrap
+over seeds. Factorial effects use $\pm1$ contrast coding, with contrasts formed \emph{within} each
+seed before aggregation, so world variance cancels. The family---three main effects, three two-way
+interactions, one three-way, plus the named contrasts---is corrected by Holm, which controls the
+family-wise error rate without an independence assumption.
+
+\paragraph{Reproducibility.} Every model call is cached to a content-addressed tape keyed by the
+full request. A recorded run replays byte-for-byte with no key and no network, which is what makes a
+sampled, temperature-bearing decision-maker compatible with a reproducibility claim at all.
+
+\section{Results}
+\label{sec:results}
+
+\ResultsBody
+\providecommand{\ResultsBody}{\textcolor{red}{[Results section pending the completed sweep. The
+tables below are generated from the analysis artifact and are empty until it exists.]}}
+
+\input{generated/arms_table}
+\input{generated/factorial_table}
+\input{generated/crossmodel_table}
+
+\subsection{Does widening the reference family erase the effect?}
+\label{sec:wide-oracle}
+
+A code-emitting regent that beats a reference confined to one functional form may simply have
+written a shape the reference could not express, which is a statement about our choice of
+$\policyfam$ and not about adaptation. We therefore re-calibrate the oracle over a union of
+families---threshold, proportional, and threshold-with-floor---including the form the regent actually
+converged on, and re-report $\Rreg$ against both the narrow institutional family and the widened
+one. \Cref{tab:arms} carries both.
+
+\subsection{The negative control}
+
+The scalar arms are retained deliberately at $\headroom \approx 1.14$. If the diagnostic has
+discriminating power, almost nothing should be findable there, and reporting only the environment
+that produced an effect would be the exact failure this paper is about.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\paragraph{One environment carries the headline.} The epidemic model is the only regime we found
+with graded, bounded headroom. The scalar plant's headroom is either negligible or catastrophic
+with a razor-thin transition between them, which we report as a finding about first-order plants
+rather than working around.
+
+\paragraph{The model is a governance abstraction, not an epidemiological claim.} Compartmental
+dynamics with a compliance-driven efficacy collapse are a stylized setting for studying rules under
+instrument failure. Nothing here is a public-health recommendation, and the caution of
+\citet{li2026statistical} about reading treatment effects off simulated populations applies.
+
+\paragraph{Free-tier model access.} Model choice was constrained by what was reachable without paid
+inference, which biases the panel toward small and mid-tier models. That cuts against us for the
+capability-substitution question and in our favour for cost, and we flag it rather than dress it up.
+
+\paragraph{Robustness auditing is partial.} \citet{ye2026trails} argue for perturbation audits at
+persona, protocol, and environment level. We audit the environment level (the headroom surface) and
+the protocol level (budget matching, factorial structure), and do not vary prompt phrasing
+systematically.
+
+\section{Conclusion}
+
+The question ``did the agent adapt?'' is not well posed until someone has measured how much
+adaptation was worth. Making that measurement cheap and mandatory reorganizes the design space: it
+rules out most of the shocks these benchmarks reach for first, points at a specific and
+under-studied one, and turns a hand-dialed severity knob into a number a reviewer can check. On the
+one regime that survives the test, we can then ask which part of the harness is doing the work, and
+get an answer that is about the components rather than about the environment.
+
+\appendix
+\section{Reproduction}
+\label{app:repro}
+\input{generated/repro}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

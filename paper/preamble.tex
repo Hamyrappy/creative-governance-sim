@@ -1,0 +1,62 @@
+% Shared preamble. Deliberately built on stock `article` + widely-packaged dependencies rather than
+% a venue .cls: the source has to compile for a reader who just cloned the repository, and swapping
+% in acmart/neurips at submission time is a one-line change.
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+\usepackage{natbib}
+
+\definecolor{codebg}{HTML}{F6F8FA}
+\definecolor{rule}{HTML}{D0D7DE}
+\definecolor{accent}{HTML}{1F4E79}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=2pt,topsep=3pt,parsep=0pt}
+
+\lstdefinestyle{policy}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{rule},
+  framesep=5pt,
+  xleftmargin=6pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+}
+\lstset{style=policy}
+
+% Notation used throughout.
+\newcommand{\Lpost}{\ensuremath{L^{\mathrm{post}}}}
+\newcommand{\Rreg}{\ensuremath{\mathcal{R}}}
+\newcommand{\headroom}{\ensuremath{H}}
+\newcommand{\policyfam}{\ensuremath{\Theta}}
+\newcommand{\shockstep}{\ensuremath{t^{\star}}}
+
+% Data-dependent prose. Defaults say "pending" out loud, so a draft compiled before the sweep
+% finishes announces that on the page instead of quietly reading as finished; the generated file
+% \renewcommand's them once numbers exist.
+\newcommand{\ResultsAbstractSentence}{\textcolor{red}{[results sentence pending the completed sweep]}}
+\newcommand{\ResultsBody}{\textcolor{red}{[Results section pending the completed sweep. The tables
+below are generated from the analysis artifact and are empty until it exists.]}}
+
+% A boxed remark for the claims a reviewer will want to find quickly.
+\newenvironment{takeaway}
+  {\par\smallskip\noindent\begin{tabular}{@{}p{0.965\linewidth}@{}}\toprule\itshape}
+  {\\\bottomrule\end{tabular}\par\smallskip}

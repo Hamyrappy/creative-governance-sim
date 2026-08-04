@@ -1,0 +1,15 @@
+\noindent Everything below is in the repository at commit \texttt{96a8d58}.
+
+\begin{description}[leftmargin=0em,style=nextline]
+\item[Calibrate the anchors] \texttt{uv run python scripts/recalibrate.py --seeds 20}
+  \\writes \texttt{govsim/docs\_gates/calibration.json} (the artifact the paper's anchors are read from).
+\item[Measure headroom across regimes] \texttt{uv run python scripts/headroom\_audit.py --seeds 8}
+\item[Run the matrix] \texttt{uv run python scripts/run\_matrix.py --arms epidemic --seeds 20}
+  \\resumable: the model-call tape makes an interrupted sweep free to restart.
+\item[Analyse] \texttt{uv run python scripts/analyze\_matrix.py --store logs/runs --cross-model --json logs/analysis.json}
+\item[Regenerate these tables] \texttt{uv run python scripts/make\_tables.py --analysis logs/analysis.json}
+\item[Replay without an API key] set \texttt{GOVSIM\_LLM\_MODE=replay}. Every reported run is
+  served from the committed tape; a wrong key changes nothing.
+\item[Tests] \texttt{uv run pytest} --- key-free, including the factorial estimator checked
+  against data with a known generating effect.
+\end{description}

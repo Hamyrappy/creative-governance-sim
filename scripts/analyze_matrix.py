@@ -44,19 +44,35 @@ def arm_name(cell: tuple[bool, ...]) -> str:
     return "epidemic_llm_" + ("_".join(on) if on else "bare")
 
 
-def load_by_seed(store: ResultStore, experiment: str, model: str | None) -> dict[int, float]:
-    """``{seed: metric}`` for an arm, keeping the LATEST run per seed (re-runs supersede)."""
+def load_by_seed(stores: list[ResultStore], experiment: str, model: str | None) -> dict[int, float]:
+    """``{seed: metric}`` for an arm, keeping the LATEST run per seed (re-runs supersede).
+
+    Takes several stores because models run as separate processes against separate sqlite files —
+    one shared file would have them contending for the write lock for hours.
+    """
     out: dict[int, float] = {}
-    for row in store.query(experiment=experiment):
-        if model:
-            spec = (row.get("regent_specs") or {}).get(REGENT, {})
-            row_model = spec.get("model")
-            if row_model is not None and row_model != model:
-                continue
-        comps = (row.get("components") or {}).get(REGENT, {})
-        if METRIC in comps:
-            out[int(row["seed"])] = float(comps[METRIC])  # ORDER BY run_id ⇒ last write wins
+    for store in stores:
+        for row in store.query(experiment=experiment):
+            if model:
+                spec = (row.get("regent_specs") or {}).get(REGENT, {})
+                row_model = spec.get("model")
+                if row_model is not None and row_model != model:
+                    continue
+            comps = (row.get("components") or {}).get(REGENT, {})
+            if METRIC in comps:
+                out[int(row["seed"])] = float(comps[METRIC])  # ORDER BY run_id ⇒ last write wins
     return out
+
+
+def available_models(stores: list[ResultStore]) -> list[str]:
+    """Every LLM model id that appears in any store (for the cross-model replication table)."""
+    seen: set[str] = set()
+    for store in stores:
+        for row in store.query():
+            m = ((row.get("regent_specs") or {}).get(REGENT, {}) or {}).get("model")
+            if m:
+                seen.add(str(m))
+    return sorted(seen)
 
 
 def fmt(v: float | None, w: int = 9, p: int = 4) -> str:
@@ -67,12 +83,16 @@ def fmt(v: float | None, w: int = 9, p: int = 4) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--store", default="logs/runs")
+    ap.add_argument("--store", nargs="+", default=["logs/runs"],
+                    help="one or more ResultStore roots (models run into separate stores)")
     ap.add_argument("--model", default=None, help="restrict LLM arms to this model id")
+    ap.add_argument("--cross-model", action="store_true",
+                    help="also print the per-model replication table")
     ap.add_argument("--json", default=None, help="write the full analysis here")
     args = ap.parse_args()
 
-    store = ResultStore(args.store)
+    stores = [ResultStore(p) for p in args.store]
+    store = stores  # every loader takes the list
     frozen = load_by_seed(store, "epidemic_frozen", None)
     oracle = load_by_seed(store, "epidemic_oracle", None)
     if not frozen or not oracle:
@@ -162,6 +182,32 @@ def main() -> int:
         print(f"{k:<52} n={v['n']:>3} Δ={v['point_estimate']:>+9.4f} "
               f"[{v['ci_low']:+.4f},{v['ci_high']:+.4f}] p_holm={v.get('p_adj', float('nan')):.4f}  {verdict}")
 
+    # ---- 4. cross-model replication -----------------------------------------------------------
+    cross = None
+    if args.cross_model:
+        cross = {}
+        models = available_models(store)
+        rungs = ["epidemic_llm_bare", "epidemic_llm_outcome", "epidemic_llm_trace_outcome_memory"]
+        print(f"\n=== cross-model replication (mean normalized regret R; lower = closer to oracle) ===")
+        print(f"{'model':<26} " + " ".join(f"{r.replace('epidemic_llm_', ''):>22}" for r in rungs))
+        for m in models:
+            row = {}
+            cellstrs = []
+            for arm in rungs:
+                by_seed = load_by_seed(store, arm, m)
+                shared = sorted(set(by_seed) & set(frozen) & set(oracle))
+                if not shared:
+                    cellstrs.append(f"{'—':>22}")
+                    row[arm] = None
+                    continue
+                rs = [normalized_regret(by_seed[s], frozen[s], oracle[s]) for s in shared]
+                rs = [r for r in rs if math.isfinite(r)]
+                val = statistics.fmean(rs) if rs else None
+                row[arm] = {"R": val, "n": len(shared)}
+                cellstrs.append(f"{val:>16.3f} (n={len(shared):>2})" if val is not None else f"{'—':>22}")
+            cross[m] = row
+            print(f"{m:<26} " + " ".join(cellstrs))
+
     if args.json:
         Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps({
@@ -169,6 +215,7 @@ def main() -> int:
             "anchors": {"frozen_mean": fm, "oracle_mean": om,
                         "headroom": (fm / om) if om else None},
             "arms": table, "factorial": factorial, "contrasts": contrasts,
+            "cross_model": cross,
         }, indent=2), encoding="utf-8")
         print(f"\nwrote {args.json}")
     return 0
