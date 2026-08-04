@@ -166,6 +166,35 @@ prevent.
   proportional, threshold-with-floor) now carry a standing vaccination term. Re-calibrated at n=20.
   This is the limitation the paper had already flagged as future work; it is now in the design.
 
+- **2026-08-04 — FIRST FACTORIAL RUN DISCARDED: output-token truncation, correlated with the treatment.**
+
+  *What was found.* The outcome-feedback arm emitted **no parseable action on 32.5%** of its
+  decisions (`epidemic_llm_trace_outcome`: 22.5%); the no-harness and memory arms: **0%**. A decision
+  that emits nothing leaves the *previous* law installed, so those arms were not the treatments they
+  were labelled as — they were partly "sticky policy".
+
+  *Cause.* `gemma-4-31b-it` reasons inside a `<thought>` block before calling the tool. At
+  `max_tokens=1500` it exhausted the budget mid-reasoning. Measured directly on the same prompt:
+  1500 ⇒ 0/4 tool calls (truncated at 1827 total tokens); 3000 ⇒ 4/4 (2715 tokens).
+
+  *Why it is disqualifying rather than noisy.* The failure is **correlated with the treatment**. A
+  harness channel lengthens the prompt and invites longer deliberation, so the arms carrying more
+  information truncate more. An ablation run this way measures truncation and reports it as
+  information — in the direction that manufactures a null.
+
+  *Action.* The entire factorial is re-run at `max_tokens=4000` into `logs/runs_gemma4k`. The
+  discarded run is retained in `logs/runs_gemma` and is **not** reported. `analyze_matrix.py` now
+  runs a no-action-rate gate *before* the factorial and refuses to let the tables be read past a
+  >2% rate.
+
+  *An accidental finding kept from the discarded run.* `trace_outcome` truncated **less** than
+  `outcome` (22.5% vs 32.5%). When a decision produces nothing the Runner records an error,
+  `TraceFeedback` surfaces it on the next turn, and the model acts. So `TraceFeedback` is **not** the
+  pure null this pre-registration predicted — it is a recovery channel for exactly this failure mode.
+  H3's prediction that "trace does nothing here" is therefore **wrong as stated**, and is corrected
+  to: *trace does nothing when the regent is emitting well-formed policy, and is load-bearing when
+  it is not.*
+
 - **2026-08-04 — MODEL PANEL REDUCED by the provider's daily quota.**
   The free tier turned out to allow **500 requests per model per day**, and one arm costs 400 calls
   (20 seeds × 20 reviews). Only the `gemma` family has enough headroom for the full 2³ factorial. The

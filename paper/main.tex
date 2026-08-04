@@ -437,10 +437,26 @@ heterogeneity ($\beta_0$, $\gamma$, initial prevalence) and per-step incidence n
 more than it sounds: with a noiseless compartmental model every seed yields the same trajectory, a
 paired design pairs identical numbers, and a bootstrap reports a zero-width interval as a result.
 
-\paragraph{Budget matching.} Every language-model arm decides on the same schedule and therefore
-issues the same number of model calls per run, so no arm can win by being allowed to think more
-often---the objection \citet{wang2026rethinking} raise against the harness literature. The critic arm
-is the sole exception; it buys extra calls and is reported separately and labelled as such.
+\paragraph{Budget matching, and a way it fails silently.} Every language-model arm decides on the
+same schedule and therefore issues the same number of model calls per run, so no arm can win by
+being allowed to think more often---the objection \citet{wang2026rethinking} raise against the
+harness literature. The critic arm is the sole exception; it buys extra calls and is reported
+separately and labelled as such.
+
+Matched \emph{calls} is not matched \emph{tokens}, and the difference cost us an entire run. A model
+that deliberates before acting can exhaust its output budget mid-deliberation and be truncated before
+it emits the action. The decision then produces nothing, the previously installed law stays in force,
+and the arm silently becomes a sticky-policy control rather than the treatment it is labelled as. In
+our first factorial this happened on $32.5\%$ of the outcome-feedback arm's decisions and $0\%$ of the
+no-harness arm's---because a harness channel lengthens the prompt and invites longer reasoning, so
+\emph{the arms carrying more information truncate more}. The failure is therefore correlated with the
+treatment, and in the direction that manufactures a null.
+
+We report this because it is a general hazard for scaffold ablations, not a local mishap: any
+comparison between agents given different amounts of context is exposed to it, and it leaves no trace
+in a loss table. Our analysis now gates on the per-arm rate of decisions that produced no parseable
+action, refuses to interpret anything above $2\%$, and the reported factorial is a re-run with the
+budget raised until that rate is zero everywhere.
 
 \paragraph{What a null is allowed to claim.} We report, alongside every non-result, the smallest
 effect this design could have detected. ``No component helped'' means one thing if a $5\%$
