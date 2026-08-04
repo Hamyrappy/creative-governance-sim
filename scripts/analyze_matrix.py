@@ -77,6 +77,42 @@ def available_models(stores: list[ResultStore]) -> list[str]:
     return sorted(seen)
 
 
+def no_action_rate(stores: list[ResultStore], experiment: str, model: str | None) -> tuple[int, int]:
+    """``(calls that produced no parseable action, total calls)`` for an arm.
+
+    This is a validity check, not a curiosity, and it is run before any result is believed. A model
+    that reasons before acting can spend its whole output budget on the reasoning and be truncated
+    before it emits the tool call. When that happens the decision is a silent no-op: the previously
+    installed law simply stays in force, and the arm quietly becomes "sticky policy" rather than the
+    treatment it is labelled as.
+
+    The failure is *correlated with the treatment*, which is what makes it lethal here. A harness
+    channel lengthens the prompt and invites longer deliberation, so exactly the arms carrying more
+    information are the ones most likely to run out of budget. An ablation run this way measures
+    truncation and reports it as information.
+
+    We hit precisely this: at ``max_tokens=1500`` the outcome-feedback arm failed to act on 32.5% of
+    its decisions while the no-harness arm failed on 0%.
+    """
+    empty = total = 0
+    for store in stores:
+        for row in store.query(experiment=experiment):
+            if model:
+                spec = (row.get("regent_specs") or {}).get(REGENT, {})
+                if spec.get("model") not in (None, model):
+                    continue
+            path = row.get("llm_io_path")
+            if not path or not Path(path).exists():
+                continue
+            for call in json.loads(Path(path).read_text(encoding="utf-8")):
+                if call.get("regent") == "critic":
+                    continue
+                total += 1
+                if not (call.get("tool_calls") or []):
+                    empty += 1
+    return empty, total
+
+
 def fmt(v: float | None, w: int = 9, p: int = 4) -> str:
     if v is None or (isinstance(v, float) and not math.isfinite(v)):
         return f"{'—':>{w}}"
@@ -154,6 +190,28 @@ def main() -> int:
         table.append(row)
         print(f"{name:<38} {row['n']:>3} {fmt(mean)} {fmt(sd, 8)} "
               f"{(f'{row['R']:>7.3f}' if row['R'] is not None else '      —')}")
+
+    # ---- 1b. VALIDITY GATE: did every arm actually act? ---------------------------------------
+    # Run before the factorial, because a factorial over truncated arms is a table of nonsense.
+    print("\n=== validity: decisions that produced NO parseable action ===")
+    worst = 0.0
+    action_rates = {}
+    for name in list(all_arms):
+        empty, tot = no_action_rate(store, name, args.model)
+        if not tot:
+            continue
+        rate = empty / tot
+        action_rates[name] = {"empty": empty, "total": tot, "rate": rate}
+        worst = max(worst, rate)
+        flag = "  <-- CONTAMINATED" if rate > 0.02 else ""
+        print(f"  {name:<40} {empty:>4}/{tot:<5} {100 * rate:>5.1f}%{flag}")
+    if worst > 0.02:
+        print("\n  [!!] At least one arm silently failed to act on >2% of its decisions. A decision")
+        print("       that emits nothing leaves the PREVIOUS law in force, so that arm is not the")
+        print("       treatment it is labelled as. This failure correlates with the treatment —")
+        print("       harness channels lengthen the prompt and invite longer reasoning — so the")
+        print("       ablation would be measuring truncation. Raise GOVSIM_LLM_MAX_TOKENS and re-run")
+        print("       before believing anything below.")
 
     # ---- 2. factorial attribution -------------------------------------------------------------
     factorial = None
@@ -257,6 +315,7 @@ def main() -> int:
             "anchors": {"frozen_mean": fm, "oracle_mean": om,
                         "headroom": (fm / om) if om else None},
             "arms": table, "factorial": factorial, "contrasts": contrasts, "power": mde,
+            "action_rates": action_rates,
             "cross_model": cross,
         }, indent=2), encoding="utf-8")
         print(f"\nwrote {args.json}")
