@@ -130,14 +130,24 @@ def main() -> int:
         shared = sorted(set(by_seed) & set(frozen) & set(oracle))
         if not shared:
             continue
-        # R is computed on the SHARED seeds only, and per-seed before averaging, so an arm that
-        # happens to have run a friendlier subset of worlds cannot look better for that reason.
+        # R is computed on the SHARED seeds only, so an arm that happened to run a friendlier
+        # subset of worlds cannot look better for that reason.
+        #
+        # The HEADLINE R is a ratio of means, not a mean of per-seed ratios. Per-seed ratios divide
+        # by that seed's own (fixed - switching) gap, and in this regime that gap ranges over an
+        # order of magnitude across seeds (0.43 to 7.16). A single seed with a small denominator
+        # then dominates the average and moves R far more than it moves any loss. The per-seed
+        # distribution is still reported — its median and spread say something the ratio of means
+        # does not — but it is not what the tables lead with.
         rs = [normalized_regret(by_seed[s], frozen[s], oracle[s]) for s in shared]
         rs = [r for r in rs if math.isfinite(r)]
         mean = statistics.fmean(by_seed[s] for s in shared)
         sd = statistics.pstdev([by_seed[s] for s in shared]) if len(shared) > 1 else 0.0
+        fm_shared = statistics.fmean(frozen[s] for s in shared)
+        om_shared = statistics.fmean(oracle[s] for s in shared)
         row = {"arm": name, "n": len(shared), "mean": mean, "sd": sd,
-               "R": statistics.fmean(rs) if rs else None,
+               "R": normalized_regret(mean, fm_shared, om_shared),
+               "R_perseed_mean": statistics.fmean(rs) if rs else None,
                "R_median": statistics.median(rs) if rs else None}
         table.append(row)
         print(f"{name:<38} {row['n']:>3} {fmt(mean)} {fmt(sd, 8)} "
