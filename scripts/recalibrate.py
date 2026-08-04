@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from govsim.analysis import PolicyFamily, calibrate, headroom
+from govsim.analysis import PolicyFamily, calibrate, calibrate_families, headroom
 from govsim.analysis.calibration import _score_expr
 from govsim.core.schedule import EveryN
 from govsim.domains.scalar import EpidemicLoss, Lever, ScalarLeverInterface, StabilizationLoss
@@ -41,6 +41,29 @@ EPIDEMIC_FAMILY = PolicyFamily(
           "thr": [0.002, 0.01, 0.03, 0.06, 0.10, 0.16, 0.25, 0.40, 0.70]},
 )
 
+# The WIDE reference vocabulary. A regent that emits code is not confined to the threshold form, so
+# an oracle that is only allowed thresholds can be beaten on shape rather than on adaptation — and
+# a reviewer will say so. These add the two shapes a regent actually reaches for: a proportional
+# response, and a threshold with a non-zero floor. Reporting regret against both the narrow
+# institutional family and this wider one keeps "beat the rule-maker" separate from "beat the best
+# policy we can construct".
+EPIDEMIC_FAMILIES = {
+    "threshold": EPIDEMIC_FAMILY,
+    "proportional": PolicyFamily(
+        verb="set_lockdown",
+        template="{g} * I + {b}",
+        grid={"g": [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0],
+              "b": [0.0, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75]},
+    ),
+    "threshold_floor": PolicyFamily(
+        verb="set_lockdown",
+        template="{a} if I > {thr} else {b}",
+        grid={"a": [0.15, 0.45, 0.75, 0.9],
+              "thr": [0.01, 0.06, 0.16, 0.40],
+              "b": [0.0, 0.05, 0.15, 0.3]},
+    ),
+}
+
 SCALAR_IFACE = ScalarLeverInterface([Lever("set_control_input", R.SCALAR_U_RANGE, "current_u")])
 SCALAR_FAMILY = PolicyFamily(
     verb="set_control_input",
@@ -53,14 +76,14 @@ SCALAR_FAMILY = PolicyFamily(
 def _regime_spec(name: str) -> dict:
     if name == "epidemic":
         return dict(
-            family=EPIDEMIC_FAMILY, iface=EPIDEMIC_IFACE,
+            family=EPIDEMIC_FAMILY, families=EPIDEMIC_FAMILIES, iface=EPIDEMIC_IFACE,
             pre=R.sir_factory(R.EPIDEMIC_PRE), shocked=R.sir_factory(R.EPIDEMIC_SHOCKED),
             objective=EpidemicLoss(lam=R.EPIDEMIC_LAMBDA, post_shock_step=R.EPIDEMIC_SHOCK_STEP),
             schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), horizon=R.EPIDEMIC_HORIZON,
         )
     if name == "scalar":
         return dict(
-            family=SCALAR_FAMILY, iface=SCALAR_IFACE,
+            family=SCALAR_FAMILY, families={"cubic_gain": SCALAR_FAMILY}, iface=SCALAR_IFACE,
             pre=R.cubic_factory(R.SCALAR_PRE), shocked=R.cubic_factory(R.SCALAR_SHOCKED),
             objective=StabilizationLoss(lam=R.SCALAR_LAMBDA, post_shock_step=R.SCALAR_SHOCK_STEP),
             schedule=EveryN(R.SCALAR_DECIDE_EVERY), horizon=R.SCALAR_HORIZON,
@@ -79,20 +102,35 @@ def run(name: str, seeds: list[int]) -> dict:
     oracle = calibrate(fam, system_factory=s["shocked"], action_interface=iface, objective=obj,
                        schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
 
+    # The WIDE oracle: same clairvoyance, but allowed to pick its functional form as well as its
+    # parameters. This is the reference that makes "the regent beat the oracle" mean something.
+    wide_name, wide = calibrate_families(
+        s["families"], system_factory=s["shocked"], action_interface=iface, objective=obj,
+        schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
+
     skw = dict(verb=fam.verb, system_factory=s["shocked"], action_interface=iface, objective=obj,
                schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
-    fl, ol = _score_expr(frozen.best_expr, **skw), _score_expr(oracle.best_expr, **skw)
-    h = headroom(fl, ol)
-    print(f"  frozen : {frozen.best_expr}\n  oracle : {oracle.best_expr}")
-    print(f"  post_loss on the shocked world: frozen={fl:.5f}  oracle={ol:.5f}  headroom={h:.3f}x")
+    fl = _score_expr(frozen.best_expr, **skw)
+    ol = _score_expr(oracle.best_expr, **skw)
+    wl = _score_expr(wide.best_expr, **skw)
+    h, hw = headroom(fl, ol), headroom(fl, wl)
+    print(f"  frozen      : {frozen.best_expr}")
+    print(f"  oracle      : {oracle.best_expr}   (narrow family)")
+    print(f"  oracle_wide : {wide.best_expr}   (best of {sorted(s['families'])} -> '{wide_name}')")
+    print(f"  post_loss on the shocked world: frozen={fl:.5f}  oracle={ol:.5f}  oracle_wide={wl:.5f}")
+    print(f"  headroom (narrow)={h:.3f}x   headroom (wide)={hw:.3f}x")
     return {
         "verb": fam.verb,
         "frozen": {"expr": frozen.best_expr, "params": frozen.best_params, "post_loss": fl},
         "oracle": {"expr": oracle.best_expr, "params": oracle.best_params, "post_loss": ol},
+        "oracle_wide": {"expr": wide.best_expr, "params": wide.best_params, "post_loss": wl,
+                        "family": wide_name},
         "headroom": h,
+        "headroom_wide": hw,
         "provenance": {
             "n_seeds": len(seeds), "seeds": seeds, "family_template": fam.template,
             "family_grid": fam.grid, "family_size": fam.size(),
+            "wide_families": {n: f.template for n, f in s["families"].items()},
             "horizon": hz, "decide_every": sched.n if hasattr(sched, "n") else None,
             "calibrated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         },

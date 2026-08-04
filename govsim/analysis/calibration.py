@@ -150,6 +150,26 @@ def calibrate(
     )
 
 
+def calibrate_families(
+    families: dict[str, PolicyFamily],
+    **kw: Any,
+) -> tuple[str, CalibrationResult]:
+    """Calibrate several policy families and return the globally best ``(family_name, result)``.
+
+    This exists to answer the objection that sinks an otherwise clean result: *of course* a
+    code-emitting regent beats a reference that was only allowed to pick parameters inside one
+    fixed functional form. If the regent's advantage is really "it wrote a shape the reference
+    could not express", then widening the reference's vocabulary until it contains that shape
+    should erase the advantage — and if it does not, the advantage is about something else.
+
+    Reporting normalized regret against both a narrow institutional family and a widened one keeps
+    those two readings apart instead of letting the narrow number stand in for both.
+    """
+    results = {name: calibrate(fam, **kw) for name, fam in families.items()}
+    best_name = min(results, key=lambda n: results[n].best_loss)
+    return best_name, results[best_name]
+
+
 def normalized_regret(arm_loss: float, frozen_loss: float, oracle_loss: float) -> float:
     """``R = (arm − oracle) / (frozen − oracle)``: 0 = clairvoyant, 1 = never adapted.
 

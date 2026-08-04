@@ -17,7 +17,17 @@
       },
       "post_loss": 11.841708478962659
     },
+    "oracle_wide": {
+      "expr": "0.9 if I > 0.25 else 0.0",
+      "params": {
+        "a": 0.9,
+        "thr": 0.25
+      },
+      "post_loss": 11.841708478962659,
+      "family": "threshold"
+    },
     "headroom": 1.6979662698661364,
+    "headroom_wide": 1.6979662698661364,
     "provenance": {
       "n_seeds": 20,
       "seeds": [
@@ -66,9 +76,14 @@
         ]
       },
       "family_size": 63,
+      "wide_families": {
+        "threshold": "{a} if I > {thr} else 0.0",
+        "proportional": "{g} * I + {b}",
+        "threshold_floor": "{a} if I > {thr} else {b}"
+      },
       "horizon": 200,
       "decide_every": 10,
-      "calibrated_at": "2026-08-04T15:30:59+00:00"
+      "calibrated_at": "2026-08-04T15:42:18+00:00"
     }
   },
   "scalar": {
@@ -79,7 +94,7 @@
         "k": 1.3,
         "c": 3.0
       },
-      "post_loss": 0.06436866763059859
+      "post_loss": 0.06334131832721326
     },
     "oracle": {
       "expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
@@ -87,11 +102,21 @@
         "k": 2.6,
         "c": 3.0
       },
-      "post_loss": 0.056573063868214285
+      "post_loss": 0.05622055617279676
     },
-    "headroom": 1.1377970933401096,
+    "oracle_wide": {
+      "expr": "-(2.6 * current_x + 3.0 * current_x ** 3)",
+      "params": {
+        "k": 2.6,
+        "c": 3.0
+      },
+      "post_loss": 0.05622055617279676,
+      "family": "cubic_gain"
+    },
+    "headroom": 1.1266576255939282,
+    "headroom_wide": 1.1266576255939282,
     "provenance": {
-      "n_seeds": 12,
+      "n_seeds": 20,
       "seeds": [
         0,
         1,
@@ -104,7 +129,15 @@
         8,
         9,
         10,
-        11
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
       ],
       "family_template": "-({k} * current_x + {c} * current_x ** 3)",
       "family_grid": {
@@ -126,9 +159,12 @@
         ]
       },
       "family_size": 32,
+      "wide_families": {
+        "cubic_gain": "-({k} * current_x + {c} * current_x ** 3)"
+      },
       "horizon": 200,
       "decide_every": 10,
-      "calibrated_at": "2026-08-04T15:28:42+00:00"
+      "calibrated_at": "2026-08-04T15:43:24+00:00"
     }
   }
 }

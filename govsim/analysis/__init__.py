@@ -17,6 +17,7 @@ from govsim.analysis.calibration import (
     CalibrationResult,
     PolicyFamily,
     calibrate,
+    calibrate_families,
     headroom,
     normalized_regret,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "CalibrationResult",
     "PolicyFamily",
     "calibrate",
+    "calibrate_families",
     "headroom",
     "normalized_regret",
     "bootstrap_ci",
