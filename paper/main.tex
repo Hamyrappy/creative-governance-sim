@@ -566,14 +566,26 @@ with graded, bounded headroom. The scalar plant's headroom is either negligible 
 with a razor-thin transition between them, which we report as a finding about first-order plants
 rather than working around.
 
-\paragraph{The clairvoyant response is a simple action.} Because lockdown is the only instrument
-carrying real weight in this regime, the post-break optimum is close to ``stop intervening''. The
-\emph{inference} is not trivial---efficacy is unobservable and the only evidence is a policy whose
-results decayed---but the resulting action is. A stronger version of this environment gives the
-authority a second instrument that survives the break, so the correct response is substitution
-rather than withdrawal, and an agent cannot succeed by merely detecting that something is wrong. We
-have specified that regime and not yet run it; the present result should be read as evidence about
-detecting an instrument failure, not about reallocating around one.
+\paragraph{The mandate may dominate the harness.} Once the regent is told what it is optimizing---a
+fix we made only after noticing that the prompt never mentioned infections, cost, or the trade-off
+between them, while every reference was exhaustively optimized for exactly that---the no-harness arm
+improves by roughly $1.5$ loss units against a total adaptation budget of $3.96$. That single
+sentence of the prompt is worth more than any harness channel we measured. It is a result, but it is
+also a warning about the genre: a scaffold ablation run on an agent that has not been told its
+objective is partly measuring how well each scaffold helps it guess.
+
+\paragraph{A narrow band, found by search.} Of the four regimes we calibrated, exactly one has
+adaptation headroom above $1.05$. We reached it by measuring rather than by tuning---the severity
+surface was computed before any treatment arm ran, and the operating point sits inside the usable
+band rather than at its maximum---but a reader should still weigh that the headline regime is the
+survivor of a search, and that the three that did not survive are reported alongside it precisely so
+that weighing is possible.
+
+\paragraph{Trace is a null only while nothing breaks.} We pre-registered the failure channel as an
+inert control on the grounds that it cannot fire on well-formed policy. That held exactly until a
+decision produced no parseable action, at which point the channel fired, the prompts diverged, and
+the arm stopped being a duplicate of its control. The prediction was right about the mechanism and
+wrong as a statement about the arm, and we have corrected it rather than reinterpreted it.
 
 \paragraph{The model is a governance abstraction, not an epidemiological claim.} Compartmental
 dynamics with a compliance-driven efficacy collapse are a stylized setting for studying rules under
@@ -586,8 +598,17 @@ capability-substitution question and in our favour for cost, and we flag it rath
 
 \paragraph{Robustness auditing is partial.} \citet{ye2026trails} argue for perturbation audits at
 persona, protocol, and environment level. We audit the environment level (the headroom surface) and
-the protocol level (budget matching, factorial structure), and do not vary prompt phrasing
-systematically.
+the protocol level (budget matching, factorial structure, the four validity gates), and do not vary
+prompt phrasing systematically---which, given that a single added paragraph about the objective
+moved the result by more than any component, is the audit this study most obviously still owes.
+
+\paragraph{What we found by auditing ourselves, and what that implies about the rest.} Every
+substantive error in this paper was found by an internal check rather than by review: a metric that
+rewarded passivity, three channels that carried no signal, output truncation correlated with the
+treatment, reference anchors superseded by a recalibration, a clairvoyant reference beatable by a
+fixed policy, a confounded severity cell, and a mandate the agent was never given. Each produced a
+clean, plausible, wrong number. We have no reason to believe the list is complete, and we would
+rather say so than imply that the seventh check was the last one needed.
 
 \section{Conclusion}
 
