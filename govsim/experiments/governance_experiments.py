@@ -104,6 +104,7 @@ def _client() -> CachingReplayClient:
         # requests/minute/model, so 4.2 keeps a long sweep under the limit instead of relying on
         # retries to absorb it.
         min_interval=float(os.environ.get("GOVSIM_LLM_MIN_INTERVAL", "0") or 0),
+        timeout=float(os.environ.get("GOVSIM_LLM_TIMEOUT", "600") or 600),
     )
     return CachingReplayClient(inner, os.environ.get("GOVSIM_LLM_CACHE", "logs/llm_cache"),
                                mode=os.environ.get("GOVSIM_LLM_MODE", "cache"))

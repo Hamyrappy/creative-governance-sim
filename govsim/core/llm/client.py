@@ -82,7 +82,11 @@ class OpenAICompatClient:
         base_url: str | None = None,
         api_key_env: str = "OPENAI_API_KEY",
         default_model: str | None = None,
-        timeout: float = 120.0,
+        # A reasoning model given a large token budget spends it: measured ~99 s per call at
+        # max_tokens=4000, and longer for the tail that needs more. The old 120 s default sat just
+        # above the median, so the slow tail died with APITimeoutError — which looks like a flaky
+        # network and is actually a budget mismatch.
+        timeout: float = 600.0,
         drop_params: frozenset[str] | set[str] | None = None,
         max_retries: int = 6,
         min_interval: float = 0.0,
@@ -132,6 +136,12 @@ class OpenAICompatClient:
         """
         status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
         if status in (408, 409, 429, 500, 502, 503, 504) or str(status) in ("429", "503"):
+            return True
+        # A 400 is normally a malformed request and must NOT be retried — retrying one is how a
+        # sweep burns hours on a bug. The single exception is the provider's geo-routing
+        # precondition, which we observed appear and clear within seconds on an otherwise identical
+        # request. It is matched on the message rather than the status so no other 400 is caught.
+        if str(status) == "400" and "location is not supported" in str(exc).lower():
             return True
         name = type(exc).__name__
         return any(k in name for k in ("RateLimit", "APIConnection", "APITimeout", "InternalServer"))
