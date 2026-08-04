@@ -64,21 +64,27 @@ def headroom_table(calib: dict, surface: list[dict] | None) -> str:
     for regime, d in sorted(calib.items()):
         rows.append(
             f"{esc(regime)} & \\texttt{{{esc(d['frozen']['expr'])}}} & "
-            f"\\texttt{{{esc(d['oracle']['expr'])}}} & "
-            f"{num(d['frozen']['post_loss'])} & {num(d['oracle']['post_loss'])} & "
-            f"\\textbf{{{num(d['headroom'], 2)}}} \\\\"
+            f"\\texttt{{{esc(d['best_fixed']['expr'])}}} & "
+            f"{num(d['frozen']['loss'])} & {num(d['best_fixed']['loss'])} & "
+            f"{num(d['switching']['loss'])} & "
+            f"\\textbf{{{num(d['headroom_vs_best_fixed'], 3)}}} \\\\"
         )
     body = "\n".join(rows)
     return f"""\\begin{{table}}[t]\\centering\\small
-\\caption{{\\textbf{{Adaptation headroom by regime.}} Both references are calibrated by exhaustive
-search inside one shared policy family and scored on the same broken world over the same seeds; they
-differ only in when they were allowed to look. $\\headroom \\approx 1$ means the break does not move
-the optimum, so no controller could show an effect there.}}
+\\caption{{\\textbf{{What adaptation is worth, by regime.}} Every reference is calibrated by
+exhaustive search over the same policy vocabulary and scored on the same broken world over the same
+seeds; they differ only in what they were allowed to know. \\emph{{frozen}} is optimal before the
+break and held through it. \\emph{{best fixed}} is the best single law over the whole broken horizon
+chosen in hindsight---the non-adaptive ceiling, and the reference an adaptation claim has to beat.
+\\emph{{switching}} enacts the pre-break optimum and then the post-break optimum at the exact break.
+The last column, $\\headroom = L_{{\\text{{fixed}}}}/L_{{\\text{{switch}}}}$, is what changing
+behaviour is worth over the best a \\emph{{fixed}} rule could ever have done; $\\approx 1$ means no
+controller could demonstrate adaptation there, however attentive.}}
 \\label{{tab:headroom}}
-\\begin{{tabular}}{{@{{}}l l l r r r@{{}}}}
+\\begin{{tabular}}{{@{{}}l l l r r r r@{{}}}}
 \\toprule
-regime & frozen (pre-shock optimal) & oracle (post-shock optimal) &
-$\\Lpost_{{\\text{{frozen}}}}$ & $\\Lpost_{{\\text{{oracle}}}}$ & $\\headroom$ \\\\
+regime & frozen rule & best fixed (hindsight) & $L_{{\\text{{frozen}}}}$ &
+$L_{{\\text{{fixed}}}}$ & $L_{{\\text{{switch}}}}$ & $\\headroom$ \\\\
 \\midrule
 {body}
 \\bottomrule
@@ -92,23 +98,29 @@ def regime_table(calib: dict) -> str:
     if not ep:
         return pending("epidemic calibration", "The flagship regime.", "tab:regime")
     p = ep["provenance"]
-    wide = ep.get("oracle_wide", {})
+    bf = ep["best_fixed"]
     return f"""\\begin{{table}}[t]\\centering\\small
-\\caption{{\\textbf{{The flagship regime, calibrated.}} The oracle's answer is the substantive one:
-it keeps the intensity and raises the trigger, i.e.\\ it stops paying for an instrument that no
-longer works except in a genuine emergency. Widening the reference vocabulary to include
-proportional and floored-threshold forms does not change it.}}
+\\caption{{\\textbf{{The flagship regime, calibrated.}} The substantive content is in the second row:
+once the instrument is only a quarter as effective, the best standing rule keeps the intensity and
+raises the trigger twenty-fold---it stops paying for the instrument except in a genuine emergency.
+The best fixed law is searched over a \\emph{{widened}} vocabulary (threshold, proportional,
+threshold-with-floor), so it cannot be beaten merely by writing a shape it was not allowed to
+express.}}
 \\label{{tab:regime}}
 \\begin{{tabular}}{{@{{}}l l@{{}}}}
 \\toprule
-frozen (optimal before the break) & \\texttt{{{esc(ep['frozen']['expr'])}}} \\\\
-oracle (optimal after it, narrow family) & \\texttt{{{esc(ep['oracle']['expr'])}}} \\\\
-oracle (widened vocabulary) & \\texttt{{{esc(wide.get('expr', 'n/a'))}}}
-  {{\\footnotesize (best of {esc(', '.join(sorted(p.get('wide_families', {}))))})}} \\\\
+frozen: optimal before the break, held through it & \\texttt{{{esc(ep['frozen']['expr'])}}} \\\\
+best fixed law in hindsight (whole horizon) & \\texttt{{{esc(bf['expr'])}}}
+  {{\\footnotesize (best of {esc(', '.join(sorted(p.get('wide_families', {}))))} $\\to$ '{esc(bf.get('family', '?'))}')}} \\\\
+clairvoyant switch at $\\shockstep={ep.get('switch_step', '?')}$ &
+  \\texttt{{{esc(ep['switching']['pre_expr'])}}} $\\to$ \\texttt{{{esc(ep['switching']['post_expr'])}}} \\\\
 \\midrule
-post-break loss, frozen / oracle & {num(ep['frozen']['post_loss'])} / {num(ep['oracle']['post_loss'])} \\\\
-headroom $\\headroom$ (narrow / wide) & \\textbf{{{num(ep['headroom'], 2)}}} /
-  {num(ep.get('headroom_wide'), 2)} \\\\
+full-horizon loss: frozen / best fixed / switching &
+  {num(ep['frozen']['loss'])} / {num(bf['loss'])} / {num(ep['switching']['loss'])} \\\\
+what adaptation is worth ($L_{{\\text{{fixed}}}}/L_{{\\text{{switch}}}}$) &
+  \\textbf{{{num(ep.get('headroom_vs_best_fixed'), 3)}}} \\\\
+what a stale rule costs ($L_{{\\text{{frozen}}}}/L_{{\\text{{switch}}}}$) &
+  {num(ep.get('headroom'), 3)} \\\\
 calibration grid & {p['family_size']} laws, {p['n_seeds']} seeds, horizon {p['horizon']} \\\\
 \\bottomrule
 \\end{{tabular}}
@@ -124,9 +136,9 @@ def arms_table(a: dict) -> str:
     order = list(ARM_LABELS)
     arms = sorted(arms, key=lambda r: order.index(r["arm"]) if r["arm"] in order else 99)
     rows = [
-        f"\\textit{{frozen}} (R\\,{{=}}\\,1 anchor) & --- & {len(arms) and ''}"
-        f"{num(anchors.get('frozen_mean'))} & --- & \\textit{{1.000}} \\\\",
-        f"\\textit{{oracle}} (R\\,{{=}}\\,0 anchor) & --- & {num(anchors.get('oracle_mean'))} & --- & "
+        f"\\textit{{best fixed law in hindsight}} & --- & {num(anchors.get('frozen_mean'))} & --- & "
+        f"\\textit{{1.000}} \\\\",
+        f"\\textit{{clairvoyant switch}} & --- & {num(anchors.get('oracle_mean'))} & --- & "
         f"\\textit{{0.000}} \\\\",
         "\\midrule",
     ]
@@ -138,14 +150,15 @@ def arms_table(a: dict) -> str:
         )
     body = "\n".join(rows)
     return f"""\\begin{{table}}[t]\\centering\\small
-\\caption{{\\textbf{{Post-break governance loss and normalized regret.}} $\\Rreg=0$ is the
-clairvoyant oracle, $\\Rreg=1$ is the pre-break rule held unchanged. Lower is better; $\\Rreg$ is
-computed per seed against the paired anchors before averaging.
-$^{{\\dagger}}$the critic arm is not budget-matched.}}
+\\caption{{\\textbf{{Full-horizon governance loss and normalized regret.}} $\\Rreg=1$ is the best
+\\emph{{fixed}} law in hindsight and $\\Rreg=0$ the clairvoyant switch, so $\\Rreg<1$ means the arm
+did better than any standing rule could have---which, unlike a post-break-only comparison, passivity
+alone cannot achieve. Lower is better; $\\Rreg$ is computed per seed against the paired anchors
+before averaging. $^{{\\dagger}}$the critic arm is not budget-matched.}}
 \\label{{tab:arms}}
 \\begin{{tabular}}{{@{{}}l r r r r@{{}}}}
 \\toprule
-arm & $n$ & $\\Lpost$ & sd & $\\Rreg$ \\\\
+arm & $n$ & $L$ & sd & $\\Rreg$ \\\\
 \\midrule
 {body}
 \\bottomrule
@@ -216,6 +229,154 @@ model & {" & ".join(heads)} \\\\
 """
 
 
+def results_prose(a: dict, calib: dict) -> str:
+    """The two data-dependent passages, written from the artifact rather than by hand.
+
+    Both default to a red "pending" note in the preamble, so a draft compiled before the sweep
+    finishes says so on the page. This file \\renewcommand's them only once the numbers exist, and
+    the wording it emits states what was found INCLUDING when that is a null — the whole point of a
+    generated results passage is that it cannot quietly become more favourable than the data.
+    """
+    arms = {r["arm"]: r for r in (a.get("arms") or [])}
+    fac = a.get("factorial") or {}
+    contrasts = a.get("contrasts") or {}
+    ep = calib.get("epidemic", {})
+    if not arms or not fac:
+        return "% not enough results yet; the preamble's pending defaults stand.\n"
+
+    full = arms.get("epidemic_llm_trace_outcome_memory") or {}
+    bare = arms.get("epidemic_llm_bare") or {}
+    sig = [k for k, v in fac.items() if v.get("significant")]
+    helped = [k for k in sig if fac[k]["effect"] < 0]
+    hurt = [k for k in sig if fac[k]["effect"] > 0]
+
+    def _c(key):
+        return contrasts.get(key, {})
+
+    beat_fixed = [n for n in arms
+                  if _c(f"{n} vs_best_fixed").get("a_better_than_b")]
+
+    abstract = (
+        f"Adaptation is worth {num(ep.get('headroom_vs_best_fixed'), 2)}$\\times$ over the best fixed "
+        f"rule in this regime. Of {len(arms)} arms, {len(beat_fixed)} beat that non-adaptive ceiling "
+        f"after Holm correction; the full harness reaches $\\Rreg={num(full.get('R'), 2)}$ against "
+        f"$\\Rreg={num(bare.get('R'), 2)}$ with no harness. "
+        + (f"The factorial attributes the gain to {', '.join(esc(t) for t in helped)}"
+           + (f", with {', '.join(esc(t) for t in hurt)} hurting" if hurt else "")
+           + "." if helped else
+           "No harness term survives correction, which is itself the result: at this effect size "
+           "the components are not separably attributable.")
+    )
+    body_lines = [
+        f"Adaptation in this regime is worth {num(ep.get('headroom_vs_best_fixed'), 3)}$\\times$: the "
+        f"clairvoyant switch reaches $L={num(ep.get('switching', {}).get('loss'))}$ where the best "
+        f"\\emph{{fixed}} law in hindsight reaches ${num(ep.get('best_fixed', {}).get('loss'))}$ and "
+        f"the frozen rule ${num(ep.get('frozen', {}).get('loss'))}$. That is the budget every arm "
+        f"below is competing for, and it is small---which is worth saying plainly, because a "
+        f"$14\\%$ ceiling sets the scale for how large any component effect can honestly be.",
+        "",
+        f"With no harness at all the regent reaches $\\Rreg={num(bare.get('R'), 3)}$; with all three "
+        f"channels, $\\Rreg={num(full.get('R'), 3)}$. "
+        + ("Neither figure should be read as the harness being unnecessary: an arm with no channel "
+           "still sees the current state at each review, so it can respond to prevalence even "
+           "though it cannot learn that its instrument stopped working."),
+        "",
+        (f"The factorial (\\cref{{tab:factorial}}) attributes the difference to "
+         f"{', '.join(esc(t) for t in helped)}"
+         + (f"; {', '.join(esc(t) for t in hurt)} made things worse" if hurt else "")
+         + f". Terms not listed did not survive Holm correction across the family of "
+           f"{len(fac)} effects."
+         if helped else
+         f"No term in the factorial survives Holm correction across the family of {len(fac)} "
+         f"effects. We report that as the result rather than as a preliminary: with a "
+         f"{num(ep.get('headroom_vs_best_fixed'), 2)}$\\times$ ceiling and 20 seeds, the design is "
+         f"not powered to separate components of this size, and saying so is more useful than "
+         f"reporting the largest uncorrected term."),
+    ]
+    esc_body = "\n".join(body_lines)
+    return (
+        "% GENERATED by scripts/make_tables.py — do not edit; edit the generator.\n"
+        f"\\renewcommand{{\\ResultsAbstractSentence}}{{{abstract}}}\n"
+        f"\\renewcommand{{\\ResultsBody}}{{{esc_body}}}\n"
+    )
+
+
+def odd(calib: dict) -> str:
+    """The ODD-style model description social-simulation venues expect, filled from the pinned config."""
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+    from govsim.domains.scalar import regimes as R
+
+    pre, shocked = R.EPIDEMIC_PRE, R.EPIDEMIC_SHOCKED
+    ep = calib.get("epidemic", {})
+    shock = shocked.get("shock_params", {})
+    return f"""\\noindent Following the ODD convention, with the parameter values read directly from
+the pinned configuration in \\texttt{{govsim/domains/scalar/regimes.py}} rather than transcribed.
+
+\\subsection*{{Purpose}}
+To determine which class of structural break a standing feedback rule can absorb, how much
+adaptation is worth in each case, and which informational channel allows a rule-writing authority to
+detect a break it cannot observe directly. The model is an instrument for isolating that mechanism;
+it is not intended to forecast any real epidemic or to evaluate any real restriction policy.
+
+\\subsection*{{Entities, state variables, and scales}}
+One governed population and one governing authority. The population is described by the shares
+$S_t, I_t, R_t$ with $S+I+R=1$ enforced each step. The authority holds two instruments, restriction
+intensity $\\in [0, 0.9]$ and vaccination effort $\\in [0, 0.5]$. One step is an epidemiological
+period; the horizon is {R.EPIDEMIC_HORIZON} steps and the authority reviews its rule every
+{R.EPIDEMIC_DECIDE_EVERY} steps, giving {R.EPIDEMIC_HORIZON // R.EPIDEMIC_DECIDE_EVERY} reviews.
+
+\\subsection*{{Process overview and scheduling}}
+Each step: (i)~the standing rule is re-evaluated against the current state and its output clipped
+into the instrument's admissible range; (ii)~new infections, recoveries, vaccinations, and waning
+are applied; (iii)~intervention cost accrues on the \\emph{{policy}}, not on its effect. At a review
+step the authority first receives whatever its channels supply, then promulgates a rule that stands
+until the next review.
+
+\\subsection*{{Design concepts}}
+\\emph{{Basic principle}}: a standing rule is feedback, and feedback is robust to disturbances in
+the signal it reads and fragile to changes in what its action accomplishes.
+\\emph{{Adaptation}}: the authority may rewrite its rule at review points; it is never told the
+break occurred. \\emph{{Objective}}: infection burden plus $\\lambda={R.EPIDEMIC_LAMBDA}$ times
+intervention cost. \\emph{{Sensing}}: $S, I, R$, the authority's own current instrument settings, and
+the clock. Instrument efficacy is \\textbf{{never}} sensed---inferring it is the task.
+\\emph{{Stochasticity}}: per-seed heterogeneity in $\\beta_0$, $\\gamma$, and initial prevalence,
+plus per-step incidence noise. \\emph{{Observation}}: the full trajectory, the enacted rules, and
+every model call are recorded.
+
+\\subsection*{{Initialisation}}
+$I_0 = {pre['initial_i']}$ with lognormal spread $\\sigma={pre['initial_i_sigma']}$;
+$\\beta_0 = {pre['beta0']}$ with lognormal spread $\\sigma={pre['beta0_sigma']}$;
+$\\gamma = {pre['gamma']}$ with spread $\\sigma={pre['gamma_sigma']}$; $R_0 = 0$. Each of the 20
+seeds draws one such population and every arm is run on all 20.
+
+\\subsection*{{Input data}}
+None. The model is closed; no empirical time series is used as a driver.
+
+\\subsection*{{Submodels}}
+\\emph{{Transmission}}: $\\beta_t = \\beta_0\\,(1 - a_t\\,e_t)$, where $a_t$ is enacted restriction
+and $e_t$ its efficacy. New infections are $\\beta_t S_t I_t$ plus imported cases at rate
+{pre['import_rate']}$\\cdot S_t$ and Gaussian noise $\\sigma={pre['noise_sigma']}$, capped at $S_t$.
+\\emph{{Recovery and waning}}: a share $\\gamma$ of $I$ recovers each step and a share
+{pre['waning']} of $R$ returns to $S$, which makes the disease endemic---it cannot be waited out.
+\\emph{{Vaccination}}: moves ${pre['vacc_rate']}\\cdot v_t\\, e^{{\\text{{vac}}}}_t S_t$ from $S$ to
+$R$. \\emph{{Cost}}: ${pre['lockdown_cost']}\\,a_t + {pre['vacc_cost']}\\,v_t$ per step, charged on
+the policy regardless of its effect---which is what makes an efficacy collapse expensive to ignore.
+\\emph{{The break}}: at $t = {R.EPIDEMIC_SHOCK_STEP}$, restriction efficacy
+$e_t: 1.0 \\to {shock.get('lockdown_efficacy', '?')}$. Transmissibility is unchanged
+(\\texttt{{shock\\_factor}} $= {shocked.get('shock_factor', 1.0)}$), so the break is purely
+instrumental. It is not announced and leaves no directly observable trace.
+
+\\subsection*{{Reference policies}}
+Calibrated by exhaustive search over {ep.get('provenance', {}).get('family_size', '?')} laws at
+{ep.get('provenance', {}).get('n_seeds', '?')} seeds:
+frozen \\texttt{{{esc(ep.get('frozen', {}).get('expr', 'n/a'))}}},
+best fixed in hindsight \\texttt{{{esc(ep.get('best_fixed', {}).get('expr', 'n/a'))}}}.
+"""
+
+
 def repro(calib: dict, a: dict, commit: str) -> str:
     ep = calib.get("epidemic", {})
     p = ep.get("provenance", {})
@@ -257,7 +418,9 @@ def main() -> int:
         "arms_table.tex": arms_table(analysis),
         "factorial_table.tex": factorial_table(analysis),
         "crossmodel_table.tex": crossmodel_table(analysis),
+        "odd.tex": odd(calib),
         "repro.tex": repro(calib, analysis, args.commit),
+        "results_prose.tex": results_prose(analysis, calib),
     }
     for name, text in written.items():
         (OUT / name).write_text(text, encoding="utf-8")

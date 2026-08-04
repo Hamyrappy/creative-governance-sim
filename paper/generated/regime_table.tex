@@ -1,19 +1,25 @@
 \begin{table}[t]\centering\small
-\caption{\textbf{The flagship regime, calibrated.} The oracle's answer is the substantive one:
-it keeps the intensity and raises the trigger, i.e.\ it stops paying for an instrument that no
-longer works except in a genuine emergency. Widening the reference vocabulary to include
-proportional and floored-threshold forms does not change it.}
+\caption{\textbf{The flagship regime, calibrated.} The substantive content is in the second row:
+once the instrument is only a quarter as effective, the best standing rule keeps the intensity and
+raises the trigger twenty-fold---it stops paying for the instrument except in a genuine emergency.
+The best fixed law is searched over a \emph{widened} vocabulary (threshold, proportional,
+threshold-with-floor), so it cannot be beaten merely by writing a shape it was not allowed to
+express.}
 \label{tab:regime}
 \begin{tabular}{@{}l l@{}}
 \toprule
-frozen (optimal before the break) & \texttt{0.9 if I > 0.01 else 0.0} \\
-oracle (optimal after it, narrow family) & \texttt{0.9 if I > 0.25 else 0.0} \\
-oracle (widened vocabulary) & \texttt{0.9 if I > 0.25 else 0.0}
-  {\footnotesize (best of proportional, threshold, threshold\_floor)} \\
+frozen: optimal before the break, held through it & \texttt{0.9 if I > 0.01 else 0.0} \\
+best fixed law in hindsight (whole horizon) & \texttt{0.9 if I > 0.25 else 0.0}
+  {\footnotesize (best of proportional, threshold, threshold\_floor $\to$ 'threshold')} \\
+clairvoyant switch at $\shockstep=100$ &
+  \texttt{0.9 if I > 0.01 else 0.0} $\to$ \texttt{0.9 if I > 0.25 else 0.0} \\
 \midrule
-post-break loss, frozen / oracle & 20.107 / 11.842 \\
-headroom $\headroom$ (narrow / wide) & \textbf{1.70} /
-  1.70 \\
+full-horizon loss: frozen / best fixed / switching &
+  27.972 / 27.114 / 23.736 \\
+what adaptation is worth ($L_{\text{fixed}}/L_{\text{switch}}$) &
+  \textbf{1.142} \\
+what a stale rule costs ($L_{\text{frozen}}/L_{\text{switch}}$) &
+  1.178 \\
 calibration grid & 63 laws, 20 seeds, horizon 200 \\
 \bottomrule
 \end{tabular}

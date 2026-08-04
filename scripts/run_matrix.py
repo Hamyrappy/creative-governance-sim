@@ -105,22 +105,26 @@ def run_pair(model: str, arm: str, seeds: list[int], store: ResultStore, workers
         traceback.print_exc(file=sys.stderr)
         return {"model": model, "arm": arm, "error": f"{type(e).__name__}: {e}"}
 
-    losses = [r.components["regent:0"].get("post_loss", float("nan")) for r in records]
+    # The PRIMARY metric is the full horizon: a post-break-only window rewards passivity, and
+    # arms that behave differently BEFORE the break also arrive at it in different states, so a
+    # post-window number is confounded by path dependence on top of that.
+    losses = [r.components["regent:0"].get("loss", float("nan")) for r in records]
     finite = [v for v in losses if v == v and abs(v) != float("inf")]
     calls = sum(len(r.llm_io) for r in records)
     dt = time.time() - t0
     print(
         f"done    {model:<26} {arm:<36} n={len(records):<3} "
-        f"post_loss mean={statistics.mean(finite) if finite else float('nan'):>9.4f} "
+        f"loss mean={statistics.mean(finite) if finite else float('nan'):>9.4f} "
         f"sd={statistics.pstdev(finite) if len(finite) > 1 else 0.0:>7.4f} "
         f"llm_calls={calls:<5} {dt:>6.1f}s",
         flush=True,
     )
     return {
         "model": model, "arm": arm, "n": len(records),
-        "post_loss_mean": statistics.mean(finite) if finite else None,
-        "post_loss_sd": statistics.pstdev(finite) if len(finite) > 1 else 0.0,
-        "per_seed": {r.seed: r.components["regent:0"].get("post_loss") for r in records},
+        "loss_mean": statistics.mean(finite) if finite else None,
+        "loss_sd": statistics.pstdev(finite) if len(finite) > 1 else 0.0,
+        "per_seed": {r.seed: r.components["regent:0"].get("loss") for r in records},
+        "per_seed_post": {r.seed: r.components["regent:0"].get("post_loss") for r in records},
         "llm_calls": calls, "seconds": round(dt, 1),
     }
 

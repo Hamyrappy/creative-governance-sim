@@ -1,0 +1,62 @@
+\noindent Following the ODD convention, with the parameter values read directly from
+the pinned configuration in \texttt{govsim/domains/scalar/regimes.py} rather than transcribed.
+
+\subsection*{Purpose}
+To determine which class of structural break a standing feedback rule can absorb, how much
+adaptation is worth in each case, and which informational channel allows a rule-writing authority to
+detect a break it cannot observe directly. The model is an instrument for isolating that mechanism;
+it is not intended to forecast any real epidemic or to evaluate any real restriction policy.
+
+\subsection*{Entities, state variables, and scales}
+One governed population and one governing authority. The population is described by the shares
+$S_t, I_t, R_t$ with $S+I+R=1$ enforced each step. The authority holds two instruments, restriction
+intensity $\in [0, 0.9]$ and vaccination effort $\in [0, 0.5]$. One step is an epidemiological
+period; the horizon is 200 steps and the authority reviews its rule every
+10 steps, giving 20 reviews.
+
+\subsection*{Process overview and scheduling}
+Each step: (i)~the standing rule is re-evaluated against the current state and its output clipped
+into the instrument's admissible range; (ii)~new infections, recoveries, vaccinations, and waning
+are applied; (iii)~intervention cost accrues on the \emph{policy}, not on its effect. At a review
+step the authority first receives whatever its channels supply, then promulgates a rule that stands
+until the next review.
+
+\subsection*{Design concepts}
+\emph{Basic principle}: a standing rule is feedback, and feedback is robust to disturbances in
+the signal it reads and fragile to changes in what its action accomplishes.
+\emph{Adaptation}: the authority may rewrite its rule at review points; it is never told the
+break occurred. \emph{Objective}: infection burden plus $\lambda=0.08$ times
+intervention cost. \emph{Sensing}: $S, I, R$, the authority's own current instrument settings, and
+the clock. Instrument efficacy is \textbf{never} sensed---inferring it is the task.
+\emph{Stochasticity}: per-seed heterogeneity in $\beta_0$, $\gamma$, and initial prevalence,
+plus per-step incidence noise. \emph{Observation}: the full trajectory, the enacted rules, and
+every model call are recorded.
+
+\subsection*{Initialisation}
+$I_0 = 0.01$ with lognormal spread $\sigma=0.4$;
+$\beta_0 = 0.35$ with lognormal spread $\sigma=0.18$;
+$\gamma = 0.1$ with spread $\sigma=0.1$; $R_0 = 0$. Each of the 20
+seeds draws one such population and every arm is run on all 20.
+
+\subsection*{Input data}
+None. The model is closed; no empirical time series is used as a driver.
+
+\subsection*{Submodels}
+\emph{Transmission}: $\beta_t = \beta_0\,(1 - a_t\,e_t)$, where $a_t$ is enacted restriction
+and $e_t$ its efficacy. New infections are $\beta_t S_t I_t$ plus imported cases at rate
+0.0005$\cdot S_t$ and Gaussian noise $\sigma=0.0015$, capped at $S_t$.
+\emph{Recovery and waning}: a share $\gamma$ of $I$ recovers each step and a share
+0.02 of $R$ returns to $S$, which makes the disease endemic---it cannot be waited out.
+\emph{Vaccination}: moves $0.02\cdot v_t\, e^{\text{vac}}_t S_t$ from $S$ to
+$R$. \emph{Cost}: $1.0\,a_t + 0.5\,v_t$ per step, charged on
+the policy regardless of its effect---which is what makes an efficacy collapse expensive to ignore.
+\emph{The break}: at $t = 100$, restriction efficacy
+$e_t: 1.0 \to 0.25$. Transmissibility is unchanged
+(\texttt{shock\_factor} $= 1.0$), so the break is purely
+instrumental. It is not announced and leaves no directly observable trace.
+
+\subsection*{Reference policies}
+Calibrated by exhaustive search over 63 laws at
+20 seeds:
+frozen \texttt{0.9 if I > 0.01 else 0.0},
+best fixed in hindsight \texttt{0.9 if I > 0.25 else 0.0}.
