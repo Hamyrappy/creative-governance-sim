@@ -59,6 +59,8 @@ GROUPS = {
                       "epidemic_llm_trace_outcome_memory"],
     "epidemic-refs": REFERENCES,
     "epidemic-critic": ["epidemic_llm_critic"],
+    # The contextualization contrast: the naive channel is the control for the fixed one.
+    "epidemic-ctx": ["epidemic_llm_outcome", "epidemic_llm_ctx_outcome"],
     "scalar": ["scalar_frozen", "scalar_oracle", "scalar_llm_full"],
     # The severity-tracking check: same three rungs, harsher break.
     "severe": ["severe_frozen", "severe_best_fixed", "severe_switching",

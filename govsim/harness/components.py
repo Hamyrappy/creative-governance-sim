@@ -114,6 +114,86 @@ class OutcomeFeedback(HarnessComponent):
             scratch["_pending_outcome_law"] = laws
 
 
+class ContextualOutcomeFeedback(OutcomeFeedback):
+    """``OutcomeFeedback``, but each score is reported next to the state it was earned in.
+
+    The plain version turned out not to help, and the transcripts say why. Its scores come from
+    different phases of an evolving world, so a score moves both because the policy changed and
+    because the world moved on. Under non-stationarity the outcome signal is confounded with exactly
+    the non-stationarity it is supposed to reveal — and in the recorded runs the regent responds
+    rationally to a confounded signal by walking away from its best policy.
+
+    Two changes, both aimed at that confound:
+
+    * every entry carries the state the interval *started* in, so like can be compared with like;
+    * when the same law was deployed twice in similar states and scored differently, that is called
+      out. Two identical policies in comparable conditions producing different results is the
+      cleanest available evidence that something outside the policy changed, which is precisely the
+      inference an unobservable instrument failure requires.
+
+    The contrast between this component and its parent is a sharper experiment than either alone: it
+    isolates *contextualization* rather than *feedback*, and the parent is the right control for it.
+    """
+
+    name = "contextual_outcome_feedback"
+    _CONTEXT_KEYS = ("I", "S", "current_x")  # the state a reader needs to judge comparability
+
+    def __init__(self, k: int = 4, similar_within: float = 0.25) -> None:
+        super().__init__(k)
+        # Relative distance under which two states count as "comparable" for the repeat check.
+        self.similar_within = similar_within
+        self.log_ctx: list[tuple[str, float, dict]] = []  # (law, score, state at interval start)
+
+    def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
+        realized = scratch.get("_last_realized_score")
+        pending = scratch.pop("_pending_outcome_law", None)
+        pending_ctx = scratch.pop("_pending_outcome_ctx", None)
+        if realized is not None and pending is not None:
+            self.log.append((pending, float(realized)))
+            self.log_ctx.append((pending, float(realized), pending_ctx or {}))
+        if not self.log_ctx:
+            scratch.pop("outcome", None)
+            return
+
+        lines = []
+        for law, score, ctx in self.log_ctx[-self.k:]:
+            ctx_str = ", ".join(f"{k}={v:.4g}" for k, v in ctx.items())
+            lines.append(f"- from state [{ctx_str}] you deployed [{law}] and it scored {score:.4f}")
+        note = self._repeat_note()
+        if note:
+            lines.append(note)
+        scratch["outcome"] = "\n".join(lines)
+
+    def _repeat_note(self) -> str:
+        """Flag the same law scoring differently in comparable states — the load-bearing signal."""
+        if len(self.log_ctx) < 2:
+            return ""
+        law, score, ctx = self.log_ctx[-1]
+        for prev_law, prev_score, prev_ctx in reversed(self.log_ctx[:-1]):
+            if prev_law != law:
+                continue
+            shared = [k for k in ctx if k in prev_ctx]
+            if not shared:
+                continue
+            close = all(
+                abs(ctx[k] - prev_ctx[k]) <= self.similar_within * max(abs(prev_ctx[k]), 1e-9)
+                for k in shared
+            )
+            if close and abs(score - prev_score) > 1e-9:
+                direction = "WORSE" if score < prev_score else "BETTER"
+                return (f"  (!) the SAME law scored {score:.4f} now vs {prev_score:.4f} earlier in a "
+                        f"comparable state — {direction}. Something outside your policy has changed.")
+        return ""
+
+    def on_outcome(self, view: Observation, requests: list[ActionRequest], outcome: Outcome,
+                   scratch: dict) -> None:
+        super().on_outcome(view, requests, outcome, scratch)
+        if requests:
+            scratch["_pending_outcome_ctx"] = {
+                k: float(v) for k, v in view.vars.items() if k in self._CONTEXT_KEYS
+            }
+
+
 class EpisodicMemory(HarnessComponent):
     """Retrieve the k most similar past (state, action, outcome) episodes by current metrics and
     inject them as ``scratch["memory"]`` — the cheap, RAG-style learning baseline (doc-08 §6).

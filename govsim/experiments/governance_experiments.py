@@ -70,7 +70,9 @@ from govsim.domains.scalar import (
 )
 from govsim.domains.scalar import regimes as R
 from govsim.experiments import register
-from govsim.harness import Critic, EpisodicMemory, OutcomeFeedback, TraceFeedback
+from govsim.harness import (
+    ContextualOutcomeFeedback, Critic, EpisodicMemory, OutcomeFeedback, TraceFeedback,
+)
 from govsim.regents import LLMRegent, OPRORegent, SwitchingRegent
 
 # Seeds: the pre-registered headline count. 20 paired seeds is the stats-protocol floor for a
@@ -266,6 +268,30 @@ def _register_factorial() -> None:
 
 
 _register_factorial()
+
+
+@register("epidemic_llm_ctx_outcome")
+def epidemic_llm_ctx_outcome() -> Experiment:
+    """Outcome feedback that reports each score NEXT TO the state it was earned in.
+
+    The plain outcome channel produced no effect, and the recorded prompts say why: its scores come
+    from different phases of an evolving epidemic, so the signal is confounded with the very
+    non-stationarity it is meant to reveal. This arm is the minimal fix — same channel, same call
+    budget, states attached, and an explicit flag when the same law scores differently in comparable
+    conditions. Its control is ``epidemic_llm_outcome``, so the contrast isolates *contextualization*
+    rather than *feedback*."""
+    max_tokens, extra = _llm_opts()
+    return _epidemic_experiment(
+        "epidemic_llm_ctx_outcome",
+        LLMRegent(llm=_client(), model=_model(), temperature=0.0, max_tokens=max_tokens, extra=extra),
+        Harness([ContextualOutcomeFeedback(k=4)]),
+        hyp_id="H3b-contextual-outcome",
+        claim="attaching the state to each realized score recovers the regime signal that a bare "
+              "score history confounds with the regime change itself",
+        falsification="the paired CI of (ctx_outcome - outcome) on full-horizon loss includes 0",
+        metadata={"role": "treatment", "factors": ["ctx_outcome"], "budget_matched": True,
+                  "control_arm": "epidemic_llm_outcome"},
+    )
 
 
 @register("epidemic_llm_critic")
