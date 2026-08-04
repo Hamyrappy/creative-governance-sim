@@ -20,10 +20,13 @@ from govsim.domains.scalar import CubicSystem, Lever, ScalarLeverInterface, Stab
 from govsim.regents import LLMRegent
 
 _TAPE_DIR = Path(__file__).parent / "tapes" / "cubic_llm"
-_MODEL = "Openai/Gpt-oss-120b"
-_MAX_TOKENS = 1200
-_EXTRA = {"reasoning_effort": "low"}
-_EXPECTED_SCORE = -0.20377969555702224  # pinned from the recorded tape; see _record()
+# Re-recorded 2026-08-04 against the Gemini OpenAI-compat endpoint; the AIRI endpoint the
+# original tape came from now 403s. The tape's job is to prove that a RECORDED run replays
+# key-free, which any tool-calling model can demonstrate.
+_MODEL = "gemma-4-31b-it"
+_MAX_TOKENS = 4000
+_EXTRA = None
+_EXPECTED_SCORE = -0.24510704520462223  # pinned from the recorded tape; see _record()
 
 
 def _build(client) -> Experiment:
@@ -73,8 +76,11 @@ def _record() -> None:  # pragma: no cover - maintenance helper (needs a live en
     from govsim.core.llm import OpenAICompatClient
 
     load_dotenv()
-    inner = OpenAICompatClient(base_url=os.environ["OPENAI_BASE_URL"],
-                               api_key_env=os.environ.get("OPENAI_API_KEY_ENV", "OPENAI_API_KEY"))
+    inner = OpenAICompatClient(
+        base_url=os.environ["OPENAI_BASE_URL"],
+        api_key_env=os.environ.get("OPENAI_API_KEY_ENV", "OPENAI_API_KEY"),
+        drop_params=frozenset(
+            x.strip() for x in os.environ.get("GOVSIM_LLM_DROP_PARAMS", "").split(",") if x.strip()))
     client = CachingReplayClient(inner, _TAPE_DIR, mode="cache")
     rec = Runner().run(_build(client))[0]
     print("RECORDED score:", repr(rec.score["regent:0"]))

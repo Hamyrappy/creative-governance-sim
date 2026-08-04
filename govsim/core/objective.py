@@ -29,3 +29,20 @@ class Objective(ABC):
         them — making "proxy up / true-welfare down" Goodhart episodes detectable (H5).
         """
         return {}
+
+    def describe(self) -> str:
+        """A plain-language statement of what is being optimized, for the regent's prompt.
+
+        This is not decoration. A regent that is not told its objective is being scored against
+        references that were exhaustively optimized for one — the comparison then measures whether
+        the agent guessed the mandate, not whether it governs well. We shipped exactly that for a
+        while: the epidemic prompt named the levers and the observables and never mentioned
+        infections, cost, or the trade-off between them, while every calibrated reference was
+        optimal for ``burden + λ·cost``.
+
+        Concrete objectives should state the quantity, the trade-off, and the weight, because all
+        three change what a competent controller would do. The default is deliberately useless so
+        that an objective which has not written one is visible in the transcript rather than
+        silently absent.
+        """
+        return f"(objective: {type(self).__name__}; no description provided)"

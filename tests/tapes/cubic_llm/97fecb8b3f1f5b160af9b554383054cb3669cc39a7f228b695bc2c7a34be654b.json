@@ -1,0 +1,70 @@
+{
+  "text": "<thought>*   Step: 40\n    *   Current state (`current_x`): 0.330886\n    *   Previous state (`previous_x`): -0.233172\n    *   Current control (`current_u`): 0.955455\n    *   Target state (`target_x`): 0\n\n    *   $\\Delta x = current\\_x - previous\\_x = 0.330886 - (-0.233172) = 0.564058$\n    *   The state is moving away from the target (it was negative, now it's positive and increasing).\n    *   The current control input `current_u` is 0.955455, which seems to be pushing the state in the positive direction.\n\n    *   The goal is to drive `current_x` to `target_x` (0).\n    *   Since `current_x` is positive and increasing, we need a negative control input to counteract the momentum and pull it back toward 0.\n    *   A simple PD (Proportional-Derivative) controller is usually effective: $u = -K_p(x - x_{target}) - K_d(\\dot{x})$.\n    *   $\\dot{x} \\approx current\\_x - previous\\_x$.\n    *   $u = -K_p(current\\_x - target\\_x) - K_d(current\\_x - previous\\_x)$.\n\n    *   $K_p$ (Proportional gain): Let's try 1.0.\n    *   $K_d$ (Derivative gain): Let's try 1.0.\n    *   $u = -1.0 * (0.330886 - 0) - 1.0 * (0.330886 - (-0.233172))$\n    *   $u = -0.330886 - 0.564058 = -0.894944$.\n\n    *   The current control `current_u` is 0.955455. Switching to -0.89 is a significant change, but necessary to stop the positive drift.\n    *   Let's refine the gains. If the system is highly inertial, $K_d$ should be higher. If it's sluggish, $K_p$ should be higher.\n    *   Given the jump from -0.23 to 0.33, the system has significant momentum. A strong derivative term is needed.\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)`\n    *   Calculation: $-1.5 * (0.330886) - 1.5 * (0.564058) = -0.496 - 0.846 = -1.342$.\n    *   This is within the range (-2.0, 2.0).\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)`\n    *   Wait, let's check if a simpler proportional controller is better. No, the derivative term is crucial for stability when there's momentum.\n\n    *   `current_x` = 0.33\n    *   `previous_x` = -0.23\n    *   `target_x` = 0\n    *   `current_u` = 0.95\n    *   `expr`: `-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)`\n    *   Result: $\\approx -1.34$. This should push the state back towards 0.</thought>",
+  "tool_calls": [
+    {
+      "id": "sh9uxw6n",
+      "name": "set_control_input",
+      "arguments": "{\"reasoning\":\"The state is positive and increasing (momentum is positive), so a PD controller with negative gains is used to drive the state back to the target and dampen the oscillation.\",\"expr\":\"-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)\"}"
+    }
+  ],
+  "model": "gemma-4-31b-it",
+  "usage": {
+    "completion_tokens": 85,
+    "prompt_tokens": 456,
+    "total_tokens": 1433,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+  },
+  "raw": {
+    "id": "EjNyaoGqN6WjxN8P2JifqA4",
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "<thought>*   Step: 40\n    *   Current state (`current_x`): 0.330886\n    *   Previous state (`previous_x`): -0.233172\n    *   Current control (`current_u`): 0.955455\n    *   Target state (`target_x`): 0\n\n    *   $\\Delta x = current\\_x - previous\\_x = 0.330886 - (-0.233172) = 0.564058$\n    *   The state is moving away from the target (it was negative, now it's positive and increasing).\n    *   The current control input `current_u` is 0.955455, which seems to be pushing the state in the positive direction.\n\n    *   The goal is to drive `current_x` to `target_x` (0).\n    *   Since `current_x` is positive and increasing, we need a negative control input to counteract the momentum and pull it back toward 0.\n    *   A simple PD (Proportional-Derivative) controller is usually effective: $u = -K_p(x - x_{target}) - K_d(\\dot{x})$.\n    *   $\\dot{x} \\approx current\\_x - previous\\_x$.\n    *   $u = -K_p(current\\_x - target\\_x) - K_d(current\\_x - previous\\_x)$.\n\n    *   $K_p$ (Proportional gain): Let's try 1.0.\n    *   $K_d$ (Derivative gain): Let's try 1.0.\n    *   $u = -1.0 * (0.330886 - 0) - 1.0 * (0.330886 - (-0.233172))$\n    *   $u = -0.330886 - 0.564058 = -0.894944$.\n\n    *   The current control `current_u` is 0.955455. Switching to -0.89 is a significant change, but necessary to stop the positive drift.\n    *   Let's refine the gains. If the system is highly inertial, $K_d$ should be higher. If it's sluggish, $K_p$ should be higher.\n    *   Given the jump from -0.23 to 0.33, the system has significant momentum. A strong derivative term is needed.\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)`\n    *   Calculation: $-1.5 * (0.330886) - 1.5 * (0.564058) = -0.496 - 0.846 = -1.342$.\n    *   This is within the range (-2.0, 2.0).\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)`\n    *   Wait, let's check if a simpler proportional controller is better. No, the derivative term is crucial for stability when there's momentum.\n\n    *   `current_x` = 0.33\n    *   `previous_x` = -0.23\n    *   `target_x` = 0\n    *   `current_u` = 0.95\n    *   `expr`: `-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)`\n    *   Result: $\\approx -1.34$. This should push the state back towards 0.</thought>",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [
+            {
+              "id": "sh9uxw6n",
+              "function": {
+                "arguments": "{\"reasoning\":\"The state is positive and increasing (momentum is positive), so a PD controller with negative gains is used to drive the state back to the target and dampen the oscillation.\",\"expr\":\"-1.5 * (current_x - target_x) - 1.5 * (current_x - previous_x)\"}",
+                "name": "set_control_input"
+              },
+              "type": "function",
+              "extra_content": {
+                "google": {
+                  "thought_signature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+                }
+              }
+            }
+          ],
+          "extra_content": {
+            "google": {
+              "thought": true
+            }
+          }
+        }
+      }
+    ],
+    "created": 1785869102,
+    "model": "gemma-4-31b-it",
+    "object": "chat.completion",
+    "moderation": null,
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 85,
+      "prompt_tokens": 456,
+      "total_tokens": 1433,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": null
+    }
+  },
+  "cost_usd": null
+}

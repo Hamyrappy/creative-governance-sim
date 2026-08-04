@@ -28,6 +28,7 @@ def default_prompt_assembler(view: Observation, space: ActionSpace, scratch: dic
     for v in space.verbs:
         rng = f" in range {v.value_range}" if v.value_range else ""
         verb_lines.append(f"  - {v.name}{rng}: {v.description}")
+    mandate = scratch.get("_objective")
     system = (
         "You are a regent (controller) governing a dynamical system. At each decision you choose a "
         "control law for one or more levers. A law is ONE Python expression over the allowed context "
@@ -35,7 +36,8 @@ def default_prompt_assembler(view: Observation, space: ActionSpace, scratch: dic
         "and clips the result into the lever's range.\n\n"
         "Levers you may set:\n" + "\n".join(verb_lines) + "\n\n"
         f"Allowed context variables (use ONLY these): {space.context_vars}\n\n"
-        "Respond by CALLING one of the provided tools with {\"expr\": \"<expression>\"} (preferred), "
+        + (f"{mandate}\n\n" if mandate else "")
+        + "Respond by CALLING one of the provided tools with {\"expr\": \"<expression>\"} (preferred), "
         "or, if you cannot call a tool, return strict JSON: {\"verb\": \"<lever>\", \"expr\": \"<expression>\"}."
     )
     obs = ", ".join(f"{k}={v:.6g}" for k, v in view.vars.items())

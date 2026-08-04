@@ -142,6 +142,10 @@ class Runner:
         per_regent: dict[str, tuple] = {}
         rollable = isinstance(system, RollableSystem)
         for rid, regent in exp.regents.items():
+            # The regent's MANDATE. Publishing it is not a courtesy: the calibrated references it
+            # is compared against were exhaustively optimized for this objective, so a regent that
+            # has to guess it is being scored on a different task from its rivals.
+            scratch[rid]["_objective"] = exp.objectives[rid].describe()
             view = system.observe(rid)
             space = exp.action_interface.action_space(system, rid)
             space = self._scope(space, exp.jurisdictions.get(rid))

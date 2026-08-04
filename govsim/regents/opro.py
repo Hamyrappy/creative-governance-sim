@@ -76,7 +76,8 @@ class OPRORegent(Regent):
         if len(archive) > self.archive_cap:
             del archive[: len(archive) - self.archive_cap]
 
-    def _meta_prompt(self, view: Observation, space: ActionSpace, archive: list[tuple[str, float]]) -> list[dict]:
+    def _meta_prompt(self, view: Observation, space: ActionSpace, archive: list[tuple[str, float]],
+                     mandate: str | None = None) -> list[dict]:
         system = (
             "You are optimizing a single control law (ONE Python expression) for a dynamical system. "
             f"The law sets the lever '{self.verb}'; it is re-evaluated every step and clipped to range. "
@@ -103,7 +104,7 @@ class OPRORegent(Regent):
                 archive.append((pending, float(realized)))
                 self._trim(archive)
 
-        messages = self._meta_prompt(view, space, archive)
+        messages = self._meta_prompt(view, space, archive, scratch.get("_objective"))
         opt: dict[str, Any] = {}
         if self.max_tokens is not None:
             opt["max_tokens"] = self.max_tokens

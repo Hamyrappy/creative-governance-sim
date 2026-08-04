@@ -45,6 +45,15 @@ class StabilizationLoss(Objective):
         self.post_shock_step = post_shock_step
         self.step_key = step_key
 
+    def describe(self) -> str:
+        return (
+            "YOUR MANDATE. Drive the state to its target and keep it there, while keeping control "
+            f"effort moderate. The score is mean squared deviation from target PLUS {self.lam} "
+            "times mean squared control effort, averaged over the horizon. Lower is better. Both "
+            "terms matter: a controller that holds the target with violent control is not better "
+            "than one that holds it gently."
+        )
+
     def _mse_msu(self, rows: Trajectory) -> tuple[float, float]:
         if not rows:
             return 0.0, 0.0
@@ -114,6 +123,20 @@ class EpidemicLoss(Objective):
         self.cost_key = cost_key
         self.post_shock_step = post_shock_step
         self.step_key = step_key
+
+    def describe(self) -> str:
+        return (
+            "YOUR MANDATE. Minimize total infection burden PLUS "
+            f"{self.lam} times total intervention cost, summed over the whole horizon.\n"
+            "  - infection burden accrues as the infected share I of the population, every step;\n"
+            "  - intervention cost accrues on the POLICY YOU SET, not on its effect: you are "
+            "billed for the lockdown you order whether or not anyone complies, and likewise for "
+            "vaccination effort;\n"
+            f"  - so a unit of lockdown is worth ordering only while it prevents more than "
+            f"{self.lam} units of infection.\n"
+            "Lower total is better. Both terms matter: a policy that eliminates infection at "
+            "unlimited cost and a policy that spends nothing while infection runs are both bad."
+        )
 
     def _burden_cost(self, rows: Trajectory) -> tuple[float, float]:
         """(infection burden, intervention cost) over ``rows``.
@@ -198,6 +221,9 @@ class CompanyProfit(Objective):
 
     def __init__(self, profit_key: str = "profit") -> None:
         self.profit_key = profit_key
+
+    def describe(self) -> str:
+        return ("YOUR MANDATE. Maximize mean profit per step over the horizon. Higher is better.")
 
     def evaluate(self, trajectory: Trajectory, regent_id: str = "regent:0") -> float:
         if not trajectory:

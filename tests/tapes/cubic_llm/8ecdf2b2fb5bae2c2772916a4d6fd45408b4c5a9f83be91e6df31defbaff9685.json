@@ -1,0 +1,70 @@
+{
+  "text": "<thought>*   Target: `target_x = 0`\n    *   Current state: `current_x = 0`\n    *   Current control: `current_u = 0`\n    *   Goal: Keep `current_x` at `target_x` with minimal control effort.\n    *   System dynamics: Unknown, but typically a linear or near-linear system.\n    *   Control law: A Python expression over `step`, `current_x`, `previous_x`, `current_u`, `target_x`.\n\n    *   A simple proportional controller: `u = -k * (current_x - target_x)`.\n    *   A proportional-derivative controller: `u = -k_p * (current_x - target_x) - k_d * (current_x - previous_x)`.\n    *   Since the system is currently at the target, `u = 0` is a good starting point, but we need a law that handles deviations.\n\n    *   Let's try a PD controller.\n    *   `expr = -1.0 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n    *   Wait, if `current_x` is already 0 and `target_x` is 0, this will result in 0.\n    *   Let's refine the gains. A common starting point for stability is a moderate proportional gain.\n\n    *   `expr = -1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n\n    *   `current_x` is 0, `target_x` is 0, `previous_x` is 0.\n    *   `expr = -1.5 * (0 - 0) - 0.5 * (0 - 0) = 0`.\n    *   This is stable and minimizes control effort.\n\n    *   `set_control_input` range: (-2.0, 2.0).\n    *   The expression `-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)` is likely to stay within this range for small deviations.\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n    *   `reasoning`: \"Implementing a PD controller to drive the state to the target and dampen oscillations.\"</thought>",
+  "tool_calls": [
+    {
+      "id": "41o8c0dp",
+      "name": "set_control_input",
+      "arguments": "{\"reasoning\":\"Implementing a PD controller to drive the state to the target and dampen oscillations.\",\"expr\":\"-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)\"}"
+    }
+  ],
+  "model": "gemma-4-31b-it",
+  "usage": {
+    "completion_tokens": 67,
+    "prompt_tokens": 433,
+    "total_tokens": 1065,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+  },
+  "raw": {
+    "id": "4TJyauyVOar0xs0PlNW1sQI",
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "<thought>*   Target: `target_x = 0`\n    *   Current state: `current_x = 0`\n    *   Current control: `current_u = 0`\n    *   Goal: Keep `current_x` at `target_x` with minimal control effort.\n    *   System dynamics: Unknown, but typically a linear or near-linear system.\n    *   Control law: A Python expression over `step`, `current_x`, `previous_x`, `current_u`, `target_x`.\n\n    *   A simple proportional controller: `u = -k * (current_x - target_x)`.\n    *   A proportional-derivative controller: `u = -k_p * (current_x - target_x) - k_d * (current_x - previous_x)`.\n    *   Since the system is currently at the target, `u = 0` is a good starting point, but we need a law that handles deviations.\n\n    *   Let's try a PD controller.\n    *   `expr = -1.0 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n    *   Wait, if `current_x` is already 0 and `target_x` is 0, this will result in 0.\n    *   Let's refine the gains. A common starting point for stability is a moderate proportional gain.\n\n    *   `expr = -1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n\n    *   `current_x` is 0, `target_x` is 0, `previous_x` is 0.\n    *   `expr = -1.5 * (0 - 0) - 0.5 * (0 - 0) = 0`.\n    *   This is stable and minimizes control effort.\n\n    *   `set_control_input` range: (-2.0, 2.0).\n    *   The expression `-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)` is likely to stay within this range for small deviations.\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n    *   `reasoning`: \"Implementing a PD controller to drive the state to the target and dampen oscillations.\"</thought>",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [
+            {
+              "id": "41o8c0dp",
+              "function": {
+                "arguments": "{\"reasoning\":\"Implementing a PD controller to drive the state to the target and dampen oscillations.\",\"expr\":\"-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)\"}",
+                "name": "set_control_input"
+              },
+              "type": "function",
+              "extra_content": {
+                "google": {
+                  "thought_signature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+                }
+              }
+            }
+          ],
+          "extra_content": {
+            "google": {
+              "thought": true
+            }
+          }
+        }
+      }
+    ],
+    "created": 1785869044,
+    "model": "gemma-4-31b-it",
+    "object": "chat.completion",
+    "moderation": null,
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 67,
+      "prompt_tokens": 433,
+      "total_tokens": 1065,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": null
+    }
+  },
+  "cost_usd": null
+}

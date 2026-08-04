@@ -1,0 +1,70 @@
+{
+  "text": "<thought>*   `step`: 20\n    *   `current_x`: 0.046203\n    *   `previous_x`: 0.00947331\n    *   `current_u`: -0.0298446\n    *   `target_x`: 0\n\n    *   `current_x` is positive (0.046203) and increasing (`current_x` > `previous_x`).\n    *   `target_x` is 0.\n    *   The state is moving away from the target.\n    *   The current control `current_u` is slightly negative (-0.0298), but not enough to stop the increase.\n\n    *   The system seems to be an integrator or a similar linear system.\n    *   Let's estimate the derivative: $\\dot{x} \\approx current\\_x - previous\\_x = 0.046203 - 0.00947331 \\approx 0.0367$.\n    *   To bring $x$ back to 0, we need a negative control input.\n    *   A simple PD (Proportional-Derivative) controller: $u = -K_p(x - x_{target}) - K_d(\\dot{x})$.\n    *   $u = -K_p(current\\_x - target\\_x) - K_d(current\\_x - previous\\_x)$.\n\n    *   $K_p$ should be large enough to pull it back, but not so large as to cause oscillation.\n    *   $K_d$ should provide damping.\n    *   Let's try $K_p = 1.0$ and $K_d = 0.5$.\n    *   $u = -1.0 * (0.046203 - 0) - 0.5 * (0.046203 - 0.00947331)$\n    *   $u = -0.046203 - 0.5 * (0.03673) = -0.046203 - 0.018365 = -0.064568$.\n\n    *   The current $u$ is -0.0298. The state is still increasing. We need a stronger negative push.\n    *   Let's use a slightly more aggressive $K_p$ to ensure it returns to 0 quickly.\n    *   $u = -2.0 * (current\\_x - target\\_x) - 1.0 * (current\\_x - previous\\_x)$.\n\n    *   `expr`: `-2.0 * (current_x - target_x) - 1.0 * (current_x - previous_x)`\n    *   Check variables: `current_x`, `target_x`, `previous_x` are all allowed.\n\n    *   $u = -2.0 * (0.0462) - 1.0 * (0.0367) = -0.0924 - 0.0367 = -0.1291$.\n    *   This is well within the range (-2.0, 2.0).\n\n    *   Wait, if the system is $x_{t+1} = x_t + u_t$, then $u = -x$ would make $x_{t+1} = 0$.\n    *   If the system is $x_{t+1} = x_t + \\dot{x}_t + u_t$, then $u = -x_t - (x_t - x_{t-1})$ would be better.\n    *   Let's stick with a robust PD-like controller.\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n    *   Actually, let's go with a slightly stronger proportional gain to ensure convergence.\n    *   `expr`: `-2.0 * (current_x - target_x) - 1.0 * (current_x - previous_x)`</thought>",
+  "tool_calls": [
+    {
+      "id": "rgykt09t",
+      "name": "set_control_input",
+      "arguments": "{\"expr\":\"-2.0 * (current_x - target_x) - 1.0 * (current_x - previous_x)\",\"reasoning\":\"The state is positive and increasing, moving away from the target of 0. A PD controller is used to provide both a restorative force (proportional to the error) and damping (proportional to the rate of change) to drive the state back to the target and minimize overshoot.\"}"
+    }
+  ],
+  "model": "gemma-4-31b-it",
+  "usage": {
+    "completion_tokens": 109,
+    "prompt_tokens": 459,
+    "total_tokens": 1528,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+  },
+  "raw": {
+    "id": "9DJyaqLCD6ijvdIPwIew6A0",
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "<thought>*   `step`: 20\n    *   `current_x`: 0.046203\n    *   `previous_x`: 0.00947331\n    *   `current_u`: -0.0298446\n    *   `target_x`: 0\n\n    *   `current_x` is positive (0.046203) and increasing (`current_x` > `previous_x`).\n    *   `target_x` is 0.\n    *   The state is moving away from the target.\n    *   The current control `current_u` is slightly negative (-0.0298), but not enough to stop the increase.\n\n    *   The system seems to be an integrator or a similar linear system.\n    *   Let's estimate the derivative: $\\dot{x} \\approx current\\_x - previous\\_x = 0.046203 - 0.00947331 \\approx 0.0367$.\n    *   To bring $x$ back to 0, we need a negative control input.\n    *   A simple PD (Proportional-Derivative) controller: $u = -K_p(x - x_{target}) - K_d(\\dot{x})$.\n    *   $u = -K_p(current\\_x - target\\_x) - K_d(current\\_x - previous\\_x)$.\n\n    *   $K_p$ should be large enough to pull it back, but not so large as to cause oscillation.\n    *   $K_d$ should provide damping.\n    *   Let's try $K_p = 1.0$ and $K_d = 0.5$.\n    *   $u = -1.0 * (0.046203 - 0) - 0.5 * (0.046203 - 0.00947331)$\n    *   $u = -0.046203 - 0.5 * (0.03673) = -0.046203 - 0.018365 = -0.064568$.\n\n    *   The current $u$ is -0.0298. The state is still increasing. We need a stronger negative push.\n    *   Let's use a slightly more aggressive $K_p$ to ensure it returns to 0 quickly.\n    *   $u = -2.0 * (current\\_x - target\\_x) - 1.0 * (current\\_x - previous\\_x)$.\n\n    *   `expr`: `-2.0 * (current_x - target_x) - 1.0 * (current_x - previous_x)`\n    *   Check variables: `current_x`, `target_x`, `previous_x` are all allowed.\n\n    *   $u = -2.0 * (0.0462) - 1.0 * (0.0367) = -0.0924 - 0.0367 = -0.1291$.\n    *   This is well within the range (-2.0, 2.0).\n\n    *   Wait, if the system is $x_{t+1} = x_t + u_t$, then $u = -x$ would make $x_{t+1} = 0$.\n    *   If the system is $x_{t+1} = x_t + \\dot{x}_t + u_t$, then $u = -x_t - (x_t - x_{t-1})$ would be better.\n    *   Let's stick with a robust PD-like controller.\n\n    *   `expr`: `-1.5 * (current_x - target_x) - 0.5 * (current_x - previous_x)`\n    *   Actually, let's go with a slightly stronger proportional gain to ensure convergence.\n    *   `expr`: `-2.0 * (current_x - target_x) - 1.0 * (current_x - previous_x)`</thought>",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [
+            {
+              "id": "rgykt09t",
+              "function": {
+                "arguments": "{\"expr\":\"-2.0 * (current_x - target_x) - 1.0 * (current_x - previous_x)\",\"reasoning\":\"The state is positive and increasing, moving away from the target of 0. A PD controller is used to provide both a restorative force (proportional to the error) and damping (proportional to the rate of change) to drive the state back to the target and minimize overshoot.\"}",
+                "name": "set_control_input"
+              },
+              "type": "function",
+              "extra_content": {
+                "google": {
+                  "thought_signature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+                }
+              }
+            }
+          ],
+          "extra_content": {
+            "google": {
+              "thought": true
+            }
+          }
+        }
+      }
+    ],
+    "created": 1785869074,
+    "model": "gemma-4-31b-it",
+    "object": "chat.completion",
+    "moderation": null,
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 109,
+      "prompt_tokens": 459,
+      "total_tokens": 1528,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": null
+    }
+  },
+  "cost_usd": null
+}
