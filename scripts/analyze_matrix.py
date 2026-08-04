@@ -266,7 +266,6 @@ def main() -> int:
         holm = holm_bonferroni({k: v["p"] for k, v in eff.items()})
         for k in eff:
             eff[k].update(holm[k])
-            eff[k].pop("per_seed", None)
         factorial = eff
         print(f"\n=== factorial attribution on {METRIC} (negative effect = the factor HELPED) ===")
         print(f"{'term':<26} {'ord':>3} {'effect':>9} {'95% CI':>22} {'p':>7} {'p_holm':>8}  sig")
@@ -284,8 +283,22 @@ def main() -> int:
     if len(cells) >= 2:
         base = cells.get(tuple(False for _ in FACTORS))
         if base:
-            ref = {s: frozen[s] for s in base if s in frozen}
-            diffs = [base[s] - ref[s] for s in sorted(set(base) & set(ref))]
+            # Compute the MDE from the variance of a FACTORIAL CONTRAST, not from
+            # (arm - best_fixed). Those are different quantities: the contrast differences two arms
+            # that ran the same worlds AND received nearly the same prompts, so most of the seed
+            # variance cancels; the arm-vs-reference difference retains it. Using the latter
+            # overstated the detectable effect by roughly 2x, which is conservative — it can only
+            # cause us to under-claim — but a power statement that is wrong in the safe direction
+            # is still wrong, and it understates the design's own resolving power.
+            if factorial:
+                per_seed = [v for k, v in factorial.items()
+                            if k in FACTORS and v.get("per_seed")]
+                diffs = per_seed[0]["per_seed"] if per_seed else []
+            else:
+                diffs = []
+            if not diffs:  # no factorial yet: fall back, and say so in the label
+                ref = {s: frozen[s] for s in base if s in frozen}
+                diffs = [base[s] - ref[s] for s in sorted(set(base) & set(ref))]
             n_terms = len(factorial) if factorial else 7
             mde = minimum_detectable_effect(diffs, n_comparisons=n_terms)
             budget = fm - om
@@ -368,7 +381,12 @@ def main() -> int:
             "model": args.model, "metric": METRIC,
             "anchors": {"frozen_mean": fm, "oracle_mean": om,
                         "headroom": (fm / om) if om else None},
-            "arms": table, "factorial": factorial, "contrasts": contrasts, "power": mde,
+            # per_seed vectors are kept in memory for the MDE and stripped from the artifact;
+            # they are large, and everything downstream reads the summarised terms.
+            "arms": table,
+            "factorial": ({k: {kk: vv for kk, vv in v.items() if kk != "per_seed"}
+                           for k, v in factorial.items()} if factorial else None),
+            "contrasts": contrasts, "power": mde,
             "action_rates": action_rates,
             "cross_model": cross,
         }, indent=2), encoding="utf-8")
