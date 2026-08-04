@@ -192,6 +192,80 @@ def calibrate_families(
     return best_name, results[best_name]
 
 
+def calibrate_switching(
+    families: dict[str, PolicyFamily],
+    *,
+    switch_step: int,
+    system_factory: Callable[[int], Any],
+    action_interface: Any,
+    objective: Objective,
+    schedule: Schedule,
+    seeds: list[int],
+    horizon: int,
+    metric: str,
+    top_k: int = 8,
+) -> tuple[dict[str, str], dict[str, str], float]:
+    """The clairvoyant ADAPTOR: jointly search ``(pre-break law, post-break law)`` pairs.
+
+    Composing this reference from two *separately* calibrated legs — the law that is best on a
+    stationary pre-break world, followed by the law that is best on the post-break window — is
+    wrong, and wrong in a way that shows up as a contradiction rather than as a small error. The
+    pre-break leg determines the state the post-break world is entered in (in an epidemic, how much
+    of the population is still susceptible), so a leg chosen without reference to the break can
+    hand the second leg a worse position than a mediocre law would have. We found this when the
+    composed "clairvoyant" reference scored *worse* than the best fixed law in a harsher regime,
+    which is impossible for a genuine upper bound: switching subsumes not switching.
+
+    So the pair is searched jointly. Evaluating every pair is quadratic in the vocabulary, so we
+    shortlist the ``top_k`` best pre-legs by full-horizon performance and search every post-leg
+    against each. That is a heuristic, and it is a *conservative* one: any pair it misses would only
+    make the reference stronger, so a headroom estimate from it understates rather than overstates
+    what adaptation is worth.
+
+    Returns ``(pre_laws, post_laws, loss)`` as ``{verb: expression}`` maps.
+    """
+    from govsim.regents.baselines import SwitchingRegent
+
+    common = dict(action_interface=action_interface, objective=objective, schedule=schedule,
+                  seeds=seeds, horizon=horizon)
+
+    def _score_pair(pre: dict[str, str], post: dict[str, str], verb: str) -> float:
+        exp = Experiment(
+            name="calib:switching", system_factory=system_factory,
+            action_interface=action_interface,
+            regents={"regent:0": SwitchingRegent(verb, pre, post, switch_step)},
+            objectives={"regent:0": objective}, schedule=schedule, seeds=seeds, horizon=horizon,
+            hypothesis=Hypothesis(id="calibration", claim="clairvoyant adaptor reference",
+                                  baseline="the same vocabulary without the switch",
+                                  primary_metric=metric),
+        )
+        vals = [r.components["regent:0"][metric] for r in Runner().run(exp)]
+        if any(not math.isfinite(v) for v in vals):
+            return float("inf")
+        return statistics.mean(vals)
+
+    # Shortlist pre-legs by how well each does as a *fixed* law on the broken world.
+    shortlist: list[tuple[PolicyFamily, dict[str, float], float]] = []
+    for fam in families.values():
+        res = calibrate(fam, system_factory=system_factory, metric=metric, **common)
+        for params, loss in res.all_losses[:top_k]:
+            shortlist.append((fam, params, loss))
+    shortlist.sort(key=lambda t: t[2])
+    shortlist = shortlist[:top_k]
+
+    best: tuple[dict[str, str], dict[str, str], float] | None = None
+    for pre_fam, pre_params, _ in shortlist:
+        pre_laws = pre_fam.render_all(pre_params)
+        for post_fam in families.values():
+            for post_params in post_fam.combinations():
+                post_laws = post_fam.render_all(post_params)
+                loss = _score_pair(pre_laws, post_laws, pre_fam.verb)
+                if best is None or loss < best[2]:
+                    best = (pre_laws, post_laws, loss)
+    assert best is not None
+    return best
+
+
 def normalized_regret(arm_loss: float, frozen_loss: float, oracle_loss: float) -> float:
     """``R = (arm − oracle) / (frozen − oracle)``: 0 = clairvoyant, 1 = never adapted.
 

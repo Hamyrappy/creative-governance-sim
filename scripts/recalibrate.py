@@ -20,7 +20,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from govsim.analysis import PolicyFamily, calibrate, calibrate_families, headroom
+from govsim.analysis import (
+    PolicyFamily, calibrate, calibrate_families, calibrate_switching, headroom,
+)
 from govsim.analysis.calibration import _score_expr
 from govsim.core.schedule import EveryN
 from govsim.domains.scalar import EpidemicLoss, Lever, ScalarLeverInterface, StabilizationLoss
@@ -94,6 +96,15 @@ def _regime_spec(name: str) -> dict:
             schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), horizon=R.EPIDEMIC_HORIZON,
             shock_step=R.EPIDEMIC_SHOCK_STEP,
         )
+    if name == "epidemic_severe":
+        return dict(
+            family=EPIDEMIC_FAMILY, families=EPIDEMIC_FAMILIES, iface=EPIDEMIC_IFACE,
+            pre=R.sir_factory(R.EPIDEMIC_PRE), shocked=R.sir_factory(R.EPIDEMIC_SEVERE_SHOCKED),
+            objective=EpidemicLoss(lam=R.EPIDEMIC_SEVERE_LAMBDA,
+                                   post_shock_step=R.EPIDEMIC_SHOCK_STEP),
+            schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY), horizon=R.EPIDEMIC_HORIZON,
+            shock_step=R.EPIDEMIC_SHOCK_STEP,
+        )
     if name == "scalar":
         return dict(
             family=SCALAR_FAMILY, families={"cubic_gain": SCALAR_FAMILY}, iface=SCALAR_IFACE,
@@ -145,18 +156,28 @@ def run(name: str, seeds: list[int]) -> dict:
     fl_post = _score_expr(frozen.best_laws, metric="post_loss", **skw)
     ol_post = _score_expr(oracle.best_laws, metric="post_loss", **skw)
 
-    # The clairvoyant adaptor, scored the same way as everything else.
-    sl = _score_switching(frozen.best_laws, oracle.best_laws, s, seeds, metric="loss")
+    # The clairvoyant adaptor: (pre-leg, post-leg) searched JOINTLY, because the pre-leg decides
+    # the state the post-leg inherits. Composing it from two separately-optimal legs produced a
+    # "clairvoyant" reference that a fixed law could beat — impossible for a real upper bound.
+    pre_laws, post_laws, sl = calibrate_switching(
+        s["families"], switch_step=s["shock_step"], system_factory=s["shocked"],
+        action_interface=iface, objective=obj, schedule=sched, seeds=seeds, horizon=hz,
+        metric="loss")
 
     h_full = headroom(fl, sl)
     h_vs_fixed = headroom(bl, sl)
     print(f"  frozen      : {frozen.best_laws}")
     print(f"  best_fixed  : {best_fixed.best_laws}   (hindsight, whole horizon, '{best_fixed_name}')")
     print(f"  oracle(post): {oracle.best_laws}")
-    print(f"  switching   : [{frozen.best_expr}]  ->  [{oracle.best_expr}]  at t={s['shock_step']}")
+    print(f"  switching   : {pre_laws}
+                ->  {post_laws}   at t={s['shock_step']}")
     print(f"  full-horizon loss: frozen={fl:.4f}  best_fixed={bl:.4f}  switching={sl:.4f}")
     print(f"  headroom  frozen/switching = {h_full:.3f}x   best_fixed/switching = {h_vs_fixed:.3f}x")
-    if h_vs_fixed < 1.05:
+    if h_vs_fixed < 1.0:
+        print("  [!!] the clairvoyant adaptor is WORSE than the best fixed law. That is impossible "
+              "for a genuine upper bound (switching subsumes not-switching), so the switching "
+              "search is under-powered — widen top_k or the vocabulary before trusting this cell.")
+    elif h_vs_fixed < 1.05:
         print("  [!] the best FIXED law nearly matches the clairvoyant adaptor — adaptation buys "
               "almost nothing here even over the full horizon")
     return {
@@ -168,8 +189,8 @@ def run(name: str, seeds: list[int]) -> dict:
                        "params": best_fixed.best_params, "loss": bl, "family": best_fixed_name},
         "oracle": {"expr": oracle.best_expr, "laws": oracle.best_laws,
                    "params": oracle.best_params, "post_loss": ol_post},
-        "switching": {"pre_expr": frozen.best_expr, "post_expr": oracle.best_expr,
-                      "pre_laws": frozen.best_laws, "post_laws": oracle.best_laws, "loss": sl},
+        "switching": {"pre_expr": pre_laws[fam.verb], "post_expr": post_laws[fam.verb],
+                      "pre_laws": pre_laws, "post_laws": post_laws, "loss": sl},
         "headroom": h_full,
         "headroom_vs_best_fixed": h_vs_fixed,
         "provenance": {
@@ -207,7 +228,7 @@ def _score_switching(pre_expr, post_expr, s: dict, seeds: list[int], metric: str
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--seeds", type=int, default=12)
-    ap.add_argument("--regimes", nargs="+", default=["epidemic", "scalar"])
+    ap.add_argument("--regimes", nargs="+", default=["epidemic", "epidemic_severe", "scalar"])
     args = ap.parse_args()
     seeds = list(range(args.seeds))
 

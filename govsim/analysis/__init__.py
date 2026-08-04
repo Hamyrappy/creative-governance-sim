@@ -18,6 +18,7 @@ from govsim.analysis.calibration import (
     PolicyFamily,
     calibrate,
     calibrate_families,
+    calibrate_switching,
     headroom,
     normalized_regret,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "PolicyFamily",
     "calibrate",
     "calibrate_families",
+    "calibrate_switching",
     "headroom",
     "normalized_regret",
     "bootstrap_ci",

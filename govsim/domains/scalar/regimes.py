@@ -65,6 +65,23 @@ EPIDEMIC_SHOCKED: dict[str, Any] = dict(
 )
 
 # ---------------------------------------------------------------------------------------------
+# EPIDEMIC-SEVERE — a second, harsher point on the SAME axis
+# ---------------------------------------------------------------------------------------------
+# Chosen a priori from the headroom surface (``scripts/make_figures.py --surface``, computed before
+# any treatment arm ran): total instrument failure at a higher price on intervention. It exists for
+# one purpose, and it is a check on the diagnostic rather than a second chance at a result — if
+# measured headroom means what this project claims, then the measured advantage of an adaptive
+# regent should be LARGER here, and by roughly the ratio the headroom predicts. A diagnostic that
+# does not track the thing it is supposed to bound is not a diagnostic.
+EPIDEMIC_SEVERE_LAMBDA = 0.15
+EPIDEMIC_SEVERE_SHOCKED: dict[str, Any] = dict(
+    EPIDEMIC_PRE,
+    shock_step=EPIDEMIC_SHOCK_STEP,
+    shock_factor=1.0,
+    shock_params={"lockdown_efficacy": 0.0},
+)
+
+# ---------------------------------------------------------------------------------------------
 # SCALAR — the near-null negative control
 # ---------------------------------------------------------------------------------------------
 SCALAR_SHOCK_STEP = 100
