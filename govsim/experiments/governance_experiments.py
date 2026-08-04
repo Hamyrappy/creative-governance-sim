@@ -14,14 +14,21 @@ policy stays near-optimal. No controller could have shown an effect there. An **
 is not absorbed, because the observable no longer says what the lever is worth. The scalar arms
 below are kept as a declared negative control.
 
-**Four calibrated references**, all by exhaustive search over the same policy vocabulary
-(``scripts/recalibrate.py`` → ``docs_gates/calibration.json``), so they differ only in what they
-were allowed to know:
+**Four calibrated references**, all by exhaustive search over the same policy vocabulary — which
+spans BOTH instruments, because the arms can use both and a reference confined to one is not a
+weaker opponent but an unfair one. The laws themselves live in the generated artifact
+(``scripts/recalibrate.py`` → ``docs_gates/calibration.json``) and are read from it rather than
+written here, so this docstring cannot drift out of step with what actually ran:
 
-    frozen      ``0.9 if I > 0.01 else 0.0``   optimal before the break, held through it   (R = 1)
-    best_fixed  ``0.9 if I > 0.25 else 0.0``   best FIXED law over the whole broken horizon,
-                                               chosen in hindsight — the non-adaptive ceiling
-    switching   frozen → best-post, at t=100   the clairvoyant ADAPTOR                     (R = 0)
+    frozen      optimal before the break, held unchanged through it                        (R = 1)
+    best_fixed  the best FIXED law over the whole broken horizon, chosen in hindsight —
+                the non-adaptive ceiling, and what "the regent adapted" has to beat
+    oracle      the best fixed law for the post-break window (reported, not targeted)
+    switching   the (pre-leg, post-leg) pair searched JOINTLY — the clairvoyant ADAPTOR    (R = 0)
+
+The switching pair is searched jointly rather than composed from two separately-optimal legs,
+because the pre-break leg decides the state the post-break leg inherits. Composed, it was beaten by
+a fixed law in the harsher regime — impossible for a real upper bound.
 
 **Why the metric is the full horizon and not the post-break window.** Scoring only the post-break
 window rewards *passivity*: a policy that never intervenes is wrong before the break and, because
@@ -53,7 +60,7 @@ import os
 from govsim.core.experiment import CreativityMetric, Experiment, Hypothesis
 from govsim.core.harness import Harness
 from govsim.core.llm import CachingReplayClient, OpenAICompatClient
-from govsim.core.regent import ScriptedRegent
+from govsim.core.regent import MultiScriptedRegent, ScriptedRegent
 from govsim.core.schedule import EveryN
 from govsim.domains.scalar import (
     EpidemicLoss,
@@ -166,7 +173,7 @@ def epidemic_frozen() -> Experiment:
     """R = 1. The threshold institution that was optimal before the break, held through it."""
     return _epidemic_experiment(
         "epidemic_frozen",
-        ScriptedRegent(verb="set_lockdown", expr=R.reference_expr("epidemic", "frozen")),
+        MultiScriptedRegent(R.calibration()["epidemic"]["frozen"]["laws"]),
         Harness([]),
         claim="this IS the named non-adaptive baseline: the pre-shock-optimal threshold institution",
         falsification="n/a — reference arm",
@@ -182,7 +189,7 @@ def epidemic_best_fixed() -> Experiment:
     changed its behaviour, and no arm can reach it by being passive."""
     return _epidemic_experiment(
         "epidemic_best_fixed",
-        ScriptedRegent(verb="set_lockdown", expr=R.reference_expr("epidemic", "best_fixed")),
+        MultiScriptedRegent(R.calibration()["epidemic"]["best_fixed"]["laws"]),
         Harness([]),
         claim="this IS the non-adaptive ceiling: the best fixed law in hindsight",
         falsification="n/a — reference arm",
@@ -194,10 +201,10 @@ def epidemic_best_fixed() -> Experiment:
 def epidemic_switching() -> Experiment:
     """R = 0. The clairvoyant ADAPTOR: pre-break optimum until the break, post-break optimum after.
     It is handed both laws and the exact switch time, none of which any other arm can see."""
-    pre, post, step = R.switching_reference("epidemic")
+    d = R.calibration()["epidemic"]["switching"]
     return _epidemic_experiment(
         "epidemic_switching",
-        SwitchingRegent("set_lockdown", pre, post, step),
+        SwitchingRegent("set_lockdown", d["pre_laws"], d["post_laws"], R.EPIDEMIC_SHOCK_STEP),
         Harness([]),
         claim="this IS the clairvoyant upper bound: the optimal policy switch at the exact break",
         falsification="n/a — reference arm",
@@ -210,7 +217,7 @@ def epidemic_oracle() -> Experiment:
     """R = 0. Clairvoyant: the same policy family, re-optimized with the break already known."""
     return _epidemic_experiment(
         "epidemic_oracle",
-        ScriptedRegent(verb="set_lockdown", expr=R.reference_expr("epidemic", "oracle")),
+        MultiScriptedRegent(R.calibration()["epidemic"]["oracle"]["laws"]),
         Harness([]),
         claim="this IS the clairvoyant upper bound: the post-shock-optimal policy in the same family",
         falsification="n/a — reference arm",
@@ -300,6 +307,97 @@ def epidemic_opro() -> Experiment:
         falsification="the harnessed regent does NOT lower post_loss relative to this arm",
         metadata={"role": "reference:opro", "budget_matched": True},
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# The SEVERE severity point — a check on the diagnostic, not a second shot at a result
+# ---------------------------------------------------------------------------------------------
+# Taken a priori from the headroom surface computed before any treatment arm ran: total instrument
+# failure at a higher price on intervention. If measured headroom bounds what adaptation is worth,
+# then the measured advantage of an adaptive regent should be LARGER here, and roughly in the ratio
+# the headroom predicts. A bound that does not track the thing it bounds is not a bound.
+
+_SEVERE_CLAIM = (
+    "the advantage an adaptive regent shows over the non-adaptive ceiling scales with the measured "
+    "adaptation headroom of the regime"
+)
+
+
+def _severe_experiment(name: str, regent, harness: Harness, *, claim: str = _SEVERE_CLAIM,
+                       metadata: dict | None = None) -> Experiment:
+    return Experiment(
+        name=name,
+        system_factory=R.sir_factory(R.EPIDEMIC_SEVERE_SHOCKED),
+        action_interface=_iface(),
+        regents={"regent:0": regent},
+        objectives={"regent:0": EpidemicLoss(lam=R.EPIDEMIC_SEVERE_LAMBDA,
+                                             post_shock_step=R.EPIDEMIC_SHOCK_STEP)},
+        harness=harness,
+        schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY),
+        seeds=list(SEEDS),
+        horizon=R.EPIDEMIC_HORIZON,
+        hypothesis=Hypothesis(
+            id="H5-headroom-tracks-effect",
+            claim=claim,
+            baseline="the same arms on the milder `epidemic_*` regime; best_fixed anchors R=1",
+            primary_metric="loss",
+            falsification="the regent's advantage over best_fixed does NOT increase with headroom "
+                          "across the two severity points",
+        ),
+        metadata={"regime": "epidemic_severe",
+                  "decisions_per_run": R.EPIDEMIC_HORIZON // R.EPIDEMIC_DECIDE_EVERY,
+                  **(metadata or {})},
+    )
+
+
+@register("severe_frozen")
+def severe_frozen() -> Experiment:
+    return _severe_experiment(
+        "severe_frozen",
+        MultiScriptedRegent(R.calibration()["epidemic_severe"]["frozen"]["laws"]),
+        Harness([]), claim="the pre-break-optimal rule, held through a total instrument failure",
+        metadata={"role": "reference:frozen"})
+
+
+@register("severe_best_fixed")
+def severe_best_fixed() -> Experiment:
+    return _severe_experiment(
+        "severe_best_fixed",
+        MultiScriptedRegent(R.calibration()["epidemic_severe"]["best_fixed"]["laws"]),
+        Harness([]), claim="the non-adaptive ceiling for the severe regime",
+        metadata={"role": "reference:best_fixed"})
+
+
+@register("severe_switching")
+def severe_switching() -> Experiment:
+    d = R.calibration()["epidemic_severe"]["switching"]
+    return _severe_experiment(
+        "severe_switching",
+        SwitchingRegent("set_lockdown", d["pre_laws"], d["post_laws"],
+                        R.EPIDEMIC_SHOCK_STEP),
+        Harness([]), claim="the clairvoyant adaptor for the severe regime",
+        metadata={"role": "reference:switching", "normalized_regret": 0.0})
+
+
+def _register_severe_treatments() -> None:
+    """The same three rungs as the cross-model panel: no harness / outcome only / all three."""
+    rungs = {"bare": [], "outcome": ["outcome"], "trace_outcome_memory": ["trace", "outcome", "memory"]}
+    for suffix, on in rungs.items():
+        exp_name = f"severe_llm_{suffix}"
+
+        def make(on=tuple(on), exp_name=exp_name) -> Experiment:
+            max_tokens, extra = _llm_opts()
+            return _severe_experiment(
+                exp_name,
+                LLMRegent(llm=_client(), model=_model(), temperature=0.0,
+                          max_tokens=max_tokens, extra=extra),
+                Harness([_FACTORS[n]() for n in on]),
+                metadata={"role": "treatment", "factors": list(on), "budget_matched": True})
+
+        register(exp_name)(make)
+
+
+_register_severe_treatments()
 
 
 # ---------------------------------------------------------------------------------------------
