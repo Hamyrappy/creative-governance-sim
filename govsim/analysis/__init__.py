@@ -25,6 +25,7 @@ from govsim.analysis.calibration import (
 )
 from govsim.analysis.stats import (
     bootstrap_ci,
+    minimum_detectable_effect,
     collapse_summary,
     compare,
     infer_lower_is_better,
@@ -44,6 +45,7 @@ __all__ = [
     "headroom",
     "normalized_regret",
     "bootstrap_ci",
+    "minimum_detectable_effect",
     "collapse_summary",
     "compare",
     "infer_lower_is_better",

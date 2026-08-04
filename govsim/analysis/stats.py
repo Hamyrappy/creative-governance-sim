@@ -142,6 +142,55 @@ def holm_bonferroni(pvalues: Mapping[str, float], alpha: float = 0.05) -> dict[s
     return out
 
 
+def minimum_detectable_effect(
+    per_seed_diffs: Sequence[float],
+    *,
+    alpha: float = 0.05,
+    power: float = 0.80,
+    n_comparisons: int = 1,
+) -> dict[str, Any]:
+    """The smallest true effect this design could have detected — what a null is allowed to claim.
+
+    A null result is only informative paired with this number. "No component helped" means one thing
+    if the design could have caught a 5% improvement and quite another if it could only have caught a
+    50% one, and an ablation table that reports the first without the second invites the reader to
+    assume the stronger reading.
+
+    Computed from the observed per-seed paired differences, so it reflects the variance actually
+    present rather than an assumed one. Two-sided, normal approximation (adequate at n=20 for a
+    paired mean), and Bonferroni-split across ``n_comparisons`` to match the correction the headline
+    test uses — an MDE quoted at uncorrected alpha would understate what the reported analysis
+    actually requires.
+
+    Returns the MDE in metric units, the per-seed sd it came from, and the n needed to halve it.
+    """
+    arr = np.asarray(list(per_seed_diffs), dtype=float)
+    n = arr.size
+    if n < 2:
+        return {"n": n, "sd": float("nan"), "se": float("nan"), "mde": float("inf"),
+                "alpha_effective": alpha, "n_for_half_mde": None}
+    sd = float(arr.std(ddof=1))
+    se = sd / math.sqrt(n)
+    alpha_eff = alpha / max(1, n_comparisons)
+    # Normal quantiles without scipy: Acklam's rational approximation is overkill here, and
+    # statistics.NormalDist is stdlib and exact enough.
+    nd = statistics.NormalDist()
+    z_alpha = nd.inv_cdf(1.0 - alpha_eff / 2.0)
+    z_power = nd.inv_cdf(power)
+    mde = (z_alpha + z_power) * se
+    return {
+        "n": n,
+        "sd": sd,
+        "se": se,
+        "mde": mde,
+        "alpha_effective": alpha_eff,
+        "power": power,
+        # Halving the MDE needs 4x the seeds — worth stating, because it is usually the honest
+        # answer to "why not just add seeds until it is significant".
+        "n_for_half_mde": 4 * n,
+    }
+
+
 def factorial_effects(
     cells: Mapping[tuple[bool, ...], Mapping[int, float]],
     factor_names: Sequence[str],

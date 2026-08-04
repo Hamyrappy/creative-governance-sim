@@ -31,7 +31,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from govsim.analysis import compare, normalized_regret
-from govsim.analysis.stats import bootstrap_p, factorial_effects, holm_bonferroni
+from govsim.analysis.stats import (
+    bootstrap_p, factorial_effects, holm_bonferroni, minimum_detectable_effect,
+)
 from govsim.core.result_store import ResultStore
 
 FACTORS = ("trace", "outcome", "memory")
@@ -171,6 +173,30 @@ def main() -> int:
     else:
         print(f"\n(factorial skipped: {len(cells)}/{2 ** len(FACTORS)} cells present in the store)")
 
+    # ---- 2b. what this design could have detected ---------------------------------------------
+    # A null is only informative next to the smallest effect that would have shown up. Reported at
+    # the CORRECTED alpha, because that is the bar the headline analysis actually applies.
+    mde = None
+    if len(cells) >= 2:
+        base = cells.get(tuple(False for _ in FACTORS))
+        if base:
+            ref = {s: frozen[s] for s in base if s in frozen}
+            diffs = [base[s] - ref[s] for s in sorted(set(base) & set(ref))]
+            n_terms = len(factorial) if factorial else 7
+            mde = minimum_detectable_effect(diffs, n_comparisons=n_terms)
+            budget = fm - om
+            print(f"\n=== power: what this design could have detected ({METRIC}) ===")
+            print(f"  per-seed sd of (arm - best_fixed) = {mde['sd']:.4f}   se = {mde['se']:.4f}   n = {mde['n']}")
+            print(f"  minimum detectable effect at alpha={mde['alpha_effective']:.4f} "
+                  f"(Bonferroni over {n_terms} terms), power {mde['power']:.0%}: "
+                  f"{mde['mde']:.4f} {METRIC} units")
+            print(f"  total adaptation budget (best_fixed - switching) = {budget:.4f}")
+            if budget > 0:
+                print(f"  => the design can only resolve a component worth "
+                      f">= {100 * mde['mde'] / budget:.0f}% of the whole adaptation budget.")
+                print(f"  => a null here rules out LARGE component effects, not small ones. "
+                      f"Halving the MDE needs n={mde['n_for_half_mde']} seeds.")
+
     # ---- 3. named contrasts -------------------------------------------------------------------
     print(f"\n=== contrasts (paired bootstrap on {METRIC}; lower is better) ===")
     contrasts = {}
@@ -230,7 +256,7 @@ def main() -> int:
             "model": args.model, "metric": METRIC,
             "anchors": {"frozen_mean": fm, "oracle_mean": om,
                         "headroom": (fm / om) if om else None},
-            "arms": table, "factorial": factorial, "contrasts": contrasts,
+            "arms": table, "factorial": factorial, "contrasts": contrasts, "power": mde,
             "cross_model": cross,
         }, indent=2), encoding="utf-8")
         print(f"\nwrote {args.json}")
