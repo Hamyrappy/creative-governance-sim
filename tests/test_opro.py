@@ -150,3 +150,44 @@ def test_opro_end_to_end_through_runner_stabilizes():
     rec = Runner().run(exp)[0]
     assert abs(rec.metrics_series[-1]["current_x"]) < 0.3   # OPRO found a stabilizing law
     assert any(call["regent"] == "opro" for call in rec.llm_io)
+
+
+def test_incumbent_moves_when_a_later_law_scores_better():
+    """OPRO must be able to change its mind. It could not, and the cause was elsewhere.
+
+    An audit found the incumbent frozen at the first proposal across ascending, descending and
+    shuffled proposal orders. The cause was not in this file: ``EpidemicLoss.evaluate`` was reading
+    an undifferenced running total, so realized scores fell monotonically with time and the earliest
+    law always held the archive's top slot. With a real score the exploit branch tracks the best law
+    as intended — but the failure was invisible from inside OPRO, so it is pinned here.
+    """
+    import json
+
+    from govsim.core.action import ActionSpace, VerbSpec
+    from govsim.core.llm.client import LLMResponse
+    from govsim.core.system import Observation
+
+    class _Stub:
+        def __init__(self, exprs):
+            self.exprs, self.i = list(exprs), 0
+
+        def complete(self, messages, **kw):
+            expr = self.exprs[min(self.i, len(self.exprs) - 1)]
+            self.i += 1
+            return LLMResponse(text="", tool_calls=[
+                {"id": "1", "name": "set_lockdown", "arguments": json.dumps({"expr": expr})}])
+
+    space = ActionSpace(verbs=[VerbSpec(name="set_lockdown", value_range=(0.0, 0.9))],
+                        context_vars=["I"])
+    regent = OPRORegent("set_lockdown", _Stub([f"0.{i}" for i in range(1, 9)]), "stub",
+                        scoring="realized")
+    scratch: dict = {}
+    deployed = []
+    for k in range(8):
+        reqs = regent.decide(Observation(vars={"I": 0.1}, scope="regent:0", t=k * 10), space, scratch)
+        deployed.append(reqs[0].payload["expr"] if reqs else None)
+        scratch["_last_realized_score"] = -10.0 + k  # each successive law is genuinely better
+
+    assert len(set(deployed)) > 1, "the incumbent never changed despite strictly improving scores"
+    archive = scratch["_opro_archive"]
+    assert archive[-1][1] == max(s for _, s in archive), "archive's last entry must be its best"

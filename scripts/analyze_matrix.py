@@ -113,6 +113,40 @@ def no_action_rate(stores: list[ResultStore], experiment: str, model: str | None
     return empty, total
 
 
+def _anchors_match_calibration(stores: list[ResultStore]) -> bool:
+    """Do the stored reference runs enact the laws the current calibration artifact specifies?
+
+    Compares each anchor arm's persisted ``regent_specs`` against
+    ``docs_gates/calibration.json``. A mismatch means the store predates a recalibration and every
+    ratio computed from it is anchored to a policy that no longer exists.
+    """
+    from govsim.domains.scalar import regimes as R
+
+    calib = R.calibration().get("epidemic") or {}
+    if not calib:
+        return True  # nothing to check against; the calibration gate elsewhere will complain
+    want = {
+        "epidemic_frozen": set((calib.get("frozen", {}).get("laws") or {}).values()),
+        "epidemic_best_fixed": set((calib.get("best_fixed", {}).get("laws") or {}).values()),
+    }
+    ok = True
+    for arm, expected in want.items():
+        if not expected:
+            continue
+        for store in stores:
+            for row in store.query(experiment=arm):
+                spec = (row.get("regent_specs") or {}).get(REGENT, {})
+                # ScriptedRegent persists `expr`; MultiScriptedRegent persists neither, so fall
+                # back to accepting it rather than failing on a shape we cannot inspect.
+                got = spec.get("expr")
+                if got is not None and got not in expected:
+                    print(f"  anchor mismatch in {arm} (seed {row['seed']}): stored {got!r} is not "
+                          f"in the calibrated {sorted(expected)!r}", file=sys.stderr)
+                    ok = False
+                break  # one row per arm is enough to detect a stale store
+    return ok
+
+
 def fmt(v: float | None, w: int = 9, p: int = 4) -> str:
     if v is None or (isinstance(v, float) and not math.isfinite(v)):
         return f"{'—':>{w}}"
@@ -141,6 +175,18 @@ def main() -> int:
         print("missing calibrated anchors (epidemic_best_fixed / epidemic_switching) in the "
               "store; run `scripts/run_matrix.py --arms epidemic-refs` first", file=sys.stderr)
         return 1
+
+    # ---- 0. ANCHOR GATE: do the stored reference runs match the current calibration? -----------
+    # Every normalized regret is a ratio against these two rows. If the store holds anchors from a
+    # previous calibration the whole scale is silently wrong, and nothing downstream notices: the
+    # numbers stay plausible and only their meaning changes. This bit us — a store retained a
+    # single-lever best_fixed law that no longer existed, which moved R from 0.81 to 1.32 and
+    # flipped the sign of the headline contrast.
+    if not _anchors_match_calibration(store):
+        print("\n[!!] STORED ANCHORS DISAGREE WITH docs_gates/calibration.json. Every R below would "
+              "be scaled against a superseded reference. Re-run "
+              "`scripts/run_matrix.py --arms epidemic-refs` into this store first.", file=sys.stderr)
+        return 2
 
     cells = {}
     for bits in range(2 ** len(FACTORS)):
