@@ -23,12 +23,41 @@ and their ratio, the **adaptation headroom**. It bounds what any controller coul
 | SIR, transmissibility shock (`beta0`×1.8) | **1.00×** | absorbed by feedback |
 | **SIR, instrument-efficacy collapse (lockdown 1.0→0.25, λ=0.08)** | **1.70×** | ✅ **the flagship** |
 
-**The structural finding:** a feedback rule ("intervene when the observable exceeds θ") *absorbs*
+**Structural finding 1:** a feedback rule ("intervene when the observable exceeds θ") *absorbs*
 shocks to the state — prevalence rises, the rule fires more often, and it stays near-optimal without
 anyone changing it. It cannot absorb a shock to **instrument efficacy**, because the mapping from
 observation to correct action has changed rather than the observation. That is the Lucas critique in
 miniature, and as far as we can measure it is the only regime where the adaptation question is
 answerable at all.
+
+**Structural finding 2 — the decomposition.** What a stale rule costs factors exactly:
+
+```
+staleness            =  adaptation headroom      ×  robustness headroom
+L(frozen)/L(switch)  =  L(best_fixed)/L(switch)  ×  L(frozen)/L(best_fixed)
+```
+
+Only the **adaptation** term is recoverable by changing behaviour mid-run; the **robustness** term is
+recoverable by having legislated a different standing rule in the first place.
+
+| regime | staleness | **adaptation** | robustness |
+|---|---|---|---|
+| epidemic (efficacy 1.0→0.25, λ=0.08) | 1.315 | **1.186** | 1.109 |
+| epidemic_severe (efficacy→0.0, λ=0.15) | 1.511 | **1.000** | 1.511 |
+| scalar cubic (state shock) | 1.125 | **1.039** | 1.083 |
+
+The severe row is the instructive one, and it **overturned the expectation that added it**: a harsher
+break was assumed to leave more for adaptation to recover, and in fact leaves none — the optimal
+policy is identical either side of the break, so the entire 51% is a rule-design failure. An agent
+evaluated there would look rigid while facing no adaptive problem at all. Never report staleness
+alone; it cannot tell the two diagnoses apart, and they call for different remedies.
+
+**Reference-construction traps** (both found by the reference contradicting itself, both now guarded):
+- scoring only the post-break window **rewards passivity** ⇒ score the full horizon against
+  `best_fixed`;
+- composing the switching reference from two separately-optimal legs is wrong when state carries
+  across the break — it produced an "upper bound" that a fixed law beat (0.92×). Search the pair
+  jointly; `recalibrate.py` now hard-flags `adaptation < 1` as an under-powered search.
 
 Two calibration artifacts were found and fixed on the way; both had produced clean, plausible,
 wrong numbers:
