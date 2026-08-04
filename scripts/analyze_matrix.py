@@ -25,10 +25,12 @@ import argparse
 import json
 import math
 import statistics
+import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from govsim.analysis import compare, normalized_regret
 from govsim.analysis.stats import (
@@ -113,6 +115,74 @@ def no_action_rate(stores: list[ResultStore], experiment: str, model: str | None
     return empty, total
 
 
+#: Files whose content determines what a run MEANS. A record produced before any of these last
+#: changed is measuring a different experiment, however plausible its numbers look.
+_SEMANTIC_FILES = (
+    "govsim/domains/scalar/objectives.py",   # what "loss" is, and what the outcome channel reports
+    "govsim/domains/scalar/systems.py",      # the worlds themselves
+    "govsim/domains/scalar/regimes.py",      # the pinned configs
+    "govsim/harness/components.py",          # what each channel puts in the prompt
+    "govsim/regents/llm_regent.py",          # the prompt assembler, incl. the mandate
+    "govsim/core/runner.py",                 # the decision loop and the realized-score window
+)
+
+
+def _commit_time(rev: str) -> int | None:
+    out = subprocess.run(["git", "show", "-s", "--format=%ct", rev],
+                         capture_output=True, text=True, cwd=ROOT)
+    try:
+        return int(out.stdout.strip())
+    except ValueError:
+        return None
+
+
+def _runs_are_fresh(stores: list[ResultStore]) -> bool:
+    """Were the stored runs produced by the CURRENT semantics?
+
+    This gate exists because of the failure it is named after. Three bugs were fixed — an outcome
+    channel that reported a clock, an episodic memory that did the same, and a prompt that never
+    told the regent its objective — and the paper's tables kept reporting the runs made *before* the
+    fixes, because the analysis artifact was simply never regenerated. Nothing complained: the
+    numbers were plausible, the tables typeset, and the only thing wrong was that they described a
+    pipeline that no longer existed.
+
+    Every RunRecord already carries the git commit it was produced at, so this is cheap: compare it
+    against the last commit that touched any file determining what a run means.
+    """
+    newest = 0
+    newest_file = ""
+    for f in _SEMANTIC_FILES:
+        out = subprocess.run(["git", "log", "-1", "--format=%ct", "--", f],
+                             capture_output=True, text=True, cwd=ROOT)
+        try:
+            ts = int(out.stdout.strip())
+        except ValueError:
+            continue
+        if ts > newest:
+            newest, newest_file = ts, f
+    if not newest:
+        return True
+
+    stale: list[str] = []
+    for store in stores:
+        for row in store.query():
+            rev = row.get("git_commit")
+            if not rev or rev == "unknown":
+                continue
+            ts = _commit_time(rev)
+            if ts is not None and ts < newest:
+                stale.append(f"{row['experiment']} (seed {row['seed']}) @ {rev}")
+    if stale:
+        uniq = sorted(set(s.split(" (")[0] for s in stale))
+        print(f"\n[!!] {len(stale)} stored run(s) predate the last change to {newest_file}. "
+              f"Affected arms: {', '.join(uniq[:8])}{' …' if len(uniq) > 8 else ''}.\n"
+              f"     Those runs were produced under different semantics — a different loss, a "
+              f"different prompt, or a different channel — so a table built from them describes a "
+              f"pipeline that no longer exists. Re-run them.", file=sys.stderr)
+        return False
+    return True
+
+
 def _anchors_match_calibration(stores: list[ResultStore]) -> bool:
     """Do the stored reference runs enact the laws the current calibration artifact specifies?
 
@@ -172,6 +242,9 @@ def main() -> int:
     ap.add_argument("--model", default=None, help="restrict LLM arms to this model id")
     ap.add_argument("--cross-model", action="store_true",
                     help="also print the per-model replication table")
+    ap.add_argument("--allow-stale", action="store_true",
+                    help="analyse runs that predate the current semantics (they describe a "
+                         "pipeline that no longer exists; for forensics only)")
     ap.add_argument("--json", default=None, help="write the full analysis here")
     args = ap.parse_args()
 
