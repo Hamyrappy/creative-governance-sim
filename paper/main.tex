@@ -98,6 +98,14 @@ place any controller on a normalized scale between the last two. Because it is c
 makes the severity of a designed shock an auditable choice rather than a researcher degree of
 freedom.
 
+\item \textbf{A component whose value reverses between environments}
+(\cref{sec:crossworld}). Running the same factorial in a second world, realized-outcome feedback
+recovers $975$ loss units on $20/20$ seeds in one and is the harmful channel in the other---both
+significant, opposite in sign. A component's value is therefore not a property of the component but
+of the match between the failure it can reveal and the failure the world produces. That supplies a
+mechanism for the reported poor generalization of automatically evolved harnesses, and a diagnostic
+that predicts the sign before the sweep is run.
+
 \item \textbf{A structural result about which shocks are worth studying}
 (\cref{sec:which-shocks,sec:library}). Measuring across ten worlds with unrelated mechanics---a
 monetary economy, an opinion polity, a fishery, a supply chain, a stock-flow-consistent fiscal
@@ -536,6 +544,52 @@ Contextual outcome feedback survives as an arm rather than as a remedy. Attachin
 score, and flagging the same law scoring differently in comparable conditions, is a reasonable
 design idea and the naive channel is its control---but it was built for a cause that turned out not
 to exist, and we say so rather than quietly recasting it as the fix.
+
+\subsection{The same channel, helpful in one world and harmful in another}
+\label{sec:crossworld}
+
+Running the harness factorial in a second world produces the sharpest result in this paper, and it is
+a result about harness research rather than about either world.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+world & no harness & outcome feedback & $\Delta$ & seeds helped \\
+\midrule
+monetary & $3890.53$ & $2915.74$ & $\mathbf{-974.79}$ $[-1218, -739]$ & $\mathbf{20/20}$ \\
+epidemic & $24.97$ & $25.75$ & $+0.78$ $[+0.11, +1.38]$ & $5/20$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Both differences are significant on a paired bootstrap ($p=0.0001$ and $p=0.0195$), and they point in
+opposite directions. In the monetary world realized-outcome feedback is not a marginal improvement:
+it recovers $975$ loss units, unanimously across seeds, cutting normalized regret from $R\approx3.0$
+to $R\approx1.6$. In the epidemic it is the channel we report as harmful.
+
+The mechanism is visible in what the agent does with the instrument. The monetary failure is a
+refusal to put down a lever that has stopped working: the no-harness arm holds the post-break rate at
+$9.51$ where the clairvoyant sits at $1.53$. Outcome feedback is precisely the signal that the
+payment is not buying anything---``the policy you have in force scored worse than the one before
+it''---and the arm that receives it brings the rate down to $6.99$. In the epidemic the failure is
+not that shape at all; there the harmful component is memory, and the failure is lock-in, on which a
+report of declining scores offers no purchase.
+
+So the component's value is not a property of the component. It is a property of the match between
+the failure mode a channel can reveal and the failure mode the world actually produces. That has a
+direct consequence for the practice this paper is about: \emph{a harness tuned on one environment
+carries no guarantee into another, and can carry a liability}. \citet{wang2026rethinking} report
+exactly this empirically---that automatically evolved harnesses generalize poorly and do not reliably
+beat budget-matched test-time scaling---and our measurement supplies a mechanism for it, together
+with the diagnostic that predicts the sign in advance.
+
+Two caveats we would rather state than have found. The monetary outcome arm collapses on $3.8\%$ of
+its decisions against the no-harness arm's $1.0\%$ (\cref{sec:collapse}), so it carries the same
+artificial-stickiness confound as the epidemic outcome arms; a $2.8$-point differential in silent
+no-ops cannot manufacture a $975$-unit effect that is $25\%$ of the arm's loss and holds on every
+seed, but the point estimate is provisional pending the re-run. And the epidemic contrast is the
+contaminated one ($7.8\%$ against $0.2\%$), so of the two the monetary result is the one we would
+defend and the epidemic sign is the one we would not.
 
 \subsection{Not a domain prior: a general failure to withdraw a priced instrument}
 \label{sec:priors}
