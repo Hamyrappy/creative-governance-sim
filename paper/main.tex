@@ -3,6 +3,7 @@
 % Overrides the "pending" defaults once scripts/make_tables.py has real numbers to state.
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
 \IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
+\IfFileExists{generated/library_facts.tex}{\input{generated/library_facts}}{}
 % Fallbacks so the document still compiles before the figure code has run.
 \providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
 \providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
@@ -94,11 +95,15 @@ makes the severity of a designed shock an auditable choice rather than a researc
 freedom.
 
 \item \textbf{A structural result about which shocks are worth studying}
-(\cref{sec:which-shocks}). Measuring across four calibrated regimes, we find that feedback policies
-absorb shocks to the state dynamics---so those regimes are near-null by construction---but cannot
-absorb shocks to instrument efficacy. Adaptation headroom is a narrow band in both the severity of
-the break and the price of intervention, and non-monotone in each. We report the near-null regimes
-rather than discarding them, and retain one as a declared negative control.
+(\cref{sec:which-shocks,sec:library}). Measuring across ten worlds with unrelated mechanics---a
+monetary economy, an opinion polity, a fishery, a supply chain, a stock-flow-consistent fiscal
+economy and five epidemic configurations---we find that feedback policies absorb shocks to the state
+dynamics, so those regimes are near-null by construction, but cannot absorb shocks to instrument
+efficacy. Adaptation headroom is a narrow band in both the severity of the break and the price of
+intervention, non-monotone in each, and \emph{scarce}: only $\libOverEleven{}$ of $\libWorlds{}$
+worlds clear $1.1\times$. We report the near-null worlds rather than discarding them, and retain two
+as declared negative controls---including the one that settles the shock family our own taxonomy had
+never measured.
 
 \item \textbf{Governance by executable policy code, in a domain where the code is the point}
 (\cref{sec:regent}). Existing LLM-as-authority systems emit scalars or fixed-schema objects. Our
@@ -112,12 +117,14 @@ information; it estimates interactions rather than assuming them away, corrects 
 and matches the model-call budget across arms---the three things the harness literature is currently
 being told it does not do.
 
-\item \textbf{Four validity gates for scaffold ablations, every one of which this study failed
-before it passed} (\cref{sec:ctx-outcome}). Output truncation correlated with the treatment;
-information channels that fired but carried no signal; reference anchors superseded by a
-recalibration; and a clairvoyant reference that a fixed policy could beat. Each produced a clean,
-plausible, wrong number that no amount of care in the writing would have caught, and each is now an
-automatic check that refuses to let the tables be read. A literature being asked for better evidence
+\item \textbf{Five validity gates for scaffold ablations, every one of which this study failed
+before it passed} (\cref{sec:ctx-outcome,sec:responsiveness}). Output truncation correlated with the
+treatment; information channels that fired but carried no signal; reference anchors superseded by a
+recalibration; a clairvoyant reference that a fixed policy could beat; and---the failure the other
+four cannot see---a model that reads none of what the harness gives it, measured at $400/400$
+identical decisions under a live memory channel. Each produced a clean, plausible, wrong number that
+no amount of care in the writing would have caught, and each is now an automatic check that refuses
+to let the tables be read. A literature being asked for better evidence
 needs transferable failure modes at least as much as it needs another effect.
 \end{enumerate}
 
@@ -346,6 +353,56 @@ Feedback policies absorb shocks to the state and cannot absorb shocks to the ins
 built on the former will report nulls regardless of the agent.
 \end{takeaway}
 
+\subsection{The same measurement across ten unrelated worlds}
+\label{sec:library}
+
+The preceding claim was measured on one epidemic in four configurations, which leaves open the
+obvious objection: that it describes \textsc{sir} dynamics rather than governance. We therefore built
+a library of worlds with unrelated mechanics---a monetary economy governed by a policy rate, an
+opinion polity governed by content moderation, a fishery governed by quota and reserve, a supply
+chain governed by order quantity, and a stock-flow-consistent fiscal economy governed by tax and
+transfer---and applied the same shock taxonomy, the same three-reference construction, and the same
+seed set to all of them.
+
+\input{generated/library_table}
+
+\Cref{tab:library} is the claim in its general form. Across \libWorlds{} worlds only
+\libOverEleven{} clear $1.1\times$ adaptation headroom and \libOverTwelve{} clears $1.2\times$.
+Scarcity is the rule, not an artifact of one pathogen.
+
+Two entries deserve comment because they are declared nulls rather than failures, and reporting them
+is the point of building a library instead of a flagship. The fiscal world's optimum is
+$\tau^\ast = 0$---the economy reaches potential off accumulated household balances, so taxation only
+distorts---and its shock enters multiplicatively as $\tau_{\text{eff}} = c \cdot \tau$. A collapse in
+compliance $c$ therefore multiplies zero: the shock is not merely mild, it is \emph{arithmetically}
+inert, and the calibration confirms that the frozen and clairvoyant policies are identical. The
+supply chain answers the one family in our taxonomy that had never been measured, \textsc{delay}, and
+answers it in the negative: a lengthened lead time is absorbed by an order-up-to rule with a free
+target, exactly as a state shock is, and the finding is stable at $1.06$--$1.07\times$ across $5$,
+$8$ and $12$ seeds. A benchmark built on either would have reported nulls and invited the wrong
+interpretation.
+
+The strongest world is monetary, and its interest is not only that
+$\libBestAdapt{}\times$ is the library maximum. The three calibrated policies have different
+\emph{shapes}, and the difference is the substantive result. The frozen rule leans hard---unit gain
+from a high intercept. The best possible \emph{fixed} response to a transmission collapse is to
+abandon feedback altogether and sit at a constant rate. The clairvoyant adaptor does neither: it
+keeps leaning at half strength and moves the intercept to the zero lower bound. Adaptation here means
+changing the \emph{level} while keeping the rule, which is a response that no re-tuning of the frozen
+rule's threshold can express. This is the Lucas critique in miniature, and it arrives as a measured
+property of a calibrated policy family rather than as an analogy.
+
+Because a corner optimum is invariant to any regime, we checked whether that zero-lower-bound
+intercept is an artifact of the search grid: extending the grid to admit intercepts \emph{below} the
+bound moves adaptation headroom only from $1.359$ to $1.362$. Committing below the zero lower bound
+buys essentially nothing, which is the economically correct answer, so the corner is a real
+constraint of the instrument rather than an edge of our vocabulary.
+
+\begin{takeaway}
+Adaptation headroom is scarce across worlds, not just across configurations of one world. Measuring
+it is cheap, requires no agent, and is the difference between a benchmark and a null generator.
+\end{takeaway}
+
 \subsection{The flagship regime: epidemic governance under instrument failure}
 \label{sec:regime}
 
@@ -472,6 +529,38 @@ Contextual outcome feedback survives as an arm rather than as a remedy. Attachin
 score, and flagging the same law scoring differently in comparable conditions, is a reasonable
 design idea and the naive channel is its control---but it was built for a cause that turned out not
 to exist, and we say so rather than quietly recasting it as the fix.
+
+\subsection{The gate that all the others pass: is the model reading the harness?}
+\label{sec:responsiveness}
+
+The gates above certify the \emph{apparatus}. None of them certifies the \emph{subject}, and a
+scaffold ablation has a failure mode in which every one of them passes and the result is still empty:
+the channel injects, the prompts differ, the agent acts on every decision, the code is current---and
+the model does not read what it was given. The arms then agree to several decimal places, and the
+natural reading, ``these components do not help,'' is false. The true statement is about the model.
+
+We hit this directly. Running the identical worlds, seeds and harness on a $0.8$B local model and a
+$27$B model, episodic memory was live in $100\%$ and $95\%$ of prompts respectively. The small model
+emitted \emph{one constant policy on $400$ of $400$ decisions}---a fixed intervention level that
+ignores the epidemic state entirely---and adding episodic memory left $378$ of $400$ unchanged. Its
+six arms agreed to four decimal places. The large model spread its decisions across many policies
+(top-policy share $50\%$) and shifted them substantially when a channel was added (total-variation
+distance $0.38$ against $0.003$).
+
+So the fifth gate compares the distribution of \emph{enacted policies} between each arm and the
+no-harness control. It is deliberately two-stage, because the two ways an arm can be flat are not the
+same finding. A failure-trace channel reports rejected actions; when an agent emits only valid ones
+it has nothing to say, and that arm \emph{should} score identically to the control---calling that a
+null about the component would be backwards, since the component was never on trial. Stage one
+therefore asks whether the channel altered the prompt at all, measured by differencing prompts per
+(seed, decision) rather than by matching a header string; only a live channel is eligible to be
+called unread. Both models agree that the trace channel is silent, which is the control confirming
+the gate is not a proxy for model size.
+
+The distinction this draws is worth stating in its own right: it identifies a \emph{capability floor}
+below which harness research is not merely difficult but unmeasurable, because the object of study
+never enters the model's decision. A scaffold ablation run below that floor will produce a clean,
+well-powered, entirely uninformative null.
 
 \section{Experimental design}
 \label{sec:design}
@@ -610,7 +699,7 @@ capability-substitution question and in our favour for cost, and we flag it rath
 
 \paragraph{Robustness auditing is partial.} \citet{ye2026trails} argue for perturbation audits at
 persona, protocol, and environment level. We audit the environment level (the headroom surface) and
-the protocol level (budget matching, factorial structure, the four validity gates), and do not vary
+the protocol level (budget matching, factorial structure, the five validity gates), and do not vary
 prompt phrasing systematically---which, given that a single added paragraph about the objective
 moved the result by more than any component, is the audit this study most obviously still owes.
 

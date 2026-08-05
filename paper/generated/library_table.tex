@@ -1,0 +1,20 @@
+\begin{table}[t]\centering\small
+\caption{\textbf{Adaptation headroom across the world library.} Ten worlds with unrelated mechanics, each decomposed by the same construction as \cref{tab:headroom}: every reference is calibrated by exhaustive search over that world's own policy vocabulary, on the same broken world, over the same seeds, and the three differ only in what they were allowed to know. Ranked by \emph{adaptation} headroom, because that is the only factor an adaptive agent can claim. Only $3/10$ worlds clear $1.1\times$ and $1/10$ clears $1.2\times$. The two declared nulls are informative rather than disappointing: the fiscal world's optimum is $\tau^\ast=0$ and its shock enters as $\tau_{\text{eff}} = c\cdot\tau$, so a compliance collapse multiplies zero and is \emph{arithmetically} inert; and the supply chain answers the one shock family (\textsc{delay}) our taxonomy had never measured, showing it is absorbed by an order-up-to rule with a free target exactly as a state shock would be. The commons is reported as an absolute gap: its objective is net welfare, so a good policy scores below zero and the ratio is undefined rather than merely imprecise.}
+\label{tab:library}
+\begin{tabular}{@{}l l r r r@{}}
+\toprule
+world & instrument & staleness & \textbf{adaptation} & robustness \\
+\midrule
+monetary & policy rate & 1.560 & \textbf{1.359} & 1.147 \\
+epidemic ($\lambda$=0.08, eff 1.0$\to$0.25) & lockdown + vaccination & 1.228 & \textbf{1.199} & 1.024 \\
+opinion & moderation & 1.382 & \textbf{1.192} & 1.160 \\
+epidemic ($\lambda$=0.02, eff 1.0$\to$0.0) & lockdown + vaccination & 1.095 & \textbf{1.095} & 1.000 \\
+supply chain & order quantity & 1.020 & \textbf{1.020} & 1.000 \\
+fiscal & tax + transfer & 1.020 & \textbf{1.020} & 1.000 \\
+epidemic (state shock) & lockdown + vaccination & 1.000 & \textbf{1.000} & 1.000 \\
+epidemic ($\lambda$=0.02, eff 1.0$\to$0.5) & lockdown + vaccination & 1.000 & \textbf{1.000} & 1.000 \\
+epidemic ($\lambda$=0.02, eff 1.0$\to$0.25) & lockdown + vaccination & 1.000 & \textbf{1.000} & 1.000 \\
+commons & quota + reserve & \multicolumn{3}{c}{ratio undefined; adaptation \emph{gap} $2.57$} \\
+\bottomrule
+\end{tabular}
+\end{table}
