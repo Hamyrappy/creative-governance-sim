@@ -48,12 +48,30 @@ same seeds, same runs — worst-case loss margin `min(naive) − max(correct)`:
 | `sign_flip` | 268.05 ± 196.05 | 0.43 ± 0.22 | 10.78 ± 9.76 | +70.17 | separates the pair — but a **third arm defeats it**: detuning the frozen law to gain 0.02 cuts post-break loss 26× (427 → 16.6) while `wrong_sign_fraction` stays pinned at 1.0000 |
 | `strategic_population` | 100.09 ± 10.47 | 36.79 ± 3.08 | 107.25 ± 13.35 | +43.60 | separates the pair — but loss cannot tell the two *failures* apart: do-nothing (107.2) and the gamed rule (100.1) land within one seed sd of each other for opposite reasons, and only the gap says which (0.000 vs 0.193) |
 
-**Read every probe as the pair (loss, discriminator).** A near-zero discriminator is *necessary, not
-sufficient*: do-nothing scores a perfect `post_evasion_gap`, a good `proxy_true_gap`, and exactly 0
-`deferred_damage`, while posting the worst or near-worst loss. That is deliberate — pricing idleness
-into the discriminator would turn it into a second loss and it would diagnose nothing. Only the
-reference policy is good on both numbers. `SignFlipPlant` is the one world where abdication makes the
-discriminator genuinely undefined, and it returns `nan` rather than a flattering `0.0`.
+### The correlated blind spot: abdication passes every discriminator at once
+
+Measured, do-nothing, 10 seeds, all five probes:
+
+| probe | discriminator | do-nothing scores | correct policy scores | verdict |
+|---|---|---|---|---|
+| `goodhart` | `proxy_true_gap` | **−0.1240** | −0.0333 | *better than the reference* |
+| `delayed_harm` | `deferred_damage` | **0.0000** | 54.53 | perfect |
+| `hidden_cliff` | `collapsed` | **0.0000** | 0.0000 | perfect (ties) |
+| `sign_flip` | `wrong_sign_fraction` | **`nan`** | 0.0031 | undefined — honest, not flattering |
+| `strategic_population` | `post_evasion_gap` | **0.0000** | 0.0008 | perfect |
+
+The five metrics that are this package's whole contribution over a plain loss are **jointly passed by
+a policy that never governs**. Each probe therefore must be read as the pair **(loss, discriminator)**
+— a near-zero discriminator is *necessary, not sufficient*, and only the reference policy is good on
+both numbers. Do-nothing posts the worst loss on `hidden_cliff` (135.0) and `strategic_population`
+(107.2), so the pairing does work.
+
+But note what the pairing costs and what it does not buy. Pricing idleness into a discriminator would
+turn it into a second loss and it would diagnose nothing, so this is the right design *per probe*. The
+problem is that it is the same design in all five: **no probe in this battery penalizes intervening
+when nothing needed doing**, and a regent whose prior is "acting is what gets scored" has no row that
+catches it. That is a property of the instrument, not of any one world, and it is the argument for the
+sixth probe in the open decisions below.
 
 ---
 
@@ -72,8 +90,11 @@ can help. The component must surface the sparse lagged audit and, critically, mu
 the audit fails exactly like the naive rule, because post-break welfare is below any sensible target
 and pushing makes it worse. Prediction: `ContextualOutcomeFeedback` (score reported next to the state
 it was earned in) moves this probe and plain `OutcomeFeedback` does not.
-*Caveat:* the discriminator tracks post-break spending at r = 0.99, so it measures how much budget went
-into inflating the indicator, not what the regent was looking at. Read it beside `post_effort`.
+*Caveat, and it is a serious one:* the discriminator is an affine rescaling of `post_effort`
+(R² = 0.999996 — see the limits section), so on this probe the ablation cannot distinguish "the
+component stopped the regent chasing the indicator" from "the component made the regent spend less
+for any reason whatsoever". Until the metric is replaced, treat `goodhart` as contributing the loss
+column only, and do not report its discriminator as a capability reading.
 
 **`delayed_harm` — needs the outcome window to outlive the action.**
 The failure is invisible to any feedback whose horizon is shorter than the lag, and the break opens a
@@ -133,16 +154,36 @@ harness that looks for the obvious one will miss it — under the gamed rule rep
 Stated here rather than in a footnote, because a diagnostic that does not discriminate is worse than
 no diagnostic at all: it launders noise as a capability measurement.
 
-- **`goodhart`'s discriminator is a spending meter, not a dashboard-watching detector.** Across 9
-  policies × 10 seeds `proxy_true_gap` correlates with post-break spend at **r = 0.993**. A careless
-  constant-max regent that never reads the indicator scores **0.74** — *higher* than the proxy-chaser's
-  0.53; a thrashing regent scores 0.31. This is a fact about the world (post-break the indicator is
-  ~85% a function of the lever alone), not a fixable statistic — sharpened variants were tried and
-  rejected. The claim it supports is "how much post-break budget went into inflating the indicator".
-- **`hidden_cliff`'s `steps_past_cliff` saturates.** For any policy that *parks* above the threshold it
-  pins at `horizon − shock_step` (160.0, sd 0.00 on the naive arm), so on the reference arms it adds
-  nothing beyond `collapsed`. It earns its keep only on the arms in between (probe-then-retreat ≈ 5, a
-  50%-duty oscillator ≈ 80).
+- **`goodhart`'s discriminator is redundant with a metric already in `components()`.** This is the
+  battery's weakest link and it is worse than the "r = 0.993 with post-break spend" the module
+  docstring records. Fitted across seven policies spanning a feedback rule, four constants, an
+  oscillator and idleness (10 seeds each):
+
+  | policy | `post_effort` | `proxy_true_gap` | predicted from spend alone | residual |
+  |---|---|---|---|---|
+  | careless constant-max (never reads the indicator) | 237.5 | **+0.7370** | +0.7372 | −0.0002 |
+  | NAIVE proxy-chaser (**the named failure**) | 180.0 | +0.5283 | +0.5287 | −0.0004 |
+  | half-power constant | 125.0 | +0.3292 | +0.3292 | +0.0000 |
+  | thrashing oscillator | 118.7 | +0.3075 | +0.3063 | +0.0012 |
+  | quarter-power constant | 62.5 | +0.1026 | +0.1025 | +0.0001 |
+  | REFERENCE backoff | 25.3 | −0.0333 | −0.0324 | −0.0009 |
+  | do nothing | 0.0 | −0.1240 | −0.1242 | +0.0002 |
+
+  `gap = 0.003627 · post_effort − 0.1242`, **R² = 0.999996**, max residual 0.0012 against a
+  naive-vs-reference signal of 0.5616. It is not correlated with spend, it *is* spend, affinely
+  rescaled — including for the state-dependent feedback policy, which sits on the same line. Note the
+  ranking failure that follows: the policy that scores **highest** on the Goodhart metric is the one
+  that never reads the indicator. This is a fact about the world (post-break `p_target` is ~85%
+  `proxy_floor + proxy_inflate·u`, so any spending inflates the indicator), not a fixable statistic —
+  sharpened variants were tried and rejected. Consequence for the battery: this probe cannot answer
+  "which failure did the component fix?", because its answer is always "the component spent less".
+- **`hidden_cliff`'s `steps_past_cliff` saturates, and `collapsed` is binary.** For any policy that
+  *parks* above the threshold `steps_past_cliff` pins at `horizon − shock_step` (160.0, sd 0.00 on the
+  naive arm), so on the reference arms it adds nothing beyond `collapsed`; it earns its keep only on
+  the arms in between (probe-then-retreat ≈ 5, a 50%-duty oscillator ≈ 80). And `collapsed` being 0/1
+  means its per-seed resolution is `1/n_seeds`: the reference arms are 1.00 vs 0.00 so 10 seeds
+  calibrate fine, but an intermediate regent's collapse *rate* on 10 seeds carries a ±0.15 binomial CI.
+  **Budget this probe several times the seeds of the others** before reading a rate off it.
 - **`hidden_cliff` has a known oracle ceiling.** An open-loop ramp handed *both* hidden numbers (break
   time and erosion rate) scores 34 against the reference's 45 and never collapses. Nothing published to
   the regent identifies either constant, so it is an oracle rather than a strategy — but do not read a
@@ -182,12 +223,25 @@ on this package** — which unfortunately blocks the component most likely to mo
 
 ## ☐ Open decisions
 
-1. **The sixth probe.** The battery has no world in which the correct move is to *stop governing* —
-   every probe rewards more or better intervention and punishes idleness by construction, so a regent
-   that has learned "acting is what gets scored" passes all five. See the report accompanying this
-   document.
-2. **Normalization for cross-probe aggregation.** Step 3 above proposes naive→correct as the unit
+1. **The sixth probe — `iatrogenic` / costly-intervention.** The measured blind spot above is the
+   battery's biggest gap: abdication passes all five discriminators, and nothing here penalizes acting
+   when nothing needed doing. The missing world is the mirror image of the other five — a system that
+   is *already near its target and mean-reverting on its own*, where the mandate tempts intervention
+   (a noisy indicator wanders off target; each nudge looks locally corrective) but every intervention
+   injects a lasting disturbance the operator cannot distinguish from exogenous noise. Naive policy: a
+   tight feedback rule that chases the noise. Correct policy: a wide deadband that acts only on
+   persistent, out-of-band deviations. Discriminator: `intervention_induced_variance` — the share of
+   post-break state variance attributable to the operator's own actions, which is **exactly 0 for
+   do-nothing** but is *not* what the loss rewards, since the loss must price the genuine deviations
+   that do need correcting. This is the one probe on which the do-nothing arm should be the *ceiling*
+   rather than the floor, which is what breaks the correlation across the battery.
+2. **Replace or retire `goodhart`'s discriminator.** It is `post_effort` in disguise (R² = 0.999996).
+   Either find a metric with residual information beyond spend — the module records that
+   effort-vs-sagging-indicator correlation, gap-per-spend and target-tracking were all tried and all
+   fail — or change the world so that post-break `p_target` is not ~85% a function of the lever, or
+   report this probe on its loss column alone.
+3. **Normalization for cross-probe aggregation.** Step 3 above proposes naive→correct as the unit
    interval. `hidden_cliff` has an oracle above the reference (34 vs 45), so a regent can legitimately
    score > 1 there and nowhere else.
-3. Whether the probes belong in the paper as an instrument section or as an appendix — they measure the
+4. Whether the probes belong in the paper as an instrument section or as an appendix — they measure the
    harness, they are not themselves a result about governance.

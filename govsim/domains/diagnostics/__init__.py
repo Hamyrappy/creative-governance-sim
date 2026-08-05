@@ -77,14 +77,43 @@ scored on the PAIR (loss, discriminator), and only the reference policy is good 
 ``SignFlipPlant`` is the one world where the discriminator is genuinely undefined for abdication and
 returns ``nan`` rather than a flattering 0.0.
 
-**Known limits, stated here so they cannot be lost.** ``proxy_true_gap`` tracks post-break spending
-at r = 0.99 across nine policies, so it reads "how much of the post-break budget went into inflating
-the indicator", not "the regent was watching the dashboard" — a careless constant-max regent scores
-higher on it than the proxy-chaser. ``steps_past_cliff`` saturates at ``horizon − shock_step`` for
-any policy that parks above the threshold, so on the reference arms it adds nothing to ``collapsed``.
-``DelayedHarm`` does not separate proportional myopia from bang-bang myopia (the myopic gain is
-clipped ~70% of the time). ``HiddenCliff`` has a known oracle ceiling that beats the reference by
-24% when handed the break time and the erosion rate.
+**Known limits, stated here so they cannot be lost.**
+
+``proxy_true_gap`` is REDUNDANT, and by more than the "r = 0.99 with post-break spending" the module
+docstring records. Fitted across seven policies spanning a feedback rule, four constants, an
+oscillator and idleness, ``gap = 0.003627 · post_effort − 0.1242`` holds with **R² = 0.999996** and a
+max residual of 0.0012 against a naive-vs-reference signal of 0.56. It is an affine rescaling of
+``post_effort`` — a number already in ``components()`` — so on this world it carries no information
+about *Goodharting* at all, only about spending. The trap is still a real trap and the world is still
+worth running; what it cannot currently do is answer the battery's own question, because
+"the component reduced post-break spend" is not a diagnosis. See ``docs_gates/diagnostic-suite.md``.
+
+``steps_past_cliff`` saturates at ``horizon − shock_step`` for any policy that parks above the
+threshold, so on the reference arms it adds nothing to ``collapsed``; and ``collapsed`` is binary, so
+its seed-resolution is 1/n_seeds — this probe needs several times the seed budget of the others
+before an intermediate regent's collapse *rate* means anything. ``DelayedHarm`` does not separate
+proportional myopia from bang-bang myopia (the myopic gain is clipped ~70% of the time).
+``HiddenCliff`` has a known oracle ceiling that beats the reference by 24% when handed the break time
+and the erosion rate.
+
+**The battery's correlated blind spot.** Every probe here satisfies criterion (2) by punishing
+idleness in the LOSS — and the consequence, measured across all five, is that a do-nothing regent
+scores clean on every discriminator simultaneously: ``deferred_damage`` 0.0000, ``collapsed`` 0.0000,
+``post_evasion_gap`` 0.0000, ``wrong_sign_fraction`` ``nan``, ``proxy_true_gap`` −0.124 (better than
+the reference's −0.033). The five metrics that are this package's whole contribution over a plain
+loss are jointly passed by abdication. Pairing each with the loss is the mitigation and it works, but
+it means no probe in the battery can *by itself* distinguish restraint from competence.
+
+``restraint`` (``IatrogenicPlant``) is that sixth row, and it closes the hole from both sides. Its
+loss punishes abdication decisively — do-nothing 65.6 against the reference policy's 14.0, with a
+worst-case margin of +9.2 in sample and +12.5 held out — while its discriminator,
+``needless_action_rate``, is the one metric in the battery that a busy regent FAILS: 0.687 for a
+tight feedback rule reading a noisy indicator against 0.072 for a deadband rule, worst-case margin
++0.56 and +0.53 held out. The loss alone cannot do that job here (twitchy 14.17 vs deadband 14.00 —
+fully overlapping), which is what makes the discriminator load-bearing rather than decorative. It is
+also the probe most directly relevant to this suite's purpose: several harness components,
+``OutcomeFeedback`` above all, plausibly push a regent toward activity, and without this row a
+component could raise the battery average simply by making the regent busier.
 
 **Harness caveat that applies to the whole battery.** ``EpisodicMemory`` scores a remembered episode
 as the SUM of the ``metrics()`` values not in its ``_NON_STATE_KEYS``, and that list names
@@ -132,6 +161,13 @@ from govsim.domains.diagnostics.sign_flip import (
     loss_for,
     reversed_law,
     true_post_break_gain_sign,
+)
+from govsim.domains.diagnostics.restraint import (
+    IatrogenicPlant,
+    RestraintLoss,
+    deadband_law,
+    do_nothing_law,
+    twitchy_law,
 )
 from govsim.domains.diagnostics.strategic_population import (
     StrategicComplianceLoss,
@@ -236,6 +272,23 @@ PROBES: dict[str, Probe] = {
             "to — and only the gap says which (0.000 vs 0.193)."
         ),
     ),
+    "restraint": Probe(
+        key="restraint",
+        capability="tell signal from noise and DECLINE to act",
+        system=IatrogenicPlant,
+        objective=RestraintLoss,
+        discriminators=("needless_action_rate", "iatrogenic_burden"),
+        loss_separates=True,
+        why_loss_is_not_enough=(
+            "loss separates the IDLE arm decisively (do-nothing 65.6 vs deadband 14.0; worst-case "
+            "margin +9.2 on seeds 0-9 and +12.5 held out) and does NOT separate the reference pair "
+            "at all: twitchy 14.17 vs deadband 14.00, worst-case margin -12.3, i.e. fully "
+            "overlapping. The two arms reach the same loss by opposite routes — one chases noise "
+            "and manufactures the disorder it corrects, the other waits for a real shift — and only "
+            "needless_action_rate says which (0.687 vs 0.072, worst-case margin +0.56 on seeds 0-9 "
+            "and +0.53 held out, so it does not flip out of sample)."
+        ),
+    ),
 }
 
 __all__ = [
@@ -246,14 +299,20 @@ __all__ = [
     "DelayedHarm",
     "GoodhartTrap",
     "HiddenCliff",
+    "IatrogenicPlant",
     "SignFlipPlant",
     "StrategicPopulation",
     # -- objectives -------------------------------------------------------------------
     "CliffLoss",
     "DeferredHarmLoss",
+    "RestraintLoss",
     "SignFlipLoss",
     "StrategicComplianceLoss",
     "TrueWelfareLoss",
+    # -- reference policies: restraint ------------------------------------------------
+    "deadband_law",
+    "do_nothing_law",
+    "twitchy_law",
     # -- reference policies: goodhart -------------------------------------------------
     "NAIVE_PROXY_CHASER",
     "REFERENCE_BACKOFF",

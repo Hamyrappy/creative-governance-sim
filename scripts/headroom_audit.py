@@ -148,7 +148,7 @@ def domain_sir_efficacy(lam: float = 0.02, efficacy: float = 0.25):
         pre=_mk(SIRSystem, base), shocked=_mk(SIRSystem, shocked), iface=iface,
         objective=EpidemicLoss(lam=lam, post_shock_step=SHOCK_STEP),
         family=family, schedule=EveryN(10), horizon=200,
-        calib_metric="loss", score_metric="post_loss",
+        calib_metric="loss", score_metric="post_loss", switch_step=SHOCK_STEP,
     )
 
 
@@ -186,7 +186,7 @@ def domain_sir(lam: float = 0.02):
         pre=_mk(SIRSystem, base), shocked=_mk(SIRSystem, shocked), iface=iface,
         objective=EpidemicLoss(lam=lam, post_shock_step=SHOCK_STEP),
         family=family, schedule=EveryN(10), horizon=200,
-        calib_metric="loss", score_metric="post_loss",
+        calib_metric="loss", score_metric="post_loss", switch_step=SHOCK_STEP,
     )
 
 
@@ -225,6 +225,9 @@ def _economy(key: str, family: PolicyFamily, note: str = "") -> dict:
         schedule=EveryN(w.decide_every),
         horizon=w.horizon,
         calib_metric="loss", score_metric="post_loss",
+        # Carried so ``decompose_library.py`` can build the clairvoyant ADAPTOR on the same world:
+        # the switch step must be the scenario's own break, never a hand-copied constant.
+        switch_step=w.scenario.step,
     )
 
 

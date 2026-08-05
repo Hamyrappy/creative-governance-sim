@@ -215,6 +215,21 @@ class EpisodicMemory(HarnessComponent):
     # looks like it is doing its job while carrying no information about the policy.
     _NON_STATE_KEYS = frozenset({"step", "t", "target_x", "cum_cost", "cash"})
 
+    @staticmethod
+    def is_scorer_only(key: str) -> bool:
+        """A leading underscore marks a metric the SCORER may read and the regent may not.
+
+        Some diagnostic worlds have to publish ground truth the agent is supposed to infer — which
+        steps were a real regime shift rather than noise, how much of the disorder a policy inflicted
+        on itself. The scorer needs it per step; the regent seeing it deletes the task.
+
+        ``Runner`` builds the trajectory row and the harness's ``on_outcome`` payload from the SAME
+        ``system.metrics()`` dict, so there is no second channel to put it on. This convention is
+        that channel, enforced in one place: anything named ``_foo`` is invisible to every component
+        that renders state into a prompt, and to the episode score.
+        """
+        return key.startswith("_")
+
     def __init__(self, k: int = 3) -> None:
         self.k = k
         self.episodes: list[dict] = []
@@ -225,7 +240,8 @@ class EpisodicMemory(HarnessComponent):
         ranked = sorted(self.episodes, key=lambda ep: self._distance(view.vars, ep["state"]))
         lines = []
         for ep in ranked[: self.k]:
-            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items() if k not in self._NON_STATE_KEYS)
+            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items()
+                              if k not in self._NON_STATE_KEYS and not self.is_scorer_only(k))
             acts = "; ".join(f"{a['verb']}:{a['expr']}" for a in ep["actions"])
             lines.append(f"- when [{state}] you did [{acts}] → outcome≈{ep['score']:.4g}")
         scratch["memory"] = "\n".join(lines)
@@ -233,12 +249,13 @@ class EpisodicMemory(HarnessComponent):
     def on_outcome(self, view: Observation, requests: list[ActionRequest], outcome: Outcome, scratch: dict) -> None:
         actions = [{"verb": r.verb, "expr": str(r.payload.get("expr", r.payload))} for r in requests]
         score = sum(v for k, v in outcome.metrics.items()
-                    if isinstance(v, (int, float)) and k not in self._NON_STATE_KEYS)
+                    if isinstance(v, (int, float)) and k not in self._NON_STATE_KEYS
+                    and not self.is_scorer_only(k))
         self.episodes.append({"state": dict(view.vars), "actions": actions, "score": score})
 
     @classmethod
     def _distance(cls, a: dict[str, float], b: dict[str, float]) -> float:
-        shared = (set(a) & set(b)) - cls._NON_STATE_KEYS
+        shared = {k for k in (set(a) & set(b)) - cls._NON_STATE_KEYS if not cls.is_scorer_only(k)}
         if not shared:
             return math.inf
         return math.sqrt(sum((a[k] - b[k]) ** 2 for k in shared))

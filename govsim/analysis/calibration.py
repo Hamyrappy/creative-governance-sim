@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import warnings
 import statistics
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
@@ -203,7 +204,7 @@ def calibrate_switching(
     seeds: list[int],
     horizon: int,
     metric: str,
-    top_k: int = 8,
+    top_k: int = 24,
 ) -> tuple[dict[str, str], dict[str, str], float]:
     """The clairvoyant ADAPTOR: jointly search ``(pre-break law, post-break law)`` pairs.
 
@@ -254,15 +255,32 @@ def calibrate_switching(
     shortlist = shortlist[:top_k]
 
     best: tuple[dict[str, str], dict[str, str], float] | None = None
-    for pre_fam, pre_params, _ in shortlist:
+    best_rank = -1
+    for rank, (pre_fam, pre_params, _) in enumerate(shortlist):
         pre_laws = pre_fam.render_all(pre_params)
         for post_fam in families.values():
             for post_params in post_fam.combinations():
                 post_laws = post_fam.render_all(post_params)
                 loss = _score_pair(pre_laws, post_laws, pre_fam.verb)
                 if best is None or loss < best[2]:
-                    best = (pre_laws, post_laws, loss)
+                    best, best_rank = (pre_laws, post_laws, loss), rank
     assert best is not None
+    # If the winning pre-leg came from the very end of the shortlist, the shortlist was probably
+    # the binding constraint rather than the policy space. Measured on the monetary world: at
+    # top_k=8 the search returned 1917.6, at top_k=16 it returned 1910.8, and top_k=32 and an
+    # exhaustive search both returned 1910.8 — so 8 was cutting off the answer and 16 had
+    # converged. Worse, the bias is not monotone in the VOCABULARY either: enriching the grid moved
+    # the top-8 shortlist and made the returned reference worse (1950.3), so headroom measured at a
+    # small top_k is not comparable across grids. A too-weak switching reference understates
+    # adaptation headroom, which is the safe direction but still wrong.
+    if best_rank >= 0.75 * len(shortlist) and len(shortlist) > 1:
+        warnings.warn(
+            f"calibrate_switching: the winning pre-leg was #{best_rank + 1} of {len(shortlist)} in "
+            f"the shortlist, so top_k={top_k} may be truncating the search and the headroom this "
+            f"produces may be an underestimate. Re-run with a larger top_k and check the loss stops "
+            f"moving.",
+            RuntimeWarning, stacklevel=2,
+        )
     return best
 
 
@@ -286,9 +304,20 @@ def headroom(frozen_loss: float, oracle_loss: float) -> float:
 
     Which gap depends on which reference is passed. See :func:`diagnose` for the decomposition that
     makes the distinction explicit, and prefer it when reporting.
+
+    Returns ``nan`` — never ``inf`` — when the ratio is undefined because a loss is non-positive.
+    Several objectives in the library are net *welfare* measures (``CommonsWelfare`` is catch value
+    minus costs), so a good policy legitimately scores below zero and ``L(frozen)/L(oracle)`` then
+    flips sign or blows up. Returning ``inf`` there is actively dangerous: it reads as "an enormous
+    amount of headroom" and sorts to the TOP of any "higher is better" ranking. It did exactly that
+    — commons ranked first in the library at ``inf x``, above a world with a real 1.355x — which is
+    how this was found. ``nan`` is the honest answer, and callers must report the absolute gap
+    instead (see :func:`diagnose`, which computes both).
     """
-    if oracle_loss <= 0 or not math.isfinite(oracle_loss):
-        return float("inf")
+    if not math.isfinite(frozen_loss) or not math.isfinite(oracle_loss):
+        return float("nan")
+    if oracle_loss <= 0 or frozen_loss <= 0:
+        return float("nan")
     return frozen_loss / oracle_loss
 
 
@@ -314,9 +343,22 @@ def diagnose(frozen_loss: float, best_fixed_loss: float, switching_loss: float) 
     cost and *zero* adaptation headroom — we measure one — and there the finding is that the polity
     needed a better rule, not a more attentive government. Reporting only staleness would have
     called that an adaptation failure, and prescribed the wrong fix.
+
+    Absolute GAPS are always reported alongside the ratios, and ``ratios_valid`` says whether the
+    ratios mean anything. On a net-welfare objective a loss can be non-positive, and a ratio built
+    from it is not merely imprecise — it is uninterpretable while still being a number that sorts.
+    The gaps are well defined in every case. When ``ratios_valid`` is False, rank and report on the
+    gaps and say so; do not quote a ratio.
     """
-    return {
+    ratios = {
         "staleness": headroom(frozen_loss, switching_loss),
         "adaptation_headroom": headroom(best_fixed_loss, switching_loss),
         "robustness_headroom": headroom(frozen_loss, best_fixed_loss),
+    }
+    return {
+        **ratios,
+        "ratios_valid": all(math.isfinite(v) for v in ratios.values()),
+        "staleness_gap": frozen_loss - switching_loss,
+        "adaptation_gap": best_fixed_loss - switching_loss,
+        "robustness_gap": frozen_loss - best_fixed_loss,
     }
