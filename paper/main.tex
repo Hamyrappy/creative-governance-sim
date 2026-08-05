@@ -677,6 +677,21 @@ does not support.}
 \label{fig:lockin}
 \end{figure}
 
+\paragraph{Relation to what is known about agent memory.} That memory systems underperform their
+promise is not news: \citet{jiang2026anatomy} survey the field and attribute the gap to benchmark
+saturation, metric validity, backbone dependence and latency, and the surrounding literature
+discusses \emph{memory pollution}---redundant or failed episodes crowding out useful ones. Those are
+accounts of \emph{retrieval quality}, and they predict that memory hurts when it surfaces the wrong
+episodes.
+
+Our result is not that. Retrieval here is working: post-break the component surfaces recent precedent
+in preference to stale precedent, at a rate better than chance. The harm survives good retrieval,
+because it is not carried by which episodes are shown but by what showing them does to the agent's
+willingness to revise. We are also not aware of a reported interaction of the kind in the table
+above, in which a second, independent channel restores most of what a memory component removed. If
+the mechanism is presentation rather than content, that is a design lever, and it is one that a
+retrieval-quality account does not suggest looking for.
+
 \paragraph{Churn is a diagnostic, not a target.} Across the eight arms, mean churn and mean loss
 correlate at $r=-0.82$: the conditions that revise more do better. It would be easy, and wrong, to
 read that as ``make the agent revise more and it will improve''. Decomposing the same $8\times20$
