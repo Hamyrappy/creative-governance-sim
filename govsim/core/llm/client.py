@@ -90,6 +90,10 @@ class OpenAICompatClient:
         drop_params: frozenset[str] | set[str] | None = None,
         max_retries: int = 6,
         min_interval: float = 0.0,
+        # How many times to re-ask when the model burns its whole budget on reasoning and returns
+        # nothing. 0 disables the mitigation entirely, which is what an experiment measuring the
+        # RAW collapse rate wants.
+        deliberation_retries: int = 2,
     ) -> None:
         self.base_url = base_url
         self.api_key_env = api_key_env
@@ -102,6 +106,17 @@ class OpenAICompatClient:
         # server-suggested backoff recovers from the bursts that slip through.
         self.max_retries = max_retries
         self.min_interval = min_interval
+        self.deliberation_retries = deliberation_retries
+        #: Decisions that collapsed into pure deliberation. Read per arm and REPORTED — the rate is
+        #: a finding about the channel, not a defect to be quietly repaired.
+        self.deliberation_collapses = 0
+        #: Re-ask calls actually spent. Separate from the collapse count so a budget-matching claim
+        #: can be checked: a mitigation that silently doubles one arm's call budget is a confound of
+        #: its own.
+        self.deliberation_retries_used = 0
+        #: Collapses the re-asks failed to recover. These decisions really are no-ops and must be
+        #: subtracted from an arm's effective treatment, not counted as governed.
+        self.deliberation_unrecovered = 0
         self._last_call_at = 0.0
         self._lock = threading.Lock()
         self._client: Any = None  # the openai.OpenAI instance, created lazily
@@ -162,6 +177,76 @@ class OpenAICompatClient:
                 time.sleep(wait)
             self._last_call_at = time.monotonic()
 
+    #: Appended verbatim when a call collapses into deliberation and returns no answer. Deliberately
+    #: content-free about *what* to decide — it must not push the model toward any particular policy,
+    #: or the mitigation becomes a treatment.
+    _ANSWER_NOW = (
+        "You have already reasoned about this at length. Do not deliberate further. "
+        "Emit your action now, in the required form, and nothing else."
+    )
+
+    @staticmethod
+    def _is_reasoning_collapse(resp: Any) -> bool:
+        """Did the model spend its whole budget thinking and return no answer at all?
+
+        The signature is ``completion_tokens == 0`` with a large ``total_tokens``: everything went
+        into the reasoning channel and nothing reached the completion. MEASURED on
+        ``gemma-4-31b-it`` at ``max_tokens=12000``: 31 of 400 decisions in the outcome-feedback arm,
+        each ending inside a verbatim repetition loop ("Wait, let's try `0.9 * (I / 0.06)` and
+        `0.5`." repeated until the budget ran out).
+
+        This is NOT the truncation failure this project hit before, and the distinction matters
+        because the remedies are opposite. Truncation at ``max_tokens=1500`` was a budget problem
+        and raising the cap fixed it. This happens AT a 12000-token cap, and raising it further only
+        buys more loop. It is a degenerate decoding state; the only way out is to re-ask.
+        """
+        try:
+            usage = resp.usage
+            completion = int(getattr(usage, "completion_tokens", 0) or 0)
+            total = int(getattr(usage, "total_tokens", 0) or 0)
+        except Exception:  # noqa: BLE001 - a provider without usage cannot be diagnosed
+            return False
+        if completion != 0 or total <= 0:
+            return False
+        msg = resp.choices[0].message
+        return not (getattr(msg, "tool_calls", None) or (msg.content or "").strip())
+
+    def _retry_after_collapse(self, client: Any, kwargs: dict[str, Any],
+                              messages: list[dict[str, Any]]) -> Any:
+        """Re-ask, telling the model to stop deliberating, with a hard cap on attempts.
+
+        Why this is a mitigation rather than a thumb on the scale: collapse is *correlated with the
+        treatment* — a harness channel lengthens the prompt and invites longer deliberation, so the
+        arms carrying more information collapse more often (measured: 7.8% for outcome feedback,
+        0.2% for no harness). Left alone, the decision silently becomes a no-op, the previously
+        installed law stays in force, and the arm is no longer the treatment its label claims. The
+        ablation would then be measuring which channel makes the model loop.
+
+        The nudge says only "stop and answer"; it never suggests what to answer, so it cannot move
+        the policy toward any particular choice. The retry COUNT is recorded and reported per arm,
+        because the collapse rate is itself a finding about the channel and must not be silently
+        repaired away.
+        """
+        # ONE increment per collapsed decision, not per retry attempt: the reported quantity is the
+        # share of DECISIONS that collapsed, so counting attempts would inflate an arm's rate purely
+        # because its collapses were harder to recover from.
+        self.deliberation_collapses += 1
+        resp = None
+        for _ in range(self.deliberation_retries):
+            retry_kwargs = dict(kwargs)
+            retry_kwargs["messages"] = list(messages) + [
+                {"role": "user", "content": self._ANSWER_NOW}
+            ]
+            # The smaller budget is part of the fix, not an economy: the failure is an unbounded
+            # reasoning loop, and a tight ceiling forces the decode out of it.
+            retry_kwargs["max_tokens"] = min(int(kwargs.get("max_tokens") or 1024), 1024)
+            self.deliberation_retries_used += 1
+            resp = self._call_with_retry(client, retry_kwargs)
+            if not self._is_reasoning_collapse(resp):
+                return resp
+        self.deliberation_unrecovered += 1
+        return resp
+
     def _call_with_retry(self, client: Any, kwargs: dict[str, Any]) -> Any:
         last: Exception | None = None
         for attempt in range(self.max_retries + 1):
@@ -216,6 +301,8 @@ class OpenAICompatClient:
             kwargs.pop(name, None)
 
         resp = self._call_with_retry(client, kwargs)
+        if self.deliberation_retries and self._is_reasoning_collapse(resp):
+            resp = self._retry_after_collapse(client, kwargs, messages)
         msg = resp.choices[0].message
         tool_calls: list[dict[str, Any]] = []
         for tc in (getattr(msg, "tool_calls", None) or []):

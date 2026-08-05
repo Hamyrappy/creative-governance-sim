@@ -176,6 +176,13 @@ def enacted_policies(stores: list[ResultStore], experiment: str, model: str | No
     return out
 
 
+#: Below this share of altered prompts, an arm-level responsiveness verdict is not identifiable: a
+#: channel that rarely speaks cannot move an arm mean, so a small total-variation distance says
+#: nothing about whether the model reads it. Set at 20% because the failure it guards against was
+#: measured at 3% and the clear cases in hand sit at 95-100%.
+_LIVENESS_FLOOR = 0.20
+
+
 def _prompts_by_decision(stores: list[ResultStore], experiment: str,
                          model: str | None) -> dict[tuple[int, int], str]:
     """``{(seed, step): prompt text}`` for an arm, so arms can be compared decision-by-decision.
@@ -238,8 +245,18 @@ def _responsiveness_report(stores: list[ResultStore], cells: dict[str, str],
         # stale the moment a component's wording changes.
         theirs = _prompts_by_decision(stores, exp, model)
         shared = set(base_prompts) & set(theirs)
-        moved = sum(1 for k in shared if base_prompts[k] != theirs[k])
-        live = moved / len(shared) if shared else 0.0
+        moved_keys = {k for k in shared if base_prompts[k] != theirs[k]}
+        live = len(moved_keys) / len(shared) if shared else 0.0
+        if 0.01 <= live < _LIVENESS_FLOOR:
+            # A channel that speaks on a small minority of decisions CANNOT move the aggregate
+            # policy distribution much, however attentive the model is, so a low total-variation
+            # distance here is arithmetic rather than evidence. Measured: a trace channel live on 3%
+            # of prompts produced TV=0.015 and was reported DEAF — a verdict about the model drawn
+            # from a fact about how rarely the channel had anything to say.
+            lines.append(f"  THIN   {label:<12} the channel altered only {100 * live:.0f}% of "
+                         f"prompts; too rarely to test responsiveness at the arm level. Judge this "
+                         f"contrast on the affected decisions, not on the arm mean.")
+            continue
         if live < 0.01:
             # NOT deafness. TraceFeedback, for instance, reports rejected actions; when the agent
             # emits only valid actions it has nothing to say, and an arm whose prompt never changed
@@ -346,7 +363,16 @@ def _anchors_match_calibration(stores: list[ResultStore]) -> bool:
         if not expected:
             continue
         for store in stores:
+            # The LATEST row per seed, exactly as ``load_by_seed`` does — a re-run supersedes.
+            # Reading an arbitrary row instead was a real defect in this gate: after re-running the
+            # reference arms to repair a store, the gate kept reporting the SUPERSEDED row and the
+            # store could never be made to pass. The dangerous version of the same bug is quieter —
+            # it would validate the anchors against a policy that is no longer the one the losses
+            # were produced by, which is the exact failure this gate exists to catch.
+            latest: dict[int, dict] = {}
             for row in store.query(experiment=arm):
+                latest[int(row.get("seed", -1))] = row  # ORDER BY run_id ⇒ last write wins
+            for row in latest.values():
                 spec = (row.get("regent_specs") or {}).get(REGENT, {})
                 # ScriptedRegent persists `expr`; MultiScriptedRegent persists `laws`. Accept either
                 # shape, and treat a row carrying NEITHER as a failure rather than a pass: a record
