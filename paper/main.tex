@@ -159,6 +159,16 @@ nor for the term \emph{meta-harness}, which \citet{lee2026metaharness} introduce
 is orthogonal: a way to know, in advance, whether a given environment can measure a harness
 difference at all, and an application to a shock type that literature has not isolated.
 
+One structural feature of that lineage is worth naming, because our result bears on it directly.
+These systems search over designs and evaluate them on the same benchmark the search consumed:
+\citet{zhang2025dgm} searches and scores on SWE-bench and Polyglot, and it is precisely this
+arrangement that \citet{wang2026rethinking} identify as making reported gains hard to attribute. The
+usual worry is overfitting---a harness tuned to a task set carries less to held-out tasks in the same
+set. Our cross-world measurement (\cref{sec:crossworld}) suggests the sharper version: a component
+selected where one failure mode dominates can be \emph{negatively} valued where another does, so a
+search that never leaves its benchmark cannot see the sign of what it is optimizing, let alone its
+magnitude.
+
 \paragraph{Code as policy.}
 Emitting executable code as the action is established in robotics
 \citep{liang2022codeaspolicies}, reward design \citep{ma2023eureka}, and algorithm discovery

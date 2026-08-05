@@ -136,6 +136,7 @@ _EPIDEMIC_BASELINE = (
 def _epidemic_experiment(name: str, regent, harness: Harness, *, claim: str = _EPIDEMIC_CLAIM,
                          hyp_id: str = "H1-instrument-collapse", falsification: str = "",
                          creativity: CreativityMetric | None = None,
+                         seeds: list[int] | None = None,
                          metadata: dict | None = None) -> Experiment:
     """Every epidemic arm, wired identically apart from the regent and the harness stack."""
     return Experiment(
@@ -146,7 +147,7 @@ def _epidemic_experiment(name: str, regent, harness: Harness, *, claim: str = _E
         objectives={"regent:0": _objective()},
         harness=harness,
         schedule=EveryN(R.EPIDEMIC_DECIDE_EVERY),
-        seeds=list(SEEDS),
+        seeds=list(seeds if seeds is not None else SEEDS),
         horizon=R.EPIDEMIC_HORIZON,
         hypothesis=Hypothesis(
             id=hyp_id,
@@ -361,8 +362,20 @@ def epidemic_llm_unscored() -> Experiment:
 DONOR_MEMORY_PATH = os.environ.get("GOVSIM_DONOR_MEMORY", "logs/donor_memory.json")
 
 
-def _donor_bank(seed: int) -> list[dict]:
-    """The episode bank for one seed, drawn from a DIFFERENT seed's recorded run.
+#: The foreign arm runs on the FIRST half of the seed set and draws its precedent from banks built
+#: on the SECOND half. That split is what makes "foreign" true rather than approximately true.
+#:
+#: The alternative — one bank for all 20 seeds — fails on exactly one seed: the run whose world
+#: realisation the donor came from would be shown precedent generated in its own world. One
+#: contaminated seed in twenty is small, and it is also the seed most likely to look like a striking
+#: result, so the design removes it rather than reporting around it. The cost is n=10 instead of 20,
+#: which is the honest trade.
+FOREIGN_SEEDS = list(range(10))
+FOREIGN_DONOR_SEEDS = list(range(10, 20))
+
+
+def _donor_bank(seeds: list[int], k: int = 8) -> list[dict]:
+    """Episodes pooled from runs whose world seeds are DISJOINT from the arm's own.
 
     Raises rather than returning empty. A missing or malformed bank would silently turn this arm
     into a no-harness control while it still carried a memory label — the single most expensive
@@ -377,15 +390,21 @@ def _donor_bank(seed: int) -> list[dict]:
             f"uv run python scripts/build_donor_memory.py --store logs/runs_v3"
         )
     banks = json.loads(path.read_text(encoding="utf-8"))
-    bank = banks.get(str(seed)) or []
-    if not bank:
-        raise ValueError(f"donor bank for seed {seed} is empty in {path}")
-    if any(e.get("_donor_seed") == seed for e in bank):
+    pooled: list[dict] = []
+    for s_ in seeds:
+        pooled.extend(banks.get(str(s_)) or [])
+    # Keep only episodes whose ORIGIN seed is in the donor half. The bank file is keyed by the seed
+    # it was built FOR, so filtering on the recorded origin is what actually guarantees disjointness.
+    pooled = [e for e in pooled if e.get("_donor_seed") in set(seeds)]
+    if not pooled:
+        raise ValueError(f"no donor episodes for seeds {seeds} in {path}")
+    leaks = {e.get("_donor_seed") for e in pooled} & set(FOREIGN_SEEDS)
+    if leaks:
         raise ValueError(
-            f"donor bank for seed {seed} contains that seed's OWN episodes; the arm would not be "
-            f"foreign and the contrast it exists to make would be void"
+            f"donor pool contains episodes from the arm's OWN seeds {sorted(leaks)}; the arm would "
+            f"not be foreign and the contrast it exists to make would be void"
         )
-    return bank
+    return pooled[:k]
 
 
 @register("epidemic_llm_foreign")
@@ -408,7 +427,8 @@ def epidemic_llm_foreign() -> Experiment:
     return _epidemic_experiment(
         "epidemic_llm_foreign",
         LLMRegent(llm=_client(), model=_model(), temperature=0.0, max_tokens=max_tokens, extra=extra),
-        Harness([ForeignMemory(_donor_bank(0), k=4)]),
+        Harness([ForeignMemory(_donor_bank(FOREIGN_DONOR_SEEDS), k=4)]),
+        seeds=FOREIGN_SEEDS,
         hyp_id="H3e-foreign-memory",
         claim="the policy lock-in episodic memory induces comes from being shown the agent's OWN "
               "prior decisions, not from exposure to concrete precedent as such",

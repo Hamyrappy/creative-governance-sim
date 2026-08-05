@@ -113,3 +113,25 @@ def test_disabled_components_are_reset_too():
     mem.enabled = False
     Harness([mem]).reset()
     assert mem.episodes == []
+
+
+# --- the foreign arm must actually be foreign ---------------------------------------------------
+
+def test_the_foreign_arm_never_shares_a_world_seed_with_its_donor_bank():
+    """The whole contrast is "precedent you did not author". One overlapping seed would be shown
+    precedent generated in its own world realisation — and it would be the seed most likely to look
+    like a striking result, so the design removes it rather than reporting around it."""
+    from govsim.experiments import get
+    exp = get("epidemic_llm_foreign")
+    bank = exp.harness.components[0].episodes
+    donors = {e.get("_donor_seed") for e in bank}
+    assert donors, "the donor bank is empty; the arm would be a no-harness control with a memory label"
+    assert not (set(exp.seeds) & donors), (set(exp.seeds), donors)
+
+
+def test_the_foreign_arm_runs_on_its_own_half_and_the_control_on_all_seeds():
+    """n=10 against a 20-seed control is the honest cost of guaranteeing disjointness; the contrast
+    is still paired on the ten shared seeds."""
+    from govsim.experiments import get
+    assert get("epidemic_llm_foreign").seeds == list(range(10))
+    assert get("epidemic_llm_memory").seeds == list(range(20))
