@@ -1082,13 +1082,29 @@ discusses \emph{memory pollution}---redundant or failed episodes crowding out us
 accounts of \emph{retrieval quality}, and they predict that memory hurts when it surfaces the wrong
 episodes.
 
-Our result is not that. Retrieval here is working: post-break the component surfaces recent precedent
-in preference to stale precedent, at a rate better than chance. The harm survives good retrieval,
-because it is not carried by which episodes are shown but by what showing them does to the agent's
-willingness to revise. We are also not aware of a reported interaction of the kind in the table
-above, in which a second, independent channel restores most of what a memory component removed. If
-the mechanism is presentation rather than content, that is a design lever, and it is one that a
-retrieval-quality account does not suggest looking for.
+Our result is not that, and the distinction matters for what one would fix. Retrieval here is
+working by its own lights: post-break the component surfaces recent precedent in preference to stale
+precedent, at a rate better than chance. The harm survives good retrieval. It is carried by the
+retrieval \emph{rule}---rank by similarity to the current state---which in a recurrent environment
+returns the agent's immediately preceding decision at precisely the moment the question is whether
+that decision still works. A retrieval-quality account cannot reach this, because nothing here is low
+quality; the nearest episode really is the most similar one.
+
+The closest statement in the literature is \citet{xu2026memo}, who argue that contextual agentic
+memory implements lookup rather than memory, and that because retrieval generalizes by similarity to
+stored cases, retrieval-only agents face a ceiling on compositionally novel tasks that no amount of
+retrieval quality removes. That is a claim about \emph{capability}---what such an agent cannot
+learn to do. Ours is a claim about \emph{behaviour} under the same property: similarity retrieval
+over one's own history does not merely fail to generalize, it actively suppresses revision, and it
+does so hardest in exactly the stable-then-broken environments where revision is what one wants. We
+checked their paper for this claim and it is not made there. We also are not aware of a reported
+interaction of the kind in the table above, in which a second, independent channel restores most of
+what a memory component removed.
+
+Two levers follow, and we have evidence for both: add an evaluative channel, or change what
+retrieval returns. We have tested one instance of the second (episodes from a different agent) and
+name the more direct instance (retrieving the agent's own \emph{least} similar precedent) as
+specified and not yet run, rather than assert a design principle from a single arm.
 
 \paragraph{Churn is a diagnostic, not a target.} Across the eight arms, mean churn and mean loss
 correlate at $r=-0.82$: the conditions that revise more do better. It would be easy, and wrong, to
