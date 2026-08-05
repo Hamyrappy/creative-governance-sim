@@ -380,6 +380,65 @@ class UnscoredMemory(EpisodicMemory):
         scratch["memory"] = "\n".join(lines)
 
 
+class DistantMemory(EpisodicMemory):
+    """The agent's OWN episodes, retrieved by inverse similarity. The arm that isolates proximity.
+
+    The foreign-memory arm changed two things at once, and we did not notice until after the result
+    was written up. It changed WHOSE episodes were in the bank -- and it changed how far the
+    retrieved precedent sits from the querying state, because a donor's trajectory cannot pass
+    through the agent's current neighbourhood the way the agent's own history does. Measured against
+    the bank that arm actually receives, foreign precedent is retrieved 2.38x FURTHER (own 0.157,
+    foreign 0.374).
+
+    Authorship is already excluded as an explanation: ``ForeignMemory`` inherits ``on_observe``, so
+    the donor's episodes are rendered "when [state] you did [law]" and the agent is never told whose
+    they are. What remains is a race between two accounts of the SAME arm:
+
+    (a) **Proximity.** Similarity-ranked recall over one's own trajectory, in a world that recurs,
+        returns a near-copy of the immediately preceding decision, and a near-copy is repeated.
+    (b) **Bank contents.** The donor's eight episodes are eight different laws, written by an agent
+        that churned at 0.847; own memory fills with a converging history. Perhaps what matters is
+        the variety on offer, not the distance.
+
+    This component holds the bank fixed -- the agent's own episodes, exactly as ``EpisodicMemory``
+    accumulates them -- and inverts only the retrieval order, returning the k most DISSIMILAR
+    episodes instead of the k most similar. Bank, phrasing, count, scoring and the second person are
+    the parent's.
+
+    PREDICTION, recorded before the arm is run:
+
+        under (a) proximity, churn rises materially above the own-memory arm's 0.068, toward the
+        foreign arm's 0.632;
+        under (b) bank contents, churn stays near 0.068, because the bank is unchanged.
+
+    A null here does not restore the authorship reading -- that one is dead on the rendering -- it
+    promotes (b) and makes the design advice "vary what is in the file", not "vary how it is
+    searched".
+
+    NOTE ON THE FIRST DECISION. With a bank of one, most-similar and least-similar are the same
+    episode, so this arm cannot differ from ``EpisodicMemory`` at the first transition. That is not a
+    flaw to be patched: the own-memory arm's suppression is already 0.40 at that transition, and any
+    difference this component produces must therefore appear later. The comparison to read is the
+    curve from the second transition on.
+    """
+
+    name = "distant_memory"
+
+    def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
+        if not self.episodes:
+            return
+        # The ONLY line that differs from the parent: reverse=True.
+        ranked = sorted(self.episodes, key=lambda ep: self._distance(view.vars, ep["state"]),
+                        reverse=True)
+        lines = []
+        for ep in ranked[: self.k]:
+            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items()
+                              if k not in self._NON_STATE_KEYS and not self.is_scorer_only(k))
+            acts = "; ".join(f"{a['verb']}:{a['expr']}" for a in ep["actions"])
+            lines.append(f"- when [{state}] you did [{acts}] → outcome≈{ep['score']:.4g}")
+        scratch["memory"] = "\n".join(lines)
+
+
 class ForeignMemory(EpisodicMemory):
     """Precedent from ANOTHER authority's run, never from this one's own history.
 

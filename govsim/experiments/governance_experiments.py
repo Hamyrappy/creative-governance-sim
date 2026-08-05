@@ -71,7 +71,8 @@ from govsim.domains.scalar import (
 from govsim.domains.scalar import regimes as R
 from govsim.experiments import register
 from govsim.harness import (
-    ContextualOutcomeFeedback, ContrastiveMemory, Critic, EpisodicMemory, OutcomeFeedback,
+    ContextualOutcomeFeedback, ContrastiveMemory,
+    DistantMemory, Critic, EpisodicMemory, OutcomeFeedback,
     ForeignMemory, TraceFeedback, UnscoredMemory,
 )
 from govsim.regents import LLMRegent, OPRORegent, SwitchingRegent
@@ -354,6 +355,47 @@ def epidemic_llm_unscored() -> Experiment:
               "attached to precedent, not by recall of the precedent itself",
         falsification="the paired CI of (unscored - memory) on policy churn includes 0",
         metadata={"role": "treatment", "factors": ["unscored"], "budget_matched": True,
+                  "control_arm": "epidemic_llm_memory"},
+    )
+
+
+@register("epidemic_llm_distant")
+def epidemic_llm_distant() -> Experiment:
+    """The agent's OWN precedent, retrieved by INVERSE similarity. Isolates proximity.
+
+    The foreign-memory arm moved two things at once. It changed whose episodes were in the bank, and
+    -- because a donor's trajectory does not pass through the agent's current neighbourhood -- it
+    moved the retrieved precedent 2.38x further from the querying state (own 0.157, foreign 0.374,
+    measured against the bank that arm actually receives).
+
+    Authorship is already out: ``ForeignMemory`` inherits ``on_observe``, so the donor's decisions
+    are rendered "when [state] you did [law]" and the agent is never told they are not its own. Two
+    accounts of that arm remain, and they prescribe opposite designs:
+
+      proximity      similarity-ranked recall over one's own history returns a near-copy of the last
+                     decision, and a near-copy is repeated  ->  fix the RETRIEVAL RULE
+      bank contents  the donor's eight episodes are eight different laws while own memory converges
+                     to one, so variety is what matters     ->  fix WHAT IS IN THE FILE
+
+    This arm holds the bank fixed at the agent's own accumulating episodes and inverts only the
+    ranking. Phrasing, count, scores and the second person are the parent's.
+
+    PREDICTION, recorded before running: under proximity, churn rises materially above the
+    own-memory arm's 0.068 toward the foreign arm's 0.632. Under bank contents it stays near 0.068.
+    A null promotes bank contents and changes the design advice in both manuscripts.
+
+    Its control is ``epidemic_llm_memory``; both run the full 20 seeds, so the contrast is paired at
+    full power rather than at the foreign arm's 10."""
+    max_tokens, extra = _llm_opts()
+    return _epidemic_experiment(
+        "epidemic_llm_distant",
+        LLMRegent(llm=_client(), model=_model(), temperature=0.0, max_tokens=max_tokens, extra=extra),
+        Harness([DistantMemory(k=4)]),
+        hyp_id="H3f-distant-memory",
+        claim="the lock-in episodic memory induces is carried by the PROXIMITY of retrieved "
+              "precedent to the current state, not by what the bank contains",
+        falsification="the paired CI of (distant - memory) on policy churn includes 0",
+        metadata={"role": "treatment", "factors": ["distant"], "budget_matched": True,
                   "control_arm": "epidemic_llm_memory"},
     )
 

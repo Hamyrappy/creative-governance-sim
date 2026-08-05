@@ -627,3 +627,35 @@ prevent.
   **Process note.** Both defects were found by asking what the arm *actually received* rather than
   what it was designed to receive. Neither was visible in any summary statistic; both were visible in
   eight lines of a printed bank and one missing method override.
+
+- **2026-08-05 — H3f PRE-REGISTERED AND BUILT, NOT YET RUN: `epidemic_llm_distant`.**
+  The arm that separates the two accounts left standing after the authorship retraction above.
+  Registered here before any of its runs exist, with the component and the arm already committed so
+  the design cannot be adjusted after seeing a result.
+
+  `DistantMemory` subclasses `EpisodicMemory` and changes ONE line: `reverse=True` in the retrieval
+  sort. The bank is the agent's own accumulating episodes, the phrasing is the parent's second
+  person, the count is k=4, the scores are attached. It returns the k most DISSIMILAR of the agent's
+  own precedents instead of the k most similar.
+
+  | account | what it says the foreign arm did | prediction for `distant` |
+  |---|---|---|
+  | **proximity** | moved retrieved precedent 2.38x further away | churn rises materially above 0.068, toward 0.632 |
+  | **bank contents** | replaced a converging history with 8 different laws | churn stays near 0.068 |
+
+  Confirmatory metric: policy churn (conservative convention, collapsed decisions carried forward),
+  paired against `epidemic_llm_memory` over the full 20 seeds. Falsification as declared on the arm:
+  the paired CI of (distant - memory) includes 0.
+
+  Two things recorded in advance so they cannot be read as post-hoc:
+  - **The first transition is uninformative by construction.** With a one-episode bank, nearest and
+    furthest are the same episode, so this arm CANNOT differ from its control there. The curve to
+    read starts at the second transition. Pinned in `tests/test_distant_memory.py`.
+  - **A null does not restore the authorship reading.** That one is dead on the rendering
+    (`ForeignMemory` inherits `on_observe`; the agent is never told whose episodes it sees). A null
+    promotes bank contents and changes the design advice in both manuscripts from "fix the retrieval
+    rule" to "vary what is in the file".
+
+  Not yet run: the provider is saturated by the monetary factorial's remaining cells, and the
+  binding constraint is ~16k input tokens/min shared across all concurrent processes. Running both
+  is how a cell was lost earlier today.
