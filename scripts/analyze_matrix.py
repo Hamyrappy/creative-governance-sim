@@ -140,6 +140,46 @@ def _call_produced_an_action(call: dict) -> bool:
     return bool(parse_action_requests(resp, space, "regent:0"))
 
 
+def collapse_rate(stores: list[ResultStore], experiment: str, model: str | None) -> tuple[int, int]:
+    """``(decisions that collapsed into pure deliberation, total decisions)`` for an arm.
+
+    Distinct from :func:`no_action_rate`, and reported separately even though collapse implies
+    no-action. The no-action rate says an arm is contaminated; this says *how*, and the two have
+    opposite remedies — plain truncation is a budget problem a larger ``max_tokens`` fixes, while
+    collapse happens AT a large budget and a larger one only buys more loop.
+
+    It is also a RESULT rather than only a check. Measured on ``gemma-4-31b-it``, the rate tracks one
+    factor and one only:
+
+        outcome present   7.8% / 5.8% / 3.8%
+        outcome absent    0.2% / 0.2% / 0.0% / 0.0%
+
+    A channel can degrade an agent without misinforming it, simply by inviting unbounded
+    second-guessing — which is a harness-design finding, not a bug in the harness.
+    """
+    from govsim.core.llm.client import response_is_collapsed
+
+    collapsed = total = 0
+    for store in stores:
+        for row in store.query(experiment=experiment):
+            if model:
+                spec = (row.get("regent_specs") or {}).get(REGENT, {})
+                if spec.get("model") not in (None, model):
+                    continue
+            path = row.get("llm_io_path")
+            if not path or not Path(path).exists():
+                continue
+            for call in json.loads(Path(path).read_text(encoding="utf-8")):
+                if call.get("regent_id") == "critic":
+                    continue
+                total += 1
+                if response_is_collapsed(call.get("response_text") or "",
+                                         call.get("tool_calls") or [],
+                                         call.get("usage") or {}):
+                    collapsed += 1
+    return collapsed, total
+
+
 def enacted_policies(stores: list[ResultStore], experiment: str, model: str | None) -> list[str]:
     """Every policy the agent actually installed in this arm, in order, as ``verb=expr`` strings.
 
@@ -512,6 +552,20 @@ def main() -> int:
         print("       ablation would be measuring truncation. Raise GOVSIM_LLM_MAX_TOKENS and re-run")
         print("       before believing anything below.")
 
+    # ---- 1b-ii. HOW the arms failed to act: truncation, or deliberation collapse? --------------
+    # Reported next to the no-action rate because it decomposes it, and because the remedies are
+    # opposite: truncation wants a bigger token budget, collapse wants a re-ask at a SMALLER one.
+    print("\n=== decisions that collapsed into pure deliberation (completion_tokens == 0) ===")
+    collapse_rates = {}
+    for name in list(all_arms):
+        c, tot = collapse_rate(store, name, args.model)
+        if not tot:
+            continue
+        collapse_rates[name] = {"collapsed": c, "total": tot, "rate": c / tot}
+        na = action_rates.get(name, {}).get("empty", 0)
+        share = f"{100 * c / na:.0f}% of its no-action" if na else "—"
+        print(f"  {name:<40} {c:>4}/{tot:<5} {100 * c / tot:>5.1f}%   ({share})")
+
     # ---- 1c. VALIDITY GATE: did the harness change BEHAVIOUR, or only the prompt? --------------
     print("\n=== validity: policy responsiveness to harness content ===")
     labels = {n.removeprefix("epidemic_llm_"): n for n in all_arms}
@@ -655,6 +709,10 @@ def main() -> int:
                            for k, v in factorial.items()} if factorial else None),
             "contrasts": contrasts, "power": mde,
             "action_rates": action_rates,
+            # Kept beside action_rates because it DECOMPOSES them: in the recorded sweep every
+            # no-action decision was a deliberation collapse rather than plain truncation, and the
+            # two call for opposite fixes.
+            "collapse_rates": collapse_rates,
             "cross_model": cross,
         }, indent=2), encoding="utf-8")
         print(f"\nwrote {args.json}")

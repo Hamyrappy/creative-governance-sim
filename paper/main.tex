@@ -122,7 +122,10 @@ before it passed} (\cref{sec:ctx-outcome,sec:responsiveness}). Output truncation
 treatment; information channels that fired but carried no signal; reference anchors superseded by a
 recalibration; a clairvoyant reference that a fixed policy could beat; and---the failure the other
 four cannot see---a model that reads none of what the harness gives it, measured at $400/400$
-identical decisions under a live memory channel. Each produced a clean, plausible, wrong number that
+identical decisions under a live memory channel. A sixth failure mode turned out to be a result in
+its own right (\cref{sec:collapse}): one channel drives the model into unbounded deliberation on
+$4$--$8\%$ of decisions while the others never exceed $0.2\%$, so a scaffold component can degrade
+an agent without supplying it a single false statement. Each produced a clean, plausible, wrong number that
 no amount of care in the writing would have caught, and each is now an automatic check that refuses
 to let the tables be read. A literature being asked for better evidence
 needs transferable failure modes at least as much as it needs another effect.
@@ -529,6 +532,69 @@ Contextual outcome feedback survives as an arm rather than as a remedy. Attachin
 score, and flagging the same law scoring differently in comparable conditions, is a reasonable
 design idea and the naive channel is its control---but it was built for a cause that turned out not
 to exist, and we say so rather than quietly recasting it as the fix.
+
+\subsection{A channel can harm without misinforming: deliberation collapse}
+\label{sec:collapse}
+
+The no-action gate fired on our primary sweep, and the pattern of failures turned out to be a
+result rather than only a defect. Inspecting the failing calls, every one of them returned
+$\text{completion\_tokens}=0$ against $\text{total\_tokens}\approx 12{,}862$: the model spent its
+entire budget in the reasoning channel and emitted no answer at all. The recorded text ends inside a
+verbatim repetition loop, the same sentence proposing the same two numbers until the budget ran out.
+
+This is not the truncation failure we documented earlier, and the distinction matters because the
+remedies are opposite. Truncation occurred at $\text{max\_tokens}=1500$ and a larger budget fixed it.
+This occurs \emph{at} a $12{,}000$-token budget, and enlarging it further only buys more loop. It is
+a degenerate decoding state, and the only exit is to re-ask.
+
+What makes it a finding is which arms it strikes. The rate tracks exactly one factor:
+
+\begin{center}\small
+\begin{tabular}{@{}lr@{\hspace{2em}}lr@{}}
+\toprule
+\multicolumn{2}{c}{outcome feedback present} & \multicolumn{2}{c}{outcome feedback absent} \\
+\cmidrule(lr){1-2}\cmidrule(lr){3-4}
+outcome & $7.8\%$ & no harness & $0.2\%$ \\
+trace $+$ outcome & $5.8\%$ & trace & $0.2\%$ \\
+outcome $+$ memory & $3.8\%$ & memory & $0.0\%$ \\
+& & trace $+$ memory & $0.0\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every arm carrying realized-outcome feedback collapses on $4$--$8\%$ of its decisions; no arm without
+it exceeds $0.2\%$. The mechanism is legible in the transcripts: outcome feedback tells the authority
+that the policy it currently has in force scored worse than the one before, without telling it why,
+and an agent that cannot identify the cause re-opens the question indefinitely. The failure channel
+reports discrete errors and the memory channel supplies concrete precedents; neither invites
+open-ended reconsideration in the same way.
+
+Two consequences follow, and the second is the more useful one.
+
+First, this is a confound of exactly the kind our gates exist to catch, arriving by a new route. A
+collapsed decision is a silent no-op: the previously installed policy remains in force. So the arms
+carrying more information quietly become \emph{stickier} than the arms carrying less, and an ablation
+run without this check would report that outcome feedback hurts performance when part of what it
+measured was which channel makes the model loop. We therefore detect collapse, re-ask with a nudge
+that says only ``stop deliberating and answer''---never what to answer, or the mitigation becomes a
+treatment applied preferentially to the context-heavy arms---and report the rate as a quantity in its
+own right.
+
+Second, and independently of our particular harness: \emph{a scaffold component can degrade an agent
+without giving it a single false piece of information}. Everything the outcome channel reported was
+true. The harm was in the shape of the question it opened, not in the content of the answer. Ablation
+studies that report only end-task loss cannot distinguish that from a component whose information is
+wrong or useless, and the three call for entirely different fixes.
+
+There is also a suggestive interaction we flag rather than claim, because the eighth cell of the
+factorial had not completed at the time of writing: adding episodic memory to the outcome channel
+\emph{halves} its collapse rate ($7.8\% \to 3.8\%$), which is what one would expect if concrete
+precedents give the deliberation somewhere to terminate.
+
+A final observation ties this back to \cref{sec:responsiveness}. The $0.8$B model collapses on
+$0.0\%$ of decisions in all eight arms---not because it is robust, but because it never deliberates
+at all. The same capability floor that makes it unable to use a harness also makes it immune to this
+failure, which is a second, independent measurement of the same underlying fact.
 
 \subsection{The gate that all the others pass: is the model reading the harness?}
 \label{sec:responsiveness}
