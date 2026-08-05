@@ -504,3 +504,34 @@ prevent.
   failed; it would have produced a clean number for a contaminated experiment. A declared
   non-default seed set now wins over the CLI and prints that it did. The arm was killed and
   relaunched before any of its runs were committed.
+
+- **2026-08-05 — PRE-REGISTERED PREDICTION: the sign of `outcome × memory` in the monetary world.**
+  Recorded while the four remaining monetary cells are still running, so it cannot be fitted to them.
+
+  In the epidemic both channels **hurt** and their interaction **rescues**: memory +1.11, outcome
+  +0.78, and `outcome × memory` is −0.530 on loss and +0.338 on churn (the only manipulation measured
+  that restores revision). The mechanism proposed for that is complementarity — precedent tells the
+  authority what it did, monitoring tells it that what it did stopped working, and the second is what
+  breaks the lock-in the first creates.
+
+  In the monetary world both channels **help**: memory −371.03, outcome −974.79. If the rescue
+  account is right, the interaction there should behave differently, because there is no lock-in to
+  rescue: memory suppresses churn only 0.937 → 0.726, and outcome's benefit runs through the *level*
+  of the instrument rather than through revision at all (post-break rate 9.51 → 6.99 with churn
+  unchanged). Two channels helping through partly redundant routes should combine **sub-additively**.
+
+  **Prediction: `outcome × memory` on loss is POSITIVE in the monetary world** — the pair recovers
+  less than the sum of the parts — **and therefore opposite in sign to the epidemic's −0.530.**
+  Concretely, `bare − (outcome+memory)` should be smaller than $974.79 + 371.03 = 1345.8$.
+
+  **What each outcome means.** Positive: the rescue account survives, and the interaction's sign is
+  itself world-dependent — a third reversal, and the one that would most sharply undercut reading any
+  interaction term as a component property. Negative and comparable to the epidemic's: the
+  interaction is a stable property of the pair rather than of the world, which would *weaken* the
+  cross-world story and must be reported as weakening it. Near zero: the channels are independent
+  here and the epidemic's interaction needs a narrower explanation than the one now in the paper.
+
+  Note the standing caveat: every monetary cell containing `outcome` carries deliberation-collapse
+  contamination (3.8% against bare's 1.0%), so whatever the sign, this term is reported and not
+  interpreted until the repair run. The prediction is recorded anyway, because a prediction made
+  after seeing the number is worth nothing regardless of how the contamination resolves.
