@@ -289,7 +289,7 @@ def results_prose(a: dict, calib: dict) -> str:
             if helped else "The factorial attributes the difference to ")
            + (("" if helped else "")
               + (f"{', ' if helped else ''}{', '.join(esc(t) for t in hurt)}, which makes the "
-                 f"regent \\emph{{worse}}" if hurt else ""))
+                 f"\\Actor{{}} \\emph{{worse}}" if hurt else ""))
            + "." if sig else
            "No harness term survives correction, which is itself the result: at this effect size "
            "the components are not separably attributable.")
@@ -324,7 +324,7 @@ def results_prose(a: dict, calib: dict) -> str:
         f"below is competing for, and it is small---which is worth saying plainly, because a "
         f"$14\\%$ ceiling sets the scale for how large any component effect can honestly be.",
         "",
-        f"With no harness at all the regent reaches $\\Rreg={num(bare.get('R'), 3)}$; with all three "
+        f"With no harness at all the \\Actor{{}} reaches $\\Rreg={num(bare.get('R'), 3)}$; with all three "
         f"channels, $\\Rreg={num(full.get('R'), 3)}$. "
         + ("Neither figure should be read as the harness being unnecessary: an arm with no channel "
            "still sees the current state at each review, so it can respond to prevalence even "
@@ -339,7 +339,7 @@ def results_prose(a: dict, calib: dict) -> str:
         ((f"The factorial (\\cref{{tab:factorial}}) attributes the difference to "
           + (f"{', '.join(esc(t) for t in helped)}, which helped" if helped else "")
           + ("; " if helped and hurt else "")
-          + (f"{', '.join(esc(t) for t in hurt)}, which made the regent \\emph{{worse}}"
+          + (f"{', '.join(esc(t) for t in hurt)}, which made the \\Actor{{}} \\emph{{worse}}"
              if hurt else "")
           + f". Terms not listed did not survive Holm correction across the family of "
             f"{len(fac)} effects.")
