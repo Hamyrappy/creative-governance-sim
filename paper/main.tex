@@ -797,10 +797,27 @@ natural reading, ``these components do not help,'' is false. The true statement 
 We hit this directly. Running the identical worlds, seeds and harness on a $0.8$B local model and a
 $27$B model, episodic memory was live in $100\%$ and $95\%$ of prompts respectively. The small model
 emitted \emph{one constant policy on $400$ of $400$ decisions}---a fixed intervention level that
-ignores the epidemic state entirely---and adding episodic memory left $378$ of $400$ unchanged. Its
-six arms agreed to four decimal places. The large model spread its decisions across many policies
-(top-policy share $50\%$) and shifted them substantially when a channel was added (total-variation
-distance $0.38$ against $0.003$).
+ignores the epidemic state entirely---and adding episodic memory left $378$ of $400$ unchanged. The
+large model spread its decisions across many policies (top-policy share $50\%$) and shifted them
+substantially when a channel was added (total-variation distance $0.38$ against $0.003$).
+
+On the completed $2^3$ factorial the small model's arms are not merely similar. Six of the eight land
+on \emph{exactly} $L=28.8002$ and the remaining two on exactly $28.6208$; every arm sits at
+$R \approx 1.90$, nearly twice the cost of the non-adaptive ceiling. A design that produced eight
+numbers agreeing to four decimal places would, read through a loss table alone, be an unusually
+clean null.
+
+One caution about applying this gate, learned by getting it wrong. The small model's memory arms
+initially failed the no-action check at $5.2\%$, which looked like corroboration---longer prompts, more
+failures. It was not. Nineteen of twenty-two failures were a single schema slip, the verb folded into
+the expression (\texttt{\{"expr": "set\_lockdown:0.5"\}}) where the parser expected it in its own
+key, and the parser discarded an unambiguous intention. Repairing the parser drops those arms to
+$0.5\%$ and every arm then passes. No re-run was required, because all $38$ recovered decisions
+requested the identical constant that was already in force---but that had to be checked rather than
+assumed. The failure mode is model-dependent in a way a single aggregate rate conceals: across
+$4{,}000$ decisions the large model produced $100\%$ deliberation collapses and no schema slips, and
+across $3{,}200$ decisions the small model produced $86\%$ schema slips and no collapses. It never
+collapses for the same reason it cannot use a harness---it does not deliberate at all.
 
 So the fifth gate compares the distribution of \emph{enacted policies} between each arm and the
 no-harness control. It is deliberately two-stage, because the two ways an arm can be flat are not the
