@@ -472,3 +472,35 @@ prevent.
   which is impossible since seed 0 runs first — the matcher was comparing differently-formatted
   floats. That measurement was discarded rather than reported, and the defect was confirmed by
   instrumenting the component directly instead.
+
+- **2026-08-05 — CORRECTION TO THE CROSS-SEED LEAK ENTRY: THE IMPACT WAS NARROWER THAN RECORDED.**
+  The entry above states that "every arm carrying `memory` or `outcome`" needs re-running because
+  harness state leaked between seeds. That is **wrong, and wrong in the direction that overstates the
+  damage** — recorded here rather than quietly amended, since an overstated defect is still a
+  misstatement of the record.
+
+  The leak needs a single `Runner().run(exp)` spanning several seeds. `scripts/run_matrix.py` only
+  does that when `--workers <= 1`; above that it calls `experiments.get(arm)` **per seed**, which
+  returns a fresh regent and a fresh harness (verified directly: two `get()` calls yield distinct
+  component objects, and mutating one does not touch the other). Worker counts actually used:
+
+  | sweep | workers | leaked? |
+  |---|---|---|
+  | `logs/runs_v3` (the reported epidemic factorial) | 20 | **no** |
+  | `logs/runs_monetary` | 20 / 12 | **no** |
+  | `contrastive`, `unscored` | 12 | **no** |
+  | `logs/runs_qwen08` | **1** | **yes** — and it is the deaf model whose eight arms are identical anyway |
+
+  So the reported factorial was never contaminated by this. The `reset()` fix is still correct and
+  still necessary — `python -m govsim run` and any single-worker sweep hit the leak, and nothing
+  should depend on a worker count for correctness — but **no re-run is owed on its account**. The
+  deliberation-collapse contamination is a separate and narrower issue and remains the only reason
+  the outcome-carrying cells need re-running.
+
+- **2026-08-05 — `run_matrix` SILENTLY OVERRODE AN ARM'S DECLARED SEED SET.**
+  Caught by reading the launch banner: the foreign-memory arm declares seeds 0–9 so that its donor
+  bank, drawn from 10–19, stays disjoint, and `run_matrix` replaced that with the CLI default of
+  0–19 — putting seed 11 in the arm while its own episodes sat in the bank. It would not have
+  failed; it would have produced a clean number for a contaminated experiment. A declared
+  non-default seed set now wins over the CLI and prints that it did. The arm was killed and
+  relaunched before any of its runs were committed.

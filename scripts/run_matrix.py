@@ -102,6 +102,16 @@ def run_pair(model: str, arm: str, seeds: list[int], store: ResultStore, workers
 
     t0 = time.time()
 
+    # An arm may DECLARE its own seed set (the foreign-memory arm runs on 0-9 so its donor bank,
+    # drawn from 10-19, stays disjoint). Silently overriding that with the CLI default would not
+    # fail — it would produce a clean number for a contaminated experiment, which is the worst
+    # available outcome. So a declared non-default set wins, and says so.
+    declared = list(experiments.get(arm).seeds)
+    if set(declared) != set(seeds):
+        print(f"#   {arm}: using the arm's declared seeds {declared} "
+              f"(not the requested {len(seeds)}) — the arm sets them for a reason", flush=True)
+        seeds = declared
+
     def one_seed(seed: int):
         exp = experiments.get(arm)  # a FRESH regent + harness per seed
         exp.seeds = [seed]
