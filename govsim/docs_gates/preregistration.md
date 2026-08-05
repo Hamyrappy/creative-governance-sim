@@ -312,3 +312,36 @@ prevent.
   survived both nudge-retries. `deliberation_unrecovered` counts the residual, and an arm's
   unrecovered decisions are genuinely no-ops that must not be counted as governed. n = 3, so this is
   a direction, not a rate.
+
+- **2026-08-05 — OUTCOME OF THE PRE-REGISTERED OBFUSCATION CONTROL: THE PREDICTION FAILED.**
+  Predicted above: `disguised_llm_bare` scores **lower** than `monetary_llm_bare`'s 3890.5, because
+  the failure is a domain prior overriding an explicit mandate.
+  Measured, paired on 20 shared seeds:
+
+  | arm | mean loss |
+  |---|---|
+  | `monetary_llm_bare` (inflation, output_gap, policy_rate, r_star) | 3890.53 |
+  | `disguised_llm_bare` (signal_a, signal_b, lever, baseline) | **4016.28** |
+
+  Δ = **+125.75**, 95% CI **[−97.78, +353.70]**, bootstrap p = 0.2547, Wilcoxon p = 0.2250. The
+  disguise helped on **7 of 20** seeds. The point estimate is in the **opposite** direction to the
+  prediction and the interval contains zero.
+  **Recorded as a refutation of our own explanation, exactly as pre-registered.** The named failure
+  mode was to run this control, find nothing, and describe it as "the finding is robust to surface
+  framing"; that inverts the meaning of a null and is not what happened here.
+  Every measured fact about the monetary arm still stands — R ≈ 3.0, the *lowest* mandate burden of
+  any arm (607.8 vs the clairvoyant's 806.8) bought with 13 131 of rate cost against 4 259, and 123
+  distinct competent Taylor rules where the calibrated optimum sets the feedback gain to zero. What
+  does **not** stand is the causal attribution of those facts to domain recognition.
+  Caveat held open pending the adversarial check: the CI is wide, so "refuted" and "underpowered"
+  must be distinguished before the papers are rewritten. Whichever the verification supports is what
+  will be written.
+
+- **2026-08-05 — AN ARM WAS LOST TO A QUOTA I HAD DOCUMENTED WRONGLY.**
+  `epidemic_llm_contrastive` died after ~2.5 h with repeated 429s. The error body names the real
+  limit: `GenerateContentInputTokensPerModelPerMinute-FreeTier`, `quotaValue: 16000` — **input tokens
+  per minute, per model**, not the 500 requests/day previously recorded. At ~1 000-token prompts that
+  is ≈16 calls/min shared across *every concurrent process*. Three sweeps × 20 workers ≈ 36 calls/min;
+  the measured rate was 21.8 and the retry budget was exhausted. Concurrency is now one gemma sweep
+  at a time. This is logged because it silently truncates a sweep rather than failing loudly at the
+  start, and a partially-completed arm is exactly the kind of artifact that gets analysed by mistake.
