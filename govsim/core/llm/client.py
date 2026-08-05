@@ -40,6 +40,45 @@ class LLMResponse:
     cache_key: str = ""
 
 
+def response_is_collapsed(text: str, tool_calls: Any, usage: dict[str, Any] | None) -> bool:
+    """Reasoning collapse: the call cost tokens and produced no completion.
+
+    The signature is ``completion_tokens == 0`` with a positive ``total_tokens``. The whole budget
+    went into the reasoning channel and nothing was emitted as an answer.
+
+    ``text`` is deliberately NOT required to be empty, and getting this wrong made an earlier
+    version of this predicate almost inert — it fired on 1 cache entry instead of 1003. The provider
+    leaks the reasoning into the ``content`` field while still reporting ``completion_tokens = 0``,
+    so a collapsed call arrives with tens of thousands of characters of ``<thought>`` in ``text``,
+    ending mid-loop. Judging by "is the text empty" therefore misses every real case.
+
+    Validated against the recorded tape, where the separation is essentially perfect:
+
+        completion_tokens == 0   ->     0 produced an action,  1003 did not
+        completion_tokens  > 0   ->  6389 produced an action,    44 did not
+
+    A genuine ``tool_calls`` payload still counts as having answered, and is kept as a guard: it
+    costs nothing and protects against a provider that reports usage differently.
+
+    Shared by :class:`OpenAICompatClient` (which must catch it live) and
+    :class:`~govsim.core.llm.cache.CachingReplayClient` (which must not silently re-serve one), so
+    the two cannot drift on what counts as a collapse.
+    """
+    # The field must be PRESENT. Defaulting a missing ``completion_tokens`` to 0 would classify
+    # every response from a provider that reports only ``total_tokens`` as a collapse, and the
+    # mitigation would then re-ask on every single call. Absent evidence, do not diagnose.
+    if not usage or usage.get("completion_tokens") is None:
+        return False
+    try:
+        completion = int(usage["completion_tokens"])
+        total = int(usage.get("total_tokens") or 0)
+    except (TypeError, ValueError):
+        return False
+    if completion != 0 or total <= 0:
+        return False
+    return not tool_calls
+
+
 @runtime_checkable
 class LLMClient(Protocol):
     """Anything that can turn chat messages (+ optional tools) into an ``LLMResponse``."""
@@ -202,14 +241,15 @@ class OpenAICompatClient:
         """
         try:
             usage = resp.usage
-            completion = int(getattr(usage, "completion_tokens", 0) or 0)
-            total = int(getattr(usage, "total_tokens", 0) or 0)
+            as_dict = {
+                "completion_tokens": getattr(usage, "completion_tokens", 0),
+                "total_tokens": getattr(usage, "total_tokens", 0),
+            }
+            msg = resp.choices[0].message
         except Exception:  # noqa: BLE001 - a provider without usage cannot be diagnosed
             return False
-        if completion != 0 or total <= 0:
-            return False
-        msg = resp.choices[0].message
-        return not (getattr(msg, "tool_calls", None) or (msg.content or "").strip())
+        # One shared predicate with the cache layer, so the two cannot drift on what a collapse is.
+        return response_is_collapsed(msg.content or "", getattr(msg, "tool_calls", None), as_dict)
 
     def _retry_after_collapse(self, client: Any, kwargs: dict[str, Any],
                               messages: list[dict[str, Any]]) -> Any:

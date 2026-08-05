@@ -24,18 +24,25 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
-from govsim.core.llm.client import LLMResponse
+from govsim.core.llm.client import LLMResponse, response_is_collapsed
 
 SCHEMA_VERSION = "2"  # bumped: cache key now includes max_tokens + provider extra (e.g. reasoning_effort)
 
 
 class CachingReplayClient:
-    def __init__(self, inner: Any, cache_dir: str | Path, mode: str = "cache") -> None:
+    def __init__(self, inner: Any, cache_dir: str | Path, mode: str = "cache",
+                 repair_collapses: bool = True) -> None:
         if mode not in ("live", "cache", "replay"):
             raise ValueError("mode must be one of: live | cache | replay")
         self.inner = inner
         self.dir = Path(cache_dir)
         self.mode = mode
+        #: Treat a cached reasoning collapse as a MISS in ``cache`` mode, so the inner client's
+        #: mitigation can run. Set False to study the raw recorded rate.
+        self.repair_collapses = repair_collapses
+        #: How many cache hits were discarded as collapses. Reported, not hidden: it is the number
+        #: of decisions a re-run actually repaired.
+        self.collapsed_hits = 0
         self.dir.mkdir(parents=True, exist_ok=True)
 
     def _key(
@@ -89,7 +96,19 @@ class CachingReplayClient:
             data = json.loads(path.read_text(encoding="utf-8"))
             data.pop("cache_key", None)  # derived, never trusted from disk
             data["cached"] = True
-            return LLMResponse(**data, cache_key=key)
+            hit = LLMResponse(**data, cache_key=key)
+            # A cached REASONING COLLAPSE is re-issued rather than served, because the mitigation
+            # that repairs it lives in the inner client and a cache hit never reaches it. Without
+            # this, re-running a contaminated arm to repair it would replay the identical collapses
+            # from disk and change nothing — the arm would look repaired and be exactly as broken.
+            #
+            # NOT done in replay mode: a recorded tape must reproduce byte-for-byte, including its
+            # failures, or "replayable without an API key" stops being true.
+            if (self.mode == "cache" and self.repair_collapses
+                    and response_is_collapsed(hit.text, hit.tool_calls, hit.usage)):
+                self.collapsed_hits += 1
+            else:
+                return hit
 
         if self.mode == "replay":
             raise KeyError(
