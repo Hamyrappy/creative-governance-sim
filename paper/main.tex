@@ -1160,10 +1160,13 @@ that produced an effect would be the exact failure this paper is about.
 \section{Limitations}
 \label{sec:limitations}
 
-\paragraph{One environment carries the headline.} The epidemic model is the only regime we found
-with graded, bounded headroom. The scalar plant's headroom is either negligible or catastrophic
-with a razor-thin transition between them, which we report as a finding about first-order plants
-rather than working around.
+\paragraph{Two environments carry the headline, and one of them is new.} The factorial results
+rest on the epidemic; the cross-world reversal and the priced-instrument failure rest on the monetary
+world. Eight further worlds are calibrated but carry no treatment arms, so the library establishes
+that adaptation headroom is scarce without establishing that our harness findings replicate across
+it. The scalar plant is reported as a declared negative: its headroom is either negligible or
+catastrophic with a razor-thin transition, which is a finding about first-order plants rather than
+something we worked around.
 
 \paragraph{The mandate may dominate the harness.} Once the regent is told what it is optimizing---a
 fix we made only after noticing that the prompt never mentioned infections, cost, or the trade-off
@@ -1173,12 +1176,15 @@ sentence of the prompt is worth more than any harness channel we measured. It is
 also a warning about the genre: a scaffold ablation run on an agent that has not been told its
 objective is partly measuring how well each scaffold helps it guess.
 
-\paragraph{A narrow band, found by search.} Of the four regimes we calibrated, exactly one has
-adaptation headroom above $1.05$. We reached it by measuring rather than by tuning---the severity
-surface was computed before any treatment arm ran, and the operating point sits inside the usable
-band rather than at its maximum---but a reader should still weigh that the headline regime is the
-survivor of a search, and that the three that did not survive are reported alongside it precisely so
-that weighing is possible.
+\paragraph{A narrow band, found by search.} Across the ten worlds we calibrated, three clear
+$1.1	imes$ adaptation headroom and one clears $1.2	imes$. We reached the operating points by
+measuring rather than tuning---the severity surface was computed before any treatment arm ran, and
+the epidemic point sits inside the usable band rather than at its maximum---but a reader should still
+weigh that the headline regimes are survivors of a search, and that the worlds which did not survive
+are reported alongside them precisely so that weighing is possible. The monetary world was promoted
+\emph{after} its headroom was measured, which is the same degree of freedom in a new place; the
+pre-registration records the commitment that the epidemic factorial remains the primary analysis and
+is reported whatever it shows.
 
 \paragraph{Trace is a null only while nothing breaks.} We pre-registered the failure channel as an
 inert control on the grounds that it cannot fire on well-formed policy. That held exactly until a
@@ -1201,13 +1207,25 @@ interaction level (budget matching, factorial structure, the five validity gates
 the agent-level prompt phrasing systematically---which, given that a single added paragraph about the objective
 moved the result by more than any component, is the audit this study most obviously still owes.
 
+\paragraph{The reported factorial does not pass one of our own gates.} Four of the eight cells
+produce no parseable action on $3.8$--$7.8\%$ of decisions, and all four carry the outcome channel
+(\cref{sec:collapse}). Because a failed decision leaves the standing law in force, those arms are
+subject to an artificial stickiness the others are not, so every term involving 	exttt{outcome} is
+reported and not interpreted. The memory main effect---the paper's central harness result---is
+unaffected: those arms collapse on $0.0\%$ of decisions. We say this in the results rather than only
+here, but it belongs in both places.
+
 \paragraph{What we found by auditing ourselves, and what that implies about the rest.} Every
-substantive error in this paper was found by an internal check rather than by review: a metric that
-rewarded passivity, three channels that carried no signal, output truncation correlated with the
-treatment, reference anchors superseded by a recalibration, a clairvoyant reference beatable by a
-fixed policy, a confounded severity cell, and a mandate the agent was never given. Each produced a
-clean, plausible, wrong number. We have no reason to believe the list is complete, and we would
-rather say so than imply that the seventh check was the last one needed.
+substantive error in this paper was found by an internal check or an adversarial re-reading rather
+than by peer review: a metric that rewarded passivity, three channels that carried no signal, output
+truncation correlated with the treatment, reference anchors superseded by a recalibration, a
+clairvoyant reference beatable by a fixed policy, a confounded severity cell, a mandate the agent was
+never given, a minimum-detectable-effect computed from the wrong contrast, a figure caption asserting
+the opposite of its own table, and three fabricated author names in the bibliography. Each produced a
+clean, plausible, wrong artifact. Two of our own pre-registered predictions were refuted by the
+controls we built to test them, and one of our corrections was itself an overstatement that a later
+check caught. We have no reason to believe the list is complete, and we would rather say so than
+imply that the last check was the last one needed.
 
 \section{Conclusion}
 
