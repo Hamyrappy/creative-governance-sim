@@ -288,3 +288,27 @@ prevent.
   churn analysis is reported under the conservative convention (a collapsed decision counts as a
   non-revision), under which the outcome effect falls from +0.230 to +0.190 while `memory` and the
   interaction are unchanged to two decimals.
+
+- **2026-08-05 — PRE-REGISTERED PREDICTION: `ContrastiveMemory` (`epidemic_llm_contrastive`).**
+  Recorded before the arm was run.
+  Plain `EpisodicMemory` is the only channel in the factorial that significantly hurts (+0.630 loss,
+  p_Holm = 0.002), and the measured mechanism is **lock-in, not misinformation**: churn 0.850 → 0.082,
+  distinct policies 14.4 → 2.1. The stale-precedent explanation was tested and refuted (39.6% of
+  post-break retrievals predate the break, against a chance baseline near 69%).
+  If the cause is the *framing* of precedent, it must be fixable by changing only the framing.
+  `ContrastiveMemory` retrieves the identical episodes and reports the identical scores — ranked
+  best-first, in the third person, with the spread between outcomes named. Nothing added, nothing
+  withheld; a variant that added information could not support a claim about framing, and the test
+  suite pins the parent's numbers as a subset of the child's.
+  **Prediction: policy churn rises materially above plain memory's 0.082, and full-horizon loss falls
+  below the memory arm's.** If churn does not move, the framing account is wrong and the cause lies
+  in retrieval itself — that will be reported as a refutation of our own explanation, not reframed as
+  "the effect is robust to presentation".
+
+- **2026-08-05 — THE COLLAPSE MITIGATION IS PARTIAL, AND ITS RESIDUAL IS REPORTED.**
+  Validated against the live provider rather than only against fakes. Of three known-collapsed
+  prompts re-issued: **two recovered on the fresh call alone** — so the collapse is substantially a
+  sampling accident rather than a deterministic property of the prompt — and one re-collapsed and
+  survived both nudge-retries. `deliberation_unrecovered` counts the residual, and an arm's
+  unrecovered decisions are genuinely no-ops that must not be counted as governed. n = 3, so this is
+  a direction, not a rate.
