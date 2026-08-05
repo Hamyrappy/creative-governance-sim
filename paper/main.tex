@@ -567,13 +567,36 @@ opposite directions. In the monetary world realized-outcome feedback is not a ma
 it recovers $975$ loss units, unanimously across seeds, cutting normalized regret from $R\approx3.0$
 to $R\approx1.6$. In the epidemic it is the channel we report as harmful.
 
-The mechanism is visible in what the agent does with the instrument. The monetary failure is a
-refusal to put down a lever that has stopped working: the no-harness arm holds the post-break rate at
-$9.51$ where the clairvoyant sits at $1.53$. Outcome feedback is precisely the signal that the
-payment is not buying anything---``the policy you have in force scored worse than the one before
-it''---and the arm that receives it brings the rate down to $6.99$. In the epidemic the failure is
-not that shape at all; there the harmful component is memory, and the failure is lock-in, on which a
-report of declining scores offers no purchase.
+The mechanism decomposes exactly, and it is not the one the epidemic would have suggested. Outcome
+feedback in the monetary world does \emph{not} work by making the authority revise more: churn is
+already near its ceiling in every monetary arm ($0.94$--$0.97$, some $16$ distinct rules per run) and
+the channel does not raise it. What changes is the direction of revision.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & no harness & outcome feedback & $\Delta$ \\
+\midrule
+post-break policy rate & $9.51$ & $6.99$ & $-2.52$ \\
+rate cost & $13{,}131$ & $8{,}514$ & $\mathbf{-4{,}617}$ \\
+mandate burden & $608$ & $787$ & $\mathbf{+180}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every difference is significant at $p \leq 0.0002$ on a Wilcoxon signed-rank test, and in the
+mandate's own currency they close the account: $179.53 + 0.25 \times (-4617.28) = -974.79$, which is
+the measured effect to the last digit. The channel makes the authority accept \emph{worse}
+stabilization---its burden rises---in exchange for a $35\%$ cut in what it spends. That is precisely
+the trade the mandate asks for and the no-harness arm refuses.
+
+So the failure in this world is a refusal to put down a lever that has stopped working, and outcome
+feedback is the signal that the payment is buying nothing---``the policy you have in force scored
+worse than the one before it.'' In the epidemic the failure has a different shape entirely: there the
+harmful component is memory and the failure is lock-in, on which a report of declining scores offers
+no purchase, and where the same channel's measured effect is on churn rather than on the level of the
+instrument. One component, two worlds, two different jobs, and it is only worth having when the job
+it can do is the one the world requires.
 
 So the component's value is not a property of the component. It is a property of the match between
 the failure mode a channel can reveal and the failure mode the world actually produces. That has a
