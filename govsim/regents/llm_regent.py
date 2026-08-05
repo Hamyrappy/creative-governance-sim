@@ -119,6 +119,23 @@ def parse_action_requests(resp: Any, space: ActionSpace, regent_id: str) -> list
 
     payload = _payload_from_args(obj)
     verb = obj.get("verb") or obj.get("policy_type_id")
+    # The verb folded INTO the expression: ``{"expr": "set_lockdown: 0.5"}``. Accepted because the
+    # intention is unambiguous — the prefix is a declared verb and everything after the colon is the
+    # law — and because discarding it is not a neutral act. A discarded decision leaves the previous
+    # law in force, so it becomes a silent no-op, and the slip is CORRELATED WITH THE TREATMENT: it
+    # rises with prompt length, so the arms carrying more harness context lose more decisions.
+    #
+    # MEASURED: this single slip accounts for 19 of 22 no-action decisions on `qwen3.5:0.8b` — the
+    # gate was reporting a 5.2% "contamination" for the memory arms that was almost entirely the
+    # parser refusing a well-formed intention. It does not occur at all in 4000 `gemma-4-31b-it`
+    # decisions, where every no-action is deliberation collapse instead, so the failure mode is
+    # model-dependent and a gate that does not decompose it will prescribe the wrong fix.
+    if verb not in verbs:
+        raw = payload.get("expr") if isinstance(payload, dict) else None
+        if isinstance(raw, str) and ":" in raw:
+            head, _, tail = raw.partition(":")
+            if head.strip() in verbs and tail.strip():
+                verb, payload = head.strip(), {**payload, "expr": tail.strip()}
     # If the model omitted the verb but there is exactly one lever, target it.
     if verb not in verbs and len(verbs) == 1:
         verb = next(iter(verbs))
