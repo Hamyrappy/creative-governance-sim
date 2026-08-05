@@ -533,6 +533,68 @@ score, and flagging the same law scoring differently in comparable conditions, i
 design idea and the naive channel is its control---but it was built for a cause that turned out not
 to exist, and we say so rather than quietly recasting it as the fix.
 
+\subsection{A prior strong enough to override the mandate}
+\label{sec:priors}
+
+The monetary world produces the sharpest single failure we have measured, and it is a failure of a
+kind the epidemic cannot elicit, because it depends on the agent having opinions about the domain
+before it arrives.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+arm & loss & post-break rate & mandate burden & rate cost \\
+\midrule
+clairvoyant adaptor & $1871$ & $\mathbf{1.53}$ & $807$ & $4{,}259$ \\
+best fixed rule & $2541$ & $6.00$ & $750$ & $7{,}164$ \\
+frozen (pre-break optimum) & $2928$ & $7.40$ & $614$ & $9{,}257$ \\
+do nothing (hold neutral) & $3413$ & $4.00$ & $2617$ & $3{,}184$ \\
+\textbf{language-model regent} & $\mathbf{3891}$ & $\mathbf{9.51}$ & $\mathbf{608}$ & $\mathbf{13{,}131}$ \\
+maximal rate & $13738$ & $12.00$ & $6574$ & $28{,}656$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The regent is worse than every scripted reference, including doing nothing, at a normalized regret of
+$R \approx 3.0$: three times the cost of the non-adaptive ceiling it was supposed to beat. It is not
+failing to adapt---it is adapting energetically in the wrong direction.
+
+The mechanism is visible in the last two columns. The regent attains the \emph{lowest mandate burden
+of any arm}, $608$ against the clairvoyant's $807$. It stabilizes inflation and output better than the
+policy that beats it by a factor of two. It simply pays $13{,}131$ for the privilege, against $4{,}259$,
+because it holds the policy rate at $9.51$ after a break that has severed the rate's connection to
+the economy---higher than the frozen rule it was meant to improve on, and six times the clairvoyant's
+$1.53$. In the mandate's own currency it trades $199$ units of burden for $2{,}218$ units of cost.
+
+What it writes is not incompetent. Across $400$ decisions it emits $123$ distinct policies, nearly all
+recognizable Taylor rules---\texttt{r\_star + 2.0 * (inflation - inflation\_target) + 2.0 *
+output\_gap} and its variants---with feedback gains of $1.5$ to $3.0$. The calibrated optimum, by
+contrast, sets that gain to \emph{zero} and sits at a constant. The regent is not producing noise; it
+is producing textbook monetary policy, competently, into a world where textbook monetary policy is
+the wrong answer.
+
+The part that makes this more than an anecdote about a hard task is that the mandate says so, in
+plain language, in every prompt. It states that the rate's cost accrues on the level set, every step,
+``\emph{and is charged whether or not the rate reaches the economy: a restrictive stance is
+politically and financially expensive even when it changes nobody's behaviour}.'' That is a direct,
+correct, unambiguous warning about precisely the trap the world contains. The regent read it on all
+$400$ decisions and leaned harder anyway.
+
+We take two things from this. First, as a methodological point, it rules out the interpretation that
+first occurred to us: this is not the objective-communication failure we had already found and fixed
+elsewhere in this project, because the objective is communicated and it is communicated well.
+Second, and more substantively: \emph{an explicit mandate is not sufficient protection against a
+strong parametric prior}. A language-model authority arrives already knowing what central banks do,
+and that knowledge is not neutral background---it is an active commitment that survived an
+instruction written specifically to displace it. Domain familiarity, usually treated as an asset when
+selecting a model for a governance task, is here a liability, and one that grows with the model's
+competence in the domain.
+
+\begin{takeaway}
+The regent's failure was not incoherence but fluency: it applied the correct textbook response to a
+world whose textbook had stopped applying, while holding a written statement of the trap in context.
+\end{takeaway}
+
 \subsection{What episodic memory actually does: it stops the institution revising}
 \label{sec:churn}
 
