@@ -564,9 +564,14 @@ adjust the claim, was committed before the treatment runs.
 \subsection{What the authority actually wrote}
 
 Because policy here is code rather than a number, the enacted rules can simply be read.
-\Cref{tab:crossmodel} reports whether the ordering replicates across the language models we could
-access; more informative for a reader is the content of the rules themselves. Three observations
-recur.
+\Cref{tab:crossmodel} reports whether the \emph{ordering} replicates across the language models we
+could access. We report the ordering rather than any single model's point estimates deliberately:
+estimates drawn from one closed model drift with vendor updates, so a number from a single model is
+not a stable quantity to build a social-scientific claim on \citep{bisbee2024synthetic}, and the same
+literature finds these systems' expressed positions sensitive to prompt phrasing in ways that do not
+survive paraphrase \citep{rottger2024political}. That is also why the enacted rule, rather than a
+stated justification, is what we score. More informative for a reader than either is the content of
+the rules themselves. Three observations recur.
 
 Authorities with no informational channel at all overwhelmingly emit \emph{constants}---a fixed
 restriction level with no reference to the state of the epidemic. This is not a novel or creative
@@ -643,6 +648,17 @@ build first---is the one that asks whether the policy was obeyed.
 
 \section{Reproduction}
 \label{app:repro-social}
+
+\noindent Reproducing a simulation result is harder than rerunning its code, and the difficulty is
+not incidental: \citet{edmonds2003replication} document how much of a model's behaviour lives in
+details that its published description omits, which is the argument for the ODD specification in
+\cref{app:odd} and for the artifact discipline below. Two features of this study are aimed squarely
+at that. Every number in both papers is generated from a committed analysis artifact rather than
+typed, so a stale figure is a build error rather than a proofreading miss. And because the decisive
+actor is a sampled language model, determinism comes from a content-addressed tape keyed on the exact
+request: a recorded run replays with no key and no network, and a missing entry raises rather than
+silently calling out.
+
 \input{generated/repro}
 
 \bibliographystyle{plainnat}
