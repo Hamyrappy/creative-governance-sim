@@ -176,3 +176,34 @@ def test_the_exploratory_label_is_actually_in_both_papers():
         assert "exploratory" in text, (
             f"{paper.name} reports the break-alignment result without labelling it exploratory"
         )
+
+
+# --- the two tables must not silently contradict each other -----------------------------------------
+
+@pytest.mark.skipif(not LOSS.exists(), reason="loss artifact absent")
+def test_the_seed_restriction_is_disclosed_wherever_the_foreign_numbers_appear():
+    """`tab:arms` averages the no-harness arm over 20 seeds; the foreign-arm tables average it over
+    the 10 the foreign arm can run. The two therefore print DIFFERENT values for the same arm on the
+    same page, and without a note that reads as an error rather than as a design constraint.
+
+    This test fires when the gap is real and the disclosure is missing, so removing the note breaks
+    it and removing the gap (by ever running the foreign arm on all 20) retires it.
+    """
+    d = _load(LOSS)
+    bare_10 = sum(d["loss"]["bare"].values()) / len(d["loss"]["bare"])
+    arms_table = (REPO / "paper" / "generated" / "arms_table.tex").read_text(encoding="utf-8")
+    row = next((ln for ln in arms_table.splitlines() if ln.startswith("no harness &")), None)
+    assert row, "arms_table.tex no longer has a 'no harness' row"
+    bare_20 = float(row.split("&")[2].strip())
+
+    if abs(bare_10 - bare_20) < 0.05:
+        pytest.skip("the two seed sets now agree; the disclosure is no longer load-bearing")
+
+    for paper in PAPERS:
+        text = paper.read_text(encoding="utf-8")
+        if "lockinForeignPre" not in text:
+            continue
+        assert ("restricted to seeds" in text) or ("same ten epidemics" in text), (
+            f"{paper.name} prints the foreign-arm table (no-harness at {bare_10:.3f}) alongside "
+            f"tab:arms (same arm at {bare_20:.3f}) with no note explaining the seed restriction"
+        )
