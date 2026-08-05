@@ -88,6 +88,7 @@ from govsim.core.objective import Objective
 from govsim.core.regent import MultiScriptedRegent, ScriptedRegent
 from govsim.regents.baselines import SwitchingRegent
 from govsim.core.schedule import EveryN
+from govsim.domains.economy.disguised import DisguisedEconomy, DisguisedLoss
 from govsim.domains.economy import (
     CommonsEconomy,
     CommonsWelfare,
@@ -271,6 +272,43 @@ ECONOMY_DECIDE_EVERY = 10  # => 20 decisions per run, the project-wide per-arm L
 
 
 WORLDS: list[_World] = [
+
+    # -----------------------------------------------------------------------------------------
+    # The SEMANTIC-OBFUSCATION CONTROL for the monetary world. Byte-identical dynamics, break,
+    # loss and numbers; every economic name removed at the observe() boundary. See
+    # ``govsim/domains/economy/disguised.py`` for the pre-registered directional prediction.
+    #
+    # It exists to separate two explanations of the monetary failure that a loss table cannot tell
+    # apart: a domain PRIOR overriding an explicit mandate, versus the monetary control problem
+    # simply being harder. Only the recognizability of the domain differs between the two arms.
+    _World(
+        key="disguised",
+        system_cls=DisguisedEconomy,
+        base={},
+        scenario=MONETARY_SHOCK,
+        levers=[Lever("set_lever", (0.0, 12.0), "policy_rate",
+                      "A scalar control input, floor 0. Billed on the level you set, every step.")],
+        objective=lambda: DisguisedLoss(lam=0.25, post_shock_step=MONETARY_SHOCK.step),
+        horizon=ECONOMY_HORIZON,
+        decide_every=ECONOMY_DECIDE_EVERY,
+        laws={
+            "standing_rule": {"set_lever":
+                              "baseline + signal_a + 0.5 * (signal_a - target_a) + 0.25 * signal_b"},
+            "do_nothing": {"set_lever": "baseline + target_a"},
+            "max_lever": {"set_lever": "12.0"},
+        },
+        role_notes={
+            "standing_rule": "the same feedback rule as the monetary world, in neutral names",
+            "do_nothing": "hold the baseline forever, never lean",
+            "max_lever": "the ceiling, held forever",
+        },
+        claim="the regent's excess loss on the monetary world is driven by a domain prior rather "
+              "than by the difficulty of the control problem: presented with identical dynamics "
+              "under names that do not identify the domain, it should do better",
+        hypothesis_id="H-econ-disguise",
+        headroom_note="identical to monetary by construction (1.359x adaptation); the anchors from "
+                      "the monetary world apply unchanged, so no separate calibration is needed.",
+    ),
     # -----------------------------------------------------------------------------------------
     _World(
         key="monetary",
