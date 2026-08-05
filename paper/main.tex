@@ -592,25 +592,51 @@ $23.1\%$. Deleting the entire central-banking template moved the behaviour by le
 of the quantity it was supposed to explain. \textbf{Across all $40$ runs in both arms, not one
 achieves a post-break mean rate below the best constant of $6.0$.} Neither arm withdraws.
 
-\emph{The cancellation story fails on its own window.} One could argue that a prior helps before the
-break and hurts after, so the totals cancel. The states entering the break are statistically
-indistinguishable between arms (output gap $\Delta = +0.19$, CI $[-0.29, +0.89]$), so the post-break
-window is a clean contrast---and on it the disguise buys only $-89$, CI $[-299, +122]$, $12/20$ seeds.
-The rescue predicts an effect exactly there and does not get one. Its direction is wrong too: if a
-central-banking prior were pinning the feedback gain above the optimal zero, stripping the domain
-should push the gain \emph{toward} zero. It pushes it from $1.98$ to $6.69$.
+\emph{The design is not blind to the effect it was looking for.} This matters more than the $p$-value,
+because a null is only informative against a stated alternative. The prior story sizes its own
+mechanism: fully removing the over-tightening is worth $0.25 \times (13{,}131 - 4{,}259) = 2{,}218$ loss
+units, and power at $n=20$ against that is above $0.999999$. The minimum detectable effect at $80\%$
+power is $315.6$ units, $23.4\%$ of the arm's $1{,}349.5$ excess over the best fixed rule. The
+one-sided $95\%$ bound is the concrete statement: \textbf{the disguise helps by at most $59.0$ loss
+units}, which is $4.4\%$ of that excess and $2.7\%$ of the mechanism's own target.
 
-So the correct claim is more general than the one we set out to make, and better supported. The
-regent's failure is not that it knows what central banks do. It is that it will not withdraw an
-instrument that has stopped working, whatever the instrument is called---it optimizes the objective
-term it can see moving, and treats the price as a tax to be paid rather than a reason to stop. That
-survives the deletion of every domain cue, and it is invariant across $40$ runs.
+\paragraph{What this does and does not establish.} Three limits are worth stating precisely, because
+the sentence ``the domain prior is refuted'' has two clauses and only one of them is clean.
+
+First, the manipulation \emph{swapped} priors rather than removing one. Stripping the domain did not
+push the feedback gain toward its calibrated optimum of zero; it pushed it \emph{up}, from $1.95$ to
+$5.56$ pre-break ($t=12.3$, $p<10^{-9}$), and the share of laws using state feedback went from
+$93.7\%$ to $100\%$---the monetary arm emitted $25$ bare constants, the disguised arm none. The
+contrast therefore estimates (monetary prior) $-$ (generic control prior), not the prior's
+contribution against nothing. If neutral framing carries an equally harmful control instinct, the
+contrast is null by construction and no sample size repairs it.
+
+Second, narrower channels do move, and one moves in the direction the prior story predicts: the final
+policy rate falls from $10.51$ to $8.91$ ($t=-2.94$), while the mandate burden rises ($+152.2$,
+$t=3.37$) and the mean absolute gap widens ($+0.15$, $t=2.81$). The total loss is the least sensitive
+readout available---its rate-cost component alone carries more variance than the paired difference
+itself---so the pre-registered statistic was the noisy one.
+
+Third, on the post-break window where the prior story actually lives, the disguise does help
+directionally: $-89.2$, on $12/20$ seeds, CI $[-300, +121]$. That is a sign, not evidence, and
+post-break loss was demoted to a secondary metric by an earlier documented deviation; we report it
+rather than lean on it.
+
+So the defensible claim is narrower than ``the prior does nothing'' and stronger than a bare null.
+Domain recognition is verifiably gone---\texttt{Taylor} appears in $398/400$ monetary reasoning traces
+and $0/400$ disguised ones---while the pathology is intact: the disguised regent still emits $100\%$
+state-feedback laws, still ignores the explicit price instruction, and closes only $4.9\%$ of the
+post-break rate gap to the clairvoyant. Whatever residual the domain prior contributes is bounded
+above at a few percent of the failure. The failure itself is something else: the regent will not
+withdraw an instrument that has stopped working, whatever it is called---it optimizes the objective
+term it can see moving and treats the price as a charge to absorb rather than a reason to stop.
 
 \begin{takeaway}
-We pre-registered a plausible explanation, built the control that could refute it, and it did. What
-replaces it is stronger: the failure is not domain-specific fluency but a domain-general refusal to
-abandon a priced lever, and the manipulation check---template removed, failure unmoved---is what
-distinguishes the two.
+We pre-registered an explanation, built the control that could refute it, and then attacked the
+refutation. The attack sharpened it: what survives is not ``the prior does nothing'' but ``the prior
+accounts for at most a few percent of a failure that is domain-general''---and the manipulation
+check, which removed the textbook without moving the behaviour, carries that claim where the loss
+comparison could not.
 \end{takeaway}
 
 \subsection{What episodic memory actually does: it stops the institution revising}

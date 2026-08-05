@@ -372,3 +372,38 @@ prevent.
   So the driver of lock-in is not the second person or the past tense — it is **scored precedent**.
   That yields a sharper, cheap, falsifiable successor: *memory with the scores removed should lock in
   less than memory with them*. Recorded here before running it.
+
+- **2026-08-05 — THE REFUTATION, CORRECTED BY ITS OWN ADVERSARIAL CHECK.**
+  Three independent lenses were asked to *rescue* the domain-prior claim. None did (all returned
+  `rescues_prior_claim: false`), but their detail showed the first write-up **overstated** the
+  refutation in three specific ways. Every number below was re-derived independently before use.
+
+  1. **The design is not blind to the effect it sought.** The prior story sizes its own mechanism:
+     removing the over-tightening is worth `0.25 × (13131 − 4259) = 2218` loss units, and power at
+     n=20 against that is > 0.999999. MDE@80% = 315.6 units = 23.4% of the arm's 1349.5 excess over
+     `best_fixed`. **One-sided 95% bound: the disguise helps by at most 59.0 loss units** — 4.4% of
+     that excess. So: excludes a prior worth more than ~a fifth of the failure; cannot resolve below
+     ~a tenth. "Underpowered" would be the wrong word; so would "shown to be zero".
+  2. **The manipulation SWAPPED priors rather than removing one.** Stripping the domain pushed the
+     inflation feedback gain *away* from its calibrated optimum of 0.0 — 1.95 → 5.56 pre-break
+     (t = 12.3, p < 1e-9) — and state-feedback laws went 93.7% → 100% (monetary emitted 25 bare
+     constants, disguised none). The contrast therefore estimates (monetary prior) − (generic control
+     prior). If neutral framing carries an equally harmful control instinct the contrast is null *by
+     construction*, and no n repairs it. **This was cited in the first draft as evidence FOR the
+     refutation ("the direction is wrong"); that was backwards and is corrected.**
+  3. **Narrower channels do move, one in the predicted direction.** `final_rate` −1.60 (t = −2.94),
+     `mandate_burden` +152.2 (t = 3.37), `mean_abs_gap` +0.15 (t = 2.81). Total loss is the least
+     sensitive readout — its rate-cost component alone carries more variance than the paired
+     difference — so the pre-registered statistic was the noisy one. `post_loss` is −89.2 on 12/20
+     seeds (CI [−300, +121]): a sign, not evidence, and reported as such.
+
+  **Also a protocol defect, recorded rather than quietly fixed:** this prediction's falsification rule
+  was a bare point-estimate comparison ("scores LOWER than 3890.5"), while `stats-protocol.md`
+  requires a paired CI excluding 0 for any "X beats Y" claim. By the project's own general standard
+  this arm shows *no difference in either direction*. Future directional pre-registrations must state
+  a CI-based rule and a target effect size.
+
+  **What stands:** domain recognition is verifiably gone (`Taylor` in 398/400 monetary reasoning
+  traces, 0/400 disguised) while the pathology is intact — 100% state-feedback laws, the explicit
+  price instruction still ignored, only 4.9% of the post-break rate gap to the clairvoyant closed,
+  and 0 of 40 runs in either arm bringing the post-break rate below the best constant of 6.0.
