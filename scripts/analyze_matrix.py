@@ -744,6 +744,14 @@ def main() -> int:
             # no-action decision was a deliberation collapse rather than plain truncation, and the
             # two call for opposite fixes.
             "collapse_rates": collapse_rates,
+            # Distinct git commits per store, so the paper can state provenance honestly: a sweep
+            # takes hours and the code moves under it, so runs span several commits rather than one.
+            "provenance_commits": {
+                getattr(st, "root", getattr(st, "dir", str(st))).__str__(): sorted(
+                    __import__("collections").Counter(
+                        r.get("git_commit") for r in st.query()).most_common(),
+                    key=lambda kv: -kv[1])
+                for st in store},
             "mde_per_term": {k: {kk: vv for kk, vv in v.items() if kk != "per_seed"}
                              for k, v in per_term.items()},
             "cross_model": cross,

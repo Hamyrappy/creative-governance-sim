@@ -1,4 +1,19 @@
 \begin{table}[t]\centering\small
-\caption{Cross-model replication.}\label{tab:crossmodel}
-\emph{\textcolor{red}{Pending: the analysis artifact does not yet contain this table (cross\_model).}}
+\caption{\textbf{Cross-model replication, and a capability floor.} Mean normalized regret
+$\Rreg$ on the same paired seeds and the same anchors. The question is whether the harness ordering
+replicates outside a single model, not whether the models are equally strong. \textbf{Read the
+second row as a floor, not a replication.} Its three cells agree to within $0.04$, and the
+responsiveness gate explains why: that model emits one constant policy on $400$ of $400$ decisions
+with episodic memory live in $100\%$ of its prompts, so its arms are the same experiment three times.
+A harness cannot be measured on a model that does not read it, and reporting this row as a flat
+ablation would be a claim about the harness derived from a fact about the subject.}
+\label{tab:crossmodel}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+model & no harness & outcome only & all three \\
+\midrule
+\texttt{gemma-4-31b-it} & 0.968 & 1.162 & 1.161 \\
+\texttt{qwen3.5:0.8b} & 1.966 & 1.926 & 1.966 \\
+\bottomrule
+\end{tabular}
 \end{table}

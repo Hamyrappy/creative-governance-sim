@@ -228,9 +228,14 @@ def crossmodel_table(a: dict) -> str:
     body = "\n".join(rows)
     cols = " ".join("r" for _ in heads)
     return f"""\\begin{{table}}[t]\\centering\\small
-\\caption{{\\textbf{{Cross-model replication.}} Mean normalized regret $\\Rreg$ on the same paired
-seeds and the same anchors. The question is whether the harness ordering replicates outside a single
-model, not whether the models are equally strong.}}
+\\caption{{\\textbf{{Cross-model replication, and a capability floor.}} Mean normalized regret
+$\\Rreg$ on the same paired seeds and the same anchors. The question is whether the harness ordering
+replicates outside a single model, not whether the models are equally strong. \\textbf{{Read the
+second row as a floor, not a replication.}} Its three cells agree to within $0.04$, and the
+responsiveness gate explains why: that model emits one constant policy on $400$ of $400$ decisions
+with episodic memory live in $100\\%$ of its prompts, so its arms are the same experiment three times.
+A harness cannot be measured on a model that does not read it, and reporting this row as a flat
+ablation would be a claim about the harness derived from a fact about the subject.}}
 \\label{{tab:crossmodel}}
 \\begin{{tabular}}{{@{{}}l {cols}@{{}}}}
 \\toprule
@@ -511,7 +516,24 @@ def repro(calib: dict, a: dict, commit: str) -> str:
     # version pointed the analysis step at `logs/runs`, which holds only the reference arms — a
     # reader following it would have got an empty factorial and no error. The store the results come
     # from is `logs/runs_v3`.
-    return f"""\\noindent Everything below is in the repository at commit \\texttt{{{esc(commit)}}}.
+    # The runs themselves span SEVERAL commits — a sweep takes hours and the code moves under it.
+    # Printing one hash implies a single provenance the artifact does not have, so the per-store
+    # breakdown is emitted alongside it and the freshness gate is what makes the spread safe.
+    prov = a.get("provenance_commits") or {}
+    prov_line = ""
+    if prov:
+        parts = []
+        for store, counts in sorted(prov.items()):
+            inner = ", ".join(f"\\texttt{{{esc(k)}}}~($\\times${v})" for k, v in counts)
+            # Windows store paths arrive with backslashes, which LaTeX reads as a control sequence.
+            # Normalising to forward slashes is both correct TeX and the form a reader would type.
+            parts.append(f"\\texttt{{{esc(str(store).replace(chr(92), '/'))}}}: {inner}")
+        prov_line = ("\n\n\\noindent\\textbf{Run provenance.} A sweep takes hours and the code moves "
+                     "under it, so the recorded runs span several commits rather than one. "
+                     + "; ".join(parts) + ". The freshness gate (\\cref{sec:ctx-outcome}) is what "
+                     "makes that safe: it refuses any run recorded before the last change to a file "
+                     "that determines what a run \\emph{means}.\n")
+    return f"""\\noindent The generator below was run at commit \\texttt{{{esc(commit)}}}.{prov_line}
 
 \\begin{{description}}[leftmargin=0em,style=nextline]
 \\item[Calibrate the anchors] \\texttt{{uv run python scripts/recalibrate.py --seeds {p.get('n_seeds', 20)}}}
