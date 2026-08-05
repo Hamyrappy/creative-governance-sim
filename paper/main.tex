@@ -418,11 +418,16 @@ changing the \emph{level} while keeping the rule, which is a response that no re
 rule's threshold can express. This is the Lucas critique in miniature, and it arrives as a measured
 property of a calibrated policy family rather than as an analogy.
 
-Because a corner optimum is invariant to any regime, we checked whether that zero-lower-bound
-intercept is an artifact of the search grid: extending the grid to admit intercepts \emph{below} the
-bound moves adaptation headroom only from $1.359$ to $1.362$. Committing below the zero lower bound
-buys essentially nothing, which is the economically correct answer, so the corner is a real
-constraint of the instrument rather than an edge of our vocabulary.
+Because a corner optimum is invariant to any regime, a clairvoyant reference sitting at the edge of
+the search grid is exactly the thing that would make this headroom an artifact---the search wanted to
+go further and could not, so the reference is weaker than the world allows. The monetary optimum sits
+at the grid's lowest intercept, so we tested it rather than explaining it away
+(\texttt{scripts/zlb\_corner\_check.py}). Extending the grid to admit intercepts \emph{below} the zero
+lower bound---a rule that holds the floor through a substantial inflation overshoot, which is
+expressible policy rather than nonsense---moves adaptation headroom from $1.3594$ to $1.3618$. The
+extended search does take the option, choosing a $-2.0$ intercept, and it is worth $+0.0024$. So the
+corner is a real constraint of the instrument rather than an edge of our vocabulary, and the headline
+figure is not a lower bound of unknown tightness.
 
 \begin{takeaway}
 Adaptation headroom is scarce across worlds, not just across configurations of one world. Measuring
@@ -674,14 +679,15 @@ Three survive reporting.
 
 \emph{The disguise worked.} Across all $400$ disguised prompts there are zero occurrences of
 \texttt{inflation}, \texttt{taylor}, \texttt{monetar}, \texttt{central bank}, \texttt{output gap} or
-\texttt{r\_star}; the paired monetary arm contains $25{,}300$ occurrences of \texttt{inflation} alone.
+\texttt{r\_star}; the paired monetary arm's prompts contain $4{,}000$ occurrences of
+\texttt{inflation} alone---one in every prompt---and its reasoning traces many times that.
 
 \emph{The manipulation succeeded, and the failure did not follow it.} This is the decisive
 observation. Removing the domain did remove the textbook: the share of emitted laws whose gain falls
 in the Taylor band drops from $82.0\%$ to $22.1\%$, the dual-mandate second term from $93.4\%$ to
 $35.4\%$. The behaviour the prior was invoked to explain barely moves. Post-break mean rate goes from
-$9.51$ to $9.12$ ($\Delta = -0.39$, CI $[-0.94, +0.14]$) against an $8.05$-point gap to the
-clairvoyant's $1.47$; saturation at the $12.0$ ceiling is $22.7\%$ of post-break steps against
+$9.51$ to $9.12$ ($\Delta = -0.39$, CI $[-0.94, +0.14]$) against a $7.99$-point gap to the
+clairvoyant's $1.53$; saturation at the $12.0$ ceiling is $22.7\%$ of post-break steps against
 $23.1\%$. Deleting the entire central-banking template moved the behaviour by less than a twentieth
 of the quantity it was supposed to explain. \textbf{Across all $40$ runs in both arms, not one
 achieves a post-break mean rate below the best constant of $6.0$.} Neither arm withdraws.
@@ -753,11 +759,11 @@ period. The result is not subtle:
 \toprule
 harness & churn & distinct policies per run \\
 \midrule
-no harness & $0.850$ & $14.4$ \\
-failure trace only & $0.855$ & $14.5$ \\
-outcome feedback only & $0.774$ & $8.2$ \\
+no harness & $0.847$ & $14.4$ \\
+failure trace only & $0.853$ & $14.5$ \\
+outcome feedback only & $0.708$ & $8.2$ \\
 \textbf{episodic memory only} & $\mathbf{0.082}$ & $\mathbf{2.1}$ \\
-outcome $+$ memory & $0.641$ & $7.2$ \\
+outcome $+$ memory & $0.616$ & $7.2$ \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -803,8 +809,10 @@ These numbers are computed with a collapsed decision counted as a \emph{non-revi
 dropped, which is both the causally correct reading---an empty decision leaves the standing law in
 force---and the conservative one. Dropping them splices the sequence, so surviving neighbours sit
 further apart and are likelier to differ, inflating churn precisely in the arms that collapse most.
-Under the permissive convention the outcome main effect rises from $+0.190$ to $+0.230$ while memory
-and the interaction are unchanged to two decimals; we report the conservative convention throughout
+Under the permissive convention the outcome main effect rises from $+0.190$ to $+0.230$, memory
+moves from $-0.430$ to $-0.447$ and the interaction from $+0.338$ to $+0.324$---the outcome term is
+the one the convention meaningfully touches, which is what one expects given that it is the term
+whose arms collapse. We report the conservative convention throughout
 and both in the artifact.
 
 
@@ -814,12 +822,14 @@ and both in the artifact.
 it.} Eight harness cells, ordered by churn. \emph{Top}: the share of reviews at which the enacted law
 changed, with one dot per seed. The two memory-only cells collapse to $0.08$ while every cell without
 memory sits above $0.6$; adding outcome feedback to memory recovers most of the difference.
-\emph{Bottom}: full-horizon loss on the same ordering, against the three calibrated references. Note
-that no arm reaches the best fixed rule, so the figure is not a story about one component winning ---
-it is about which component moved the institution's behaviour, and in which direction. We
-deliberately do not fit a line between the two panels: the two-way fixed-effects correlation between
-churn and loss is $-0.11$, so a fitted line would assert a within-condition relationship the data
-does not support.}
+\emph{Bottom}: full-horizon loss on the same ordering, against the three calibrated references. The
+two arms that revise most---no harness and failure trace---are also the only two that come in
+\emph{below} the best fixed rule ($\Rreg = 0.93$ and $0.91$); every arm carrying memory or outcome
+sits above it. So the figure is not a story about a component winning: the best-performing
+configuration is the one with no harness at all, and what the figure shows is which component moved
+the institution's behaviour, and in which direction. We deliberately do not fit a line between the
+two panels: the two-way fixed-effects correlation between churn and loss is $-0.11$, so a fitted line
+would assert a within-condition relationship the data does not support.}
 \label{fig:lockin}
 \end{figure}
 
