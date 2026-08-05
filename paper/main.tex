@@ -533,12 +533,11 @@ score, and flagging the same law scoring differently in comparable conditions, i
 design idea and the naive channel is its control---but it was built for a cause that turned out not
 to exist, and we say so rather than quietly recasting it as the fix.
 
-\subsection{A prior strong enough to override the mandate}
+\subsection{Not a domain prior: a general failure to withdraw a priced instrument}
 \label{sec:priors}
 
-The monetary world produces the sharpest single failure we have measured, and it is a failure of a
-kind the epidemic cannot elicit, because it depends on the agent having opinions about the domain
-before it arrives.
+The monetary world produces the sharpest single failure we have measured. Our first explanation of
+it was wrong, and the way we found that out is the part worth reporting.
 
 \begin{center}\small
 \begin{tabular}{@{}lrrrr@{}}
@@ -556,43 +555,62 @@ maximal rate & $13738$ & $12.00$ & $6574$ & $28{,}656$ \\
 \end{center}
 
 The regent is worse than every scripted reference, including doing nothing, at a normalized regret of
-$R \approx 3.0$: three times the cost of the non-adaptive ceiling it was supposed to beat. It is not
-failing to adapt---it is adapting energetically in the wrong direction.
+$R \approx 3.0$. It is not failing to adapt---it is adapting energetically in the wrong direction.
+The mechanism is in the last two columns: it attains the \emph{lowest mandate burden of any arm},
+$608$ against the clairvoyant's $807$, stabilizing inflation and output better than the policy that
+beats it twofold, and pays $13{,}131$ for the privilege against $4{,}259$. In the mandate's own
+currency it trades $199$ units of burden for $2{,}218$ units of cost. Across $400$ decisions it emits
+$123$ distinct policies, nearly all recognizable Taylor rules with feedback gains of $1.5$ to $3.0$,
+where the calibrated optimum sets that gain to \emph{zero}.
 
-The mechanism is visible in the last two columns. The regent attains the \emph{lowest mandate burden
-of any arm}, $608$ against the clairvoyant's $807$. It stabilizes inflation and output better than the
-policy that beats it by a factor of two. It simply pays $13{,}131$ for the privilege, against $4{,}259$,
-because it holds the policy rate at $9.51$ after a break that has severed the rate's connection to
-the economy---higher than the frozen rule it was meant to improve on, and six times the clairvoyant's
-$1.53$. In the mandate's own currency it trades $199$ units of burden for $2{,}218$ units of cost.
+That reads like a domain prior overriding an instruction, and the instruction is unambiguous: the
+mandate states in every prompt that the rate is charged ``\emph{whether or not the rate reaches the
+economy}''. We pre-registered that reading and the experiment that would falsify it---an identical
+world with every economic name removed at the observation boundary (\texttt{inflation}
+$\to$ \texttt{signal\_a}, \texttt{policy\_rate} $\to$ \texttt{lever}), verified byte-identical by its
+three scripted reference arms reproducing $2674.8488$, $3412.8344$ and $13738.4441$ exactly. The
+prediction was that stripping the domain would help.
 
-What it writes is not incompetent. Across $400$ decisions it emits $123$ distinct policies, nearly all
-recognizable Taylor rules---\texttt{r\_star + 2.0 * (inflation - inflation\_target) + 2.0 *
-output\_gap} and its variants---with feedback gains of $1.5$ to $3.0$. The calibrated optimum, by
-contrast, sets that gain to \emph{zero} and sits at a constant. The regent is not producing noise; it
-is producing textbook monetary policy, competently, into a world where textbook monetary policy is
-the wrong answer.
+It did not. Paired on $20$ seeds, the disguised arm scores $4016.28$ against $3890.53$:
+$\Delta = +125.75$, $95\%$ CI $[-97.78, +353.70]$, $p = 0.25$, helping on $7$ of $20$ seeds. The point
+estimate is in the \emph{opposite} direction.
 
-The part that makes this more than an anecdote about a hard task is that the mandate says so, in
-plain language, in every prompt. It states that the rate's cost accrues on the level set, every step,
-``\emph{and is charged whether or not the rate reaches the economy: a restrictive stance is
-politically and financially expensive even when it changes nobody's behaviour}.'' That is a direct,
-correct, unambiguous warning about precisely the trap the world contains. The regent read it on all
-$400$ decisions and leaned harder anyway.
+A null on an aggregate is weak evidence, so we tested the obvious rescues rather than accepting it.
+Three survive reporting.
 
-We take two things from this. First, as a methodological point, it rules out the interpretation that
-first occurred to us: this is not the objective-communication failure we had already found and fixed
-elsewhere in this project, because the objective is communicated and it is communicated well.
-Second, and more substantively: \emph{an explicit mandate is not sufficient protection against a
-strong parametric prior}. A language-model authority arrives already knowing what central banks do,
-and that knowledge is not neutral background---it is an active commitment that survived an
-instruction written specifically to displace it. Domain familiarity, usually treated as an asset when
-selecting a model for a governance task, is here a liability, and one that grows with the model's
-competence in the domain.
+\emph{The disguise worked.} Across all $400$ disguised prompts there are zero occurrences of
+\texttt{inflation}, \texttt{taylor}, \texttt{monetar}, \texttt{central bank}, \texttt{output gap} or
+\texttt{r\_star}; the paired monetary arm contains $25{,}300$ occurrences of \texttt{inflation} alone.
+
+\emph{The manipulation succeeded, and the failure did not follow it.} This is the decisive
+observation. Removing the domain did remove the textbook: the share of emitted laws whose gain falls
+in the Taylor band drops from $82.0\%$ to $22.1\%$, the dual-mandate second term from $93.4\%$ to
+$35.4\%$. The behaviour the prior was invoked to explain barely moves. Post-break mean rate goes from
+$9.51$ to $9.12$ ($\Delta = -0.39$, CI $[-0.94, +0.14]$) against an $8.05$-point gap to the
+clairvoyant's $1.47$; saturation at the $12.0$ ceiling is $22.7\%$ of post-break steps against
+$23.1\%$. Deleting the entire central-banking template moved the behaviour by less than a twentieth
+of the quantity it was supposed to explain. \textbf{Across all $40$ runs in both arms, not one
+achieves a post-break mean rate below the best constant of $6.0$.} Neither arm withdraws.
+
+\emph{The cancellation story fails on its own window.} One could argue that a prior helps before the
+break and hurts after, so the totals cancel. The states entering the break are statistically
+indistinguishable between arms (output gap $\Delta = +0.19$, CI $[-0.29, +0.89]$), so the post-break
+window is a clean contrast---and on it the disguise buys only $-89$, CI $[-299, +122]$, $12/20$ seeds.
+The rescue predicts an effect exactly there and does not get one. Its direction is wrong too: if a
+central-banking prior were pinning the feedback gain above the optimal zero, stripping the domain
+should push the gain \emph{toward} zero. It pushes it from $1.98$ to $6.69$.
+
+So the correct claim is more general than the one we set out to make, and better supported. The
+regent's failure is not that it knows what central banks do. It is that it will not withdraw an
+instrument that has stopped working, whatever the instrument is called---it optimizes the objective
+term it can see moving, and treats the price as a tax to be paid rather than a reason to stop. That
+survives the deletion of every domain cue, and it is invariant across $40$ runs.
 
 \begin{takeaway}
-The regent's failure was not incoherence but fluency: it applied the correct textbook response to a
-world whose textbook had stopped applying, while holding a written statement of the trap in context.
+We pre-registered a plausible explanation, built the control that could refute it, and it did. What
+replaces it is stronger: the failure is not domain-specific fluency but a domain-general refusal to
+abandon a priced lever, and the manipulation check---template removed, failure unmoved---is what
+distinguishes the two.
 \end{takeaway}
 
 \subsection{What episodic memory actually does: it stops the institution revising}
