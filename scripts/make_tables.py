@@ -485,21 +485,53 @@ best fixed in hindsight \\texttt{{{esc(ep.get('best_fixed', {}).get('expr', 'n/a
 """
 
 
+def _head_commit() -> str:
+    """The current HEAD, with a ``-dirty`` marker when the tree has uncommitted changes.
+
+    The marker matters more than the hash: a paper generated from a dirty tree is not reproducible
+    from any commit, and saying so in the artifact is cheaper than discovering it later.
+    """
+    import subprocess
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+                             text=True, timeout=10).stdout.strip()
+        if not sha:
+            return "unknown (not a git checkout)"
+        dirty = subprocess.run(["git", "status", "--porcelain"], capture_output=True,
+                               text=True, timeout=10).stdout.strip()
+        return f"{sha}-dirty" if dirty else sha
+    except Exception:  # noqa: BLE001 - a missing git must not break table generation
+        return "unknown (git unavailable)"
+
+
 def repro(calib: dict, a: dict, commit: str) -> str:
     ep = calib.get("epidemic", {})
     p = ep.get("provenance", {})
+    # Every path and flag below is the one that actually reproduces THIS paper's tables. An earlier
+    # version pointed the analysis step at `logs/runs`, which holds only the reference arms — a
+    # reader following it would have got an empty factorial and no error. The store the results come
+    # from is `logs/runs_v3`.
     return f"""\\noindent Everything below is in the repository at commit \\texttt{{{esc(commit)}}}.
 
 \\begin{{description}}[leftmargin=0em,style=nextline]
 \\item[Calibrate the anchors] \\texttt{{uv run python scripts/recalibrate.py --seeds {p.get('n_seeds', 20)}}}
   \\\\writes \\texttt{{govsim/docs\\_gates/calibration.json}} (the artifact the paper's anchors are read from).
 \\item[Measure headroom across regimes] \\texttt{{uv run python scripts/headroom\\_audit.py --seeds 8}}
-\\item[Run the matrix] \\texttt{{uv run python scripts/run\\_matrix.py --arms epidemic --seeds 20}}
-  \\\\resumable: the model-call tape makes an interrupted sweep free to restart.
-\\item[Analyse] \\texttt{{uv run python scripts/analyze\\_matrix.py --store logs/runs --cross-model --json logs/analysis.json}}
-\\item[Regenerate these tables] \\texttt{{uv run python scripts/make\\_tables.py --analysis logs/analysis.json}}
-\\item[Replay without an API key] set \\texttt{{GOVSIM\\_LLM\\_MODE=replay}}. Every reported run is
-  served from the committed tape; a wrong key changes nothing.
+  \\\\and \\texttt{{scripts/decompose\\_library.py --seeds 8}} for the adaptation/robustness split.
+\\item[Run the matrix] \\texttt{{uv run python scripts/run\\_matrix.py --arms epidemic --seeds 20 --store logs/runs\\_v3}}
+  \\\\resumable: the model-call tape makes an interrupted sweep free to restart. Run \\emph{{one}}
+  sweep at a time --- the provider's binding quota is input tokens per minute, shared across
+  processes, and concurrent sweeps exhaust the retry budget and kill an arm mid-run.
+\\item[Analyse] \\texttt{{uv run python scripts/analyze\\_matrix.py --store logs/runs\\_v3 --json logs/analysis\\_v3.json}}
+\\item[Regenerate these tables] \\texttt{{uv run python scripts/make\\_tables.py --analysis logs/analysis\\_v3.json}}
+\\item[Replay without an API key] set \\texttt{{GOVSIM\\_LLM\\_MODE=replay}}. Replay is served from a
+  content-addressed tape keyed on the exact request, so a wrong key changes nothing and a missing
+  entry raises rather than silently calling out. The tape for the reported runs is
+  \\textbf{{39\\,MB across 2913 files and is NOT committed to the repository}}; export it from a
+  completed store with \\texttt{{uv run python scripts/export\\_tape.py --store logs/runs\\_v3 --out logs/tape\\_v3}},
+  or obtain it from the archived artifact. We state this plainly because the alternative --- claiming
+  a committed tape that is not there --- is the kind of reproducibility promise that only fails once
+  someone tries it.
 \\item[Tests] \\texttt{{uv run pytest}} --- key-free, including the factorial estimator checked
   against data with a known generating effect.
 \\end{{description}}
@@ -510,7 +542,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--analysis", default="logs/analysis.json")
     ap.add_argument("--calibration", default="govsim/docs_gates/calibration.json")
-    ap.add_argument("--commit", default="see git log")
+    # Resolved from git, not a placeholder. The default used to be the literal string "see git log",
+    # which shipped into the PDF as: "Everything below is in the repository at commit see git log."
+    ap.add_argument("--commit", default=_head_commit())
     args = ap.parse_args()
 
     calib = json.loads(Path(args.calibration).read_text(encoding="utf-8")) \

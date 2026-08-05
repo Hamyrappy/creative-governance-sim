@@ -1,15 +1,24 @@
-\noindent Everything below is in the repository at commit \texttt{see git log}.
+\noindent Everything below is in the repository at commit \texttt{0ac002e-dirty}.
 
 \begin{description}[leftmargin=0em,style=nextline]
 \item[Calibrate the anchors] \texttt{uv run python scripts/recalibrate.py --seeds 20}
   \\writes \texttt{govsim/docs\_gates/calibration.json} (the artifact the paper's anchors are read from).
 \item[Measure headroom across regimes] \texttt{uv run python scripts/headroom\_audit.py --seeds 8}
-\item[Run the matrix] \texttt{uv run python scripts/run\_matrix.py --arms epidemic --seeds 20}
-  \\resumable: the model-call tape makes an interrupted sweep free to restart.
-\item[Analyse] \texttt{uv run python scripts/analyze\_matrix.py --store logs/runs --cross-model --json logs/analysis.json}
-\item[Regenerate these tables] \texttt{uv run python scripts/make\_tables.py --analysis logs/analysis.json}
-\item[Replay without an API key] set \texttt{GOVSIM\_LLM\_MODE=replay}. Every reported run is
-  served from the committed tape; a wrong key changes nothing.
+  \\and \texttt{scripts/decompose\_library.py --seeds 8} for the adaptation/robustness split.
+\item[Run the matrix] \texttt{uv run python scripts/run\_matrix.py --arms epidemic --seeds 20 --store logs/runs\_v3}
+  \\resumable: the model-call tape makes an interrupted sweep free to restart. Run \emph{one}
+  sweep at a time --- the provider's binding quota is input tokens per minute, shared across
+  processes, and concurrent sweeps exhaust the retry budget and kill an arm mid-run.
+\item[Analyse] \texttt{uv run python scripts/analyze\_matrix.py --store logs/runs\_v3 --json logs/analysis\_v3.json}
+\item[Regenerate these tables] \texttt{uv run python scripts/make\_tables.py --analysis logs/analysis\_v3.json}
+\item[Replay without an API key] set \texttt{GOVSIM\_LLM\_MODE=replay}. Replay is served from a
+  content-addressed tape keyed on the exact request, so a wrong key changes nothing and a missing
+  entry raises rather than silently calling out. The tape for the reported runs is
+  \textbf{39\,MB across 2913 files and is NOT committed to the repository}; export it from a
+  completed store with \texttt{uv run python scripts/export\_tape.py --store logs/runs\_v3 --out logs/tape\_v3},
+  or obtain it from the archived artifact. We state this plainly because the alternative --- claiming
+  a committed tape that is not there --- is the kind of reproducibility promise that only fails once
+  someone tries it.
 \item[Tests] \texttt{uv run pytest} --- key-free, including the factorial estimator checked
   against data with a known generating effect.
 \end{description}
