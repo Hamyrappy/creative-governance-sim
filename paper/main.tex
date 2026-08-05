@@ -721,6 +721,42 @@ does not support.}
 \label{fig:lockin}
 \end{figure}
 
+\paragraph{Three attempts to repair it, and what their failure establishes.} If lock-in is caused by
+how precedent is \emph{presented}, it should be fixable by changing the presentation. We tried three
+changes, each pre-registered with its predicted direction, and each retrieving the identical episodes
+so that any difference is attributable to presentation alone.
+
+\begin{center}\small
+\begin{tabular}{@{}llrr@{}}
+\toprule
+variant & what changed & churn & distinct policies \\
+\midrule
+no memory & --- & $\mathbf{0.847}$ & $14.4$ \\
+plain memory & (control) & $0.082$ & $2.1$ \\
+contrastive & ranked best-first, third person, spread named & $\mathbf{0.021}$ & $1.3$ \\
+unscored & the ``$\to$ outcome'' clause deleted & $\mathbf{0.050}$ & $1.8$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+None restored revision, and two made it worse. Reranking by outcome and naming the spread was
+intended to present a \emph{choice}; it presents a \emph{winner}, and sharpened the imitation target
+that similarity ordering leaves ambiguous ($\Delta = -0.061$, Wilcoxon $p=0.023$). Deleting the scores
+outright---strictly less information than the control---did not help either
+($\Delta = -0.032$, CI $[-0.103, +0.010]$, higher on $4/20$ seeds).
+
+Every variant of memory collapses churn by an order of magnitude against the no-memory arm. We
+recorded in advance what a null on the third would mean, and it is the reading we are left with: the
+lock-in is caused by \emph{recall itself}, not by how recall is framed, ordered, or scored. Showing
+an agent its own prior decisions, in any form we could construct, suppresses revision.
+
+That makes these nulls more useful than a successful repair would have been, because they rule out
+the cheap fix. This is not a prompt-engineering problem. A harness that must preserve the capacity to
+revise across a structural break has to withhold the agent's own past actions, or pair recall with
+something that forces reconsideration---and the $\text{outcome} \times \text{memory}$ interaction is
+the only manipulation we measured that restores churn, working by \emph{adding a channel} rather than
+by editing memory.
+
 \paragraph{Relation to what is known about agent memory.} That memory systems underperform their
 promise is not news: \citet{jiang2026anatomy} survey the field and attribute the gap to benchmark
 saturation, metric validity, backbone dependence and latency, and the surrounding literature
