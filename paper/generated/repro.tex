@@ -1,6 +1,8 @@
-\noindent The generator below was run at commit \texttt{028b421-dirty}.
+\noindent The generator below was run at commit \texttt{8c14be2-dirty}.
 
-\noindent\textbf{Run provenance.} A sweep takes hours and the code moves under it, so the recorded runs span several commits rather than one. \texttt{logs/runs\_qwen08}: \texttt{a2efcd8}~($\times$260); \texttt{logs/runs\_v3}: \texttt{319caea}~($\times$260), \texttt{cec3653}~($\times$80), \texttt{3dc2167}~($\times$20), \texttt{df5b630}~($\times$20). The freshness gate (\cref{sec:ctx-outcome}) is what makes that safe: it refuses any run recorded before the last change to a file that determines what a run \emph{means}.
+\providecommand{\FreshnessGateRef}{}
+
+\noindent\textbf{Run provenance.} A sweep takes hours and the code moves under it, so the recorded runs span several commits rather than one. \texttt{logs/runs\_qwen08}: \texttt{a2efcd8}~($\times$260); \texttt{logs/runs\_v3}: \texttt{319caea}~($\times$260), \texttt{cec3653}~($\times$80), \texttt{3dc2167}~($\times$20), \texttt{df5b630}~($\times$20). The freshness gate \FreshnessGateRef{} is what makes that safe: it refuses any run recorded before the last change to a file that determines what a run \emph{means}.
 
 
 \begin{description}[leftmargin=0em,style=nextline]

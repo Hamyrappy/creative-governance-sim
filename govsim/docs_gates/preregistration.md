@@ -535,3 +535,49 @@ prevent.
   contamination (3.8% against bare's 1.0%), so whatever the sign, this term is reported and not
   interpreted until the repair run. The prediction is recorded anyway, because a prediction made
   after seeing the number is worth nothing regardless of how the contamination resolves.
+
+- **2026-08-05 — H3e (FOREIGN MEMORY) RESOLVED: the pre-registered prediction was CONFIRMED, and the
+  mechanism is COMMITMENT, not anchoring.**
+  The prediction, recorded in `ForeignMemory`'s docstring before the arm was run: *"if (b)
+  commitment, churn rises materially above 0.082 toward the no-memory arm's 0.847; if (a) anchoring,
+  churn stays near 0.082 and precedent is unusable here in any form."*
+
+  Seed-matched on the arm's declared seeds 0-9 (`logs/foreign_memory.json`):
+
+  | arm | churn | loss | R |
+  |---|---|---|---|
+  | bare (no memory) | 0.837 | 25.860 | 1.030 |
+  | own memory | 0.068 | 26.737 | 1.212 |
+  | **foreign memory** | **0.632** | **25.616** | **0.995** |
+
+  Foreign precedent reproduces only 27% of own-precedent's churn suppression; the authorship residual
+  (foreign vs own, +0.563 churn) is 73% of the total and survives Holm correction across all three
+  contrasts (p_adj <= 0.009). On loss, foreign beats own by 1.121 (95% CI [-2.906, -0.351],
+  p=0.0249) — it removes the entire harm own memory causes — while foreign vs bare is **not**
+  significant (-0.244, p=0.61). The claim is therefore "foreign precedent removes the harm", NOT
+  "foreign precedent helps".
+
+  **Three alternative explanations were tested and all fail:**
+
+  1. *Retrieval similarity.* Own memory retrieves from the agent's own trajectory and might simply
+     return closer precedent. Measured directly (`scripts/retrieval_similarity.py`): foreign
+     precedent is retrieved **7.9x CLOSER**, not further, because the epidemic's endemic equilibrium
+     makes seeds traverse nearly the same states. The confound runs backwards — the foreign arm was
+     advantaged on similarity and revised anyway.
+  2. *Bank composition as a crowd.* Inspected the bank actually handed to the arm: 8 episodes, all
+     from a **single** donor seed (11). It is already a single-authority design.
+  3. *Bank repetitiveness.* The donor's 8 episodes are 8 different laws (its donor is the bare arm,
+     which churns 0.847) while own memory fills with the agent's converged history, so perhaps a
+     repetitive bank anchors. That predicts late-onset lock-in. Measured
+     (`scripts/lockin_onset.py`): at the FIRST transition, own memory holds exactly **one** episode
+     and revision is already 0.40 against bare's 1.00; by two episodes it is **0.00 and stays there
+     for ten consecutive decisions**. A one-episode bank cannot be repetitive.
+
+  **An unplanned finding, reported as exploratory.** Aligning revision to the break (decision 10)
+  separates the three arms in a way the run-level average hides. Only the foreign arm responds to
+  the structural break: 0.44 -> 0.84 (p=0.0059, p_Holm=0.0177). The bare arm does not respond
+  (0.84 -> 0.83, p=0.91) because it revises constantly regardless; the own-memory arm does not
+  respond (0.04 -> 0.10, p=0.14) because it is frozen. **Foreign precedent buys stability that
+  releases on a break; own precedent buys stability that does not, and no precedent buys no
+  stability at all.** This was not predicted and is labelled exploratory; the confirmatory claim
+  remains the pre-registered churn contrast.

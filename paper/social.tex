@@ -6,9 +6,11 @@
 \providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
 \providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
 \providecommand{\MDEFraction}{?}\providecommand{\MDEWorst}{?}\providecommand{\MDEMemory}{?}
+\newcommand{\FreshnessGateRef}{}
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
 \IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
 \IfFileExists{generated/library_facts.tex}{\input{generated/library_facts}}{}
+\IfFileExists{generated/lockin_facts.tex}{\input{generated/lockin_facts}}{}
 
 \title{\bfseries Rules That Stop Working\\
 \large Why feedback institutions survive shocks to the world but not shocks to their own
@@ -35,8 +37,9 @@ essentially nothing for adaptation to do. When the \emph{instrument} changes---t
 now delivers a quarter of the behavioural response while costing what it always cost---the pre-shock
 rule carries a large excess burden, and its feedback structure makes matters worse rather than
 better: rising prevalence causes it to intervene harder, buying less each time. The correct response
-is not to stop governing but to \emph{substitute}: hold the instrument that still works and stop
-paying for the one that broke.
+is not to stop governing but to withdraw the broken instrument while holding the surviving one
+steady. The calibrated optimum does exactly that: it takes restriction to zero and leaves vaccination
+where it already was.
 
 We also show that what a stale rule costs \emph{factors}, into a part recoverable only by an
 authority that notices and revises, and a part recoverable by having legislated a better rule in the
@@ -273,20 +276,47 @@ three references calibrated in its own institutional vocabulary.
 
 \input{generated/library_table}
 
-The result is that scarcity, not headroom, is the normal condition. Across \libWorlds{} polities only
-\libOverEleven{} leave adaptation worth more than a tenth of the incumbent rule's cost. For most of
-them, an authority that watched carefully and revised promptly would have been indistinguishable from
-one that legislated once and went home---not because attentiveness is worthless in general, but
-because in those worlds the better answer was available at the outset to anyone who thought harder
-about the rule.
+The result is that adaptation is worth strikingly little, and---more importantly---that how little
+it is worth is a property of the situation rather than of the polity. Across every world, break and
+price we calibrated, an authority with perfect foresight about the coming break recovers at most
+$\libMaxRecovered\%$ of what the incumbent rule costs; in most of them, far less. For those, an
+authority that watched carefully and revised promptly would have been indistinguishable from one that
+legislated once and went home---not because attentiveness is worthless in general, but because there
+the better answer was available at the outset to anyone who thought harder about the rule.
+
+We resist the summary this invites. It would be easy to write that adaptation is worth having in
+only a third of our polities, and we have removed that sentence from an earlier draft of this paper,
+because it does not survive its own arithmetic: the share depends on whether one counts calibrated
+configurations or distinct worlds ($\libFracRows$ versus $\libFracBest$), and we chose which worlds
+to build, so neither share estimates anything about economies at large. What the library does
+establish is visible inside a single one of its worlds. Holding the epidemic's mechanics fixed and
+varying only how bad the pathogen is and how much restriction costs, adaptation headroom moves from
+exactly $\libEpiMin\times$---no adaptive problem at all---to $\libEpiMax\times$, near the top of
+everything we measured. The same institution, governing the same disease, faces a real adaptive
+problem or none depending on parameters it does not control. Whether adaptive capacity is worth
+building is therefore not a question about a country or a sector; it is a question about a
+configuration, and it has to be asked again when the configuration changes.
 
 This is an uncomfortable finding for a literature that treats responsiveness as an unqualified
 institutional virtue, and we think it is the more useful one. It says that the case for adaptive
 governance is not general; it is conditional on a property of the domain that can be measured in
 advance, cheaply, without observing any government at all. Monetary policy reached a version of this
 conclusion by a different route: a rule chosen for robustness across models often beats one optimized
-within the model believed at the time \citep{levin1999robustness}. What we add is the measurement, in
-domains where no such literature exists to consult.
+within the model believed at the time \citep{levin1999robustness}. Control engineering reached it by
+a third: fault-tolerant control has separated \emph{passive} designs---one fixed controller made
+robust to a presumed class of faults---from \emph{active} ones that detect the fault and reconfigure
+\citep{zhang2008reconfigurable}, and its own reviews conclude that neither dominates, the choice
+turning on the fault set at hand \citep{jiang2012comparative}. Our two headroom terms are those two
+schemes, priced. We do not claim the distinction, which is decades old outside our field; we claim
+that it can be quantified in advance for a governance problem, and that when one does so the active
+term---the entire justification for building responsive institutions---is usually the smaller of the
+two, and is sometimes exactly zero while the passive term is large.
+
+That an institutional question has an engineering answer of this shape is not incidental. A standing
+policy rule and a feedback controller are the same object under different names, and the reason our
+robustness term is so often the larger one is the reason a well-tuned fixed controller survives most
+disturbances: feedback is doing the adapting, silently, without anybody deciding anything. What we
+add to both literatures is the measurement, in domains where neither has been consulted.
 
 Two of the polities are worth naming because they fail in instructive ways. The treasury cannot host
 the experiment at all: in its configuration the optimal tax rate is zero---the economy reaches
@@ -321,8 +351,11 @@ attentive authority---was what the situation called for.
 \caption{\textbf{One polity, three institutions.} Before the break the frozen rule is the good
 policy---it suppresses prevalence almost completely, which is why it was chosen. After the break it
 continues to enact maximal restriction, accumulating cost while prevalence rises anyway. The
-clairvoyant institution does not withdraw --- it \emph{substitutes}, holding vaccination at its
-maximum throughout while dropping restriction to zero at the break. Cumulative cost on seed
+clairvoyant institution withdraws the \emph{broken} instrument only: it drops restriction to zero at
+the break and holds vaccination at its maximum throughout --- the vaccination term is byte-identical
+before and after, so nothing is reached for at the break. What separates it from the frozen rule is
+that the frozen rule never used vaccination at all; that difference belongs to the robustness term,
+not the adaptation term. Cumulative cost on seed
 \DivergenceSeed: frozen \FrozenCost, best fixed rule \BestFixedCost, clairvoyant \SwitchCost.
 That distinction is the whole governance content of the figure: the right answer to an instrument
 that stopped working is to reach for the one that still does, not to stop governing.}
@@ -501,11 +534,86 @@ the memory channel removed was the \emph{capacity} for revision---the institutio
 kind of thing that could change its mind---and that is what cost it. Prescribing ``revise more
 often'' would be treating a symptom that is not, on its own, the mechanism.
 
+\subsection{Whose precedent? A second remedy, and a sharper mechanism}
+\label{sec:foreign-social}
+
+``Availability of one's own past decisions'' is how we have described the mechanism, but the
+experiment above cannot actually justify the possessive. Two readings fit it equally. Under the
+first, any concrete example of a policy anchors the authority, and consulting precedent is simply
+unsafe across a structural break. Under the second, what binds is specifically the authority's own
+record: a body that has ruled once is under pressure to rule consistently, and precedent written by
+somebody else carries no such pressure. Institutional theory has long distinguished these---the
+second is what makes \emph{stare decisis} a doctrine about a court's own prior holdings rather than
+about exposure to legal reasoning in general---but our data could not separate them, because in every
+regime tested the authority was reading its own file.
+
+So we ran one further regime in which the file belongs to somebody else. The authority is given eight
+recorded decisions of a different authority, governing a different realization of the same epidemic,
+retrieved and presented exactly as its own would have been, and it never sees its own record. Nothing
+else changes: same retrieval rule, same ranking, same phrasing, same number of precedents.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+precedent available to the authority & revisions per review & loss & $\Rreg$ \\
+\midrule
+none & $0.84$ & $25.86$ & $1.03$ \\
+its own record & $\mathbf{0.07}$ & $26.74$ & $1.21$ \\
+\textbf{another authority's record} & $\mathbf{0.63}$ & $\mathbf{25.62}$ & $\mathbf{1.00}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The possessive was carrying the whole mechanism. Precedent from elsewhere reproduces barely a quarter
+of the paralysis that the authority's own record produces, and it removes the entire cost: an
+authority reading another's file governs as well as one with no memory at all ($\Delta = -1.12$
+against its own record, $95\%$ CI $[-2.91, -0.35]$, $p = 0.025$), and is the only memory-equipped
+regime we ran that matches the best standing rule. We are careful about the direction of this claim:
+reading another's file does not beat having no memory ($p = 0.61$). It is harmless where one's own
+file is harmful.
+
+We also checked the two explanations that would deflate this. The first is that an authority's own
+record is simply \emph{closer} to its current situation, so it retrieves more relevant material and
+imitates it for good reason. Measured directly, the donor's decisions are retrieved from
+$7.9\times$ \emph{nearer} the current state, not further---an endemic epidemic puts every authority
+in much the same place---so the comparison runs against the finding rather than for it. The second is
+that a growing own-record becomes repetitive and it is the repetition that anchors. That predicts
+paralysis should set in gradually. It sets in at the first precedent: with a single decision on file
+the authority's revision rate has already fallen by $60\%$, and with two it is zero and stays zero
+for ten consecutive reviews. One decision cannot be a rut.
+
+\paragraph{What this changes.} It converts a discouraging finding into an actionable one. ``Do not
+give an institution a memory'' is not advice anybody can take; institutions have memories whether or
+not we design them. ``Do not let the body reviewing a rule consult its own prior rulings on that
+rule---give it a comparable jurisdiction's instead'' describes arrangements that exist in the world,
+in comparative regulatory review, peer-jurisdiction benchmarking, and the practice of staffing a
+review panel with people who did not write the thing under review. Our measurement says that
+arrangement is not merely fairer in appearance; in this model it is the difference between an
+institution that can change its mind and one that cannot.
+
+There is a further observation we report as exploratory, because we did not predict it. Timing the
+revisions against the moment the instrument breaks separates the three regimes in a way the averages
+above conceal. The authority with no memory revises constantly and does not revise \emph{more} after
+the break---it was never tracking anything. The authority reading its own record does not revise more
+either---it is frozen. Only the authority reading another's record changes behaviour at the break,
+and it roughly doubles its revision rate ($\lockinForeignPre \to \lockinForeignPost$,
+$p_{\text{Holm}} = \lockinForeignP$). That is the profile institutional design actually asks for:
+stability while the world is stable, revision when it is not. It is worth stating plainly that the
+run-level averages in our tables cannot distinguish that profile from mere inertia, and that a
+literature scoring institutions on how often they change things would place the first two regimes at
+opposite extremes while missing that neither is responsive to anything.
+
 \begin{takeaway}
 Institutional memory did not misinform our authority---it stopped it from reconsidering. Precedent
 and evaluation are complements, and precedent deployed without evaluation is worse than no
 institutional memory at all. But the remedy is the evaluation channel, not a quota of revisions.
 \end{takeaway}
+
+The remedy is now two remedies, and they work differently. Evaluation restores revision by
+giving the authority a reason to reconsider. Foreign precedent restores it by removing the
+pressure to be consistent with itself. An institution can be given either; it is better off
+with both.
+
 
 This is a claim about a simulated authority, and we are careful not to inflate it into a claim about
 courts or bureaucracies. What the model licenses is narrower and still useful: it identifies a

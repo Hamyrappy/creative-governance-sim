@@ -548,9 +548,15 @@ def repro(calib: dict, a: dict, commit: str) -> str:
             parts.append(f"\\texttt{{{esc(str(store).replace(chr(92), '/'))}}}: {inner}")
         prov_line = ("\n\n\\noindent\\textbf{Run provenance.} A sweep takes hours and the code moves "
                      "under it, so the recorded runs span several commits rather than one. "
-                     + "; ".join(parts) + ". The freshness gate (\\cref{sec:ctx-outcome}) is what "
+                     + "; ".join(parts) + ". The freshness gate \\FreshnessGateRef{} is what "
                      "makes that safe: it refuses any run recorded before the last change to a file "
                      "that determines what a run \\emph{means}.\n")
+        # NOT a bare \cref. This file is \input by BOTH manuscripts, and `sec:ctx-outcome` exists
+        # only in main.tex — so the social paper shipped a literal "??" in its reproducibility
+        # section for as long as the line was hard-coded. Each paper defines the macro to point at
+        # whatever it actually calls that section, and the \providecommand below means a paper that
+        # defines nothing degrades to prose rather than to a question mark.
+        prov_line = ("\n\n\\providecommand{\\FreshnessGateRef}{}" + prov_line)
     return f"""\\noindent The generator below was run at commit \\texttt{{{esc(commit)}}}.{prov_line}
 
 \\begin{{description}}[leftmargin=0em,style=nextline]
@@ -580,17 +586,50 @@ def repro(calib: dict, a: dict, commit: str) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--analysis", default="logs/analysis.json")
+    # The default is the analysis the PAPERS are built from. It used to be `logs/analysis.json`, a
+    # superseded four-arm run left over from an earlier design, and running this script with no
+    # arguments therefore rewrote every table in both manuscripts from stale data — silently, and in
+    # a way that looks like a successful regeneration. The failure is quiet in the worst direction:
+    # the run-coverage box flipped from "8 of 8 cells complete" to "4 of 8", i.e. the paper would
+    # have understated its own evidence and cited arms it no longer claimed to have run.
+    ap.add_argument("--analysis", default="logs/analysis_v3.json")
     ap.add_argument("--calibration", default="govsim/docs_gates/calibration.json")
     # Resolved from git, not a placeholder. The default used to be the literal string "see git log",
     # which shipped into the PDF as: "Everything below is in the repository at commit see git log."
     ap.add_argument("--commit", default=_head_commit())
+    ap.add_argument("--allow-shrink", action="store_true",
+                    help="permit regenerating with FEWER arms than the tables already report")
     args = ap.parse_args()
 
     calib = json.loads(Path(args.calibration).read_text(encoding="utf-8")) \
         if Path(args.calibration).exists() else {}
     analysis = json.loads(Path(args.analysis).read_text(encoding="utf-8")) \
         if Path(args.analysis).exists() else {}
+
+    # REFUSE A DOWNGRADE. Pointing this script at a superseded analysis rewrites every table in both
+    # manuscripts with less evidence than the papers already claim, and prints "wrote ..." nine times
+    # while doing it. A default cannot prevent that (the path is still an argument), so the guard is
+    # a comparison against what is already on disk: if the incoming analysis covers strictly fewer
+    # arms than the tables it is about to overwrite, stop and say so.
+    #
+    # `--allow-shrink` exists because deliberately narrowing the paper is a legitimate operation; it
+    # just must be typed, not defaulted into.
+    # Compare ARMS to ARMS. The first version of this guard compared the incoming arm count against
+    # the number of `\\` row-ends in the existing table, which counts reference rows and the header
+    # too, so it refused a perfectly good regeneration. Both sides are now the set of arm labels.
+    existing = OUT / "arms_table.tex"
+    new_arms = {ARM_LABELS.get(r["arm"], r["arm"]) for r in (analysis.get("arms") or [])
+                if r.get("arm")}
+    if existing.exists() and new_arms and not args.allow_shrink:
+        text = existing.read_text(encoding="utf-8")
+        old_arms = {lbl for lbl in ARM_LABELS.values() if lbl.split("\\,")[0] + " &" in text}
+        lost = old_arms - new_arms
+        if lost:
+            print(f"REFUSING: {args.analysis} does not cover {len(lost)} arm(s) the current "
+                  f"tables report: {', '.join(sorted(lost))}. Regenerating would shrink the "
+                  f"paper's evidence. Pass a fuller analysis (logs/analysis_v3.json), or "
+                  f"--allow-shrink if the narrowing is intended.")
+            return 2
 
     OUT.mkdir(parents=True, exist_ok=True)
     written = {

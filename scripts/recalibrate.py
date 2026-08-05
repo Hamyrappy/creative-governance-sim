@@ -39,9 +39,12 @@ EPIDEMIC_IFACE = ScalarLeverInterface([
 # The family spans BOTH instruments. This is not an embellishment: the regent arms can set
 # vaccination as well as lockdown, so a reference confined to lockdown is not a weaker opponent, it
 # is an unfair one — any arm would beat it partly by using a lever the reference was forbidden. It
-# also turns out to matter substantively: calibrated jointly, the pre-break optimum uses NO
-# vaccination and the post-break optimum uses the maximum, so the correct response to the instrument
-# failure is substitution rather than withdrawal.
+# also turns out to matter substantively, though not in the way an earlier version of this comment
+# claimed: calibrated jointly, the clairvoyant law holds vaccination at the SAME level in both legs
+# (byte-identical), so the correct response to the instrument failure is pure withdrawal of the
+# broken lever, not substitution toward the surviving one. What differs is that the frozen rule
+# never used vaccination at all — a difference in the rule as written, which the decomposition
+# assigns to robustness rather than adaptation.
 EPIDEMIC_FAMILY = PolicyFamily(
     verb="set_lockdown",
     template="{a} if I > {thr} else 0.0",
@@ -146,13 +149,30 @@ def run(name: str, seeds: list[int]) -> dict:
     """
     s = _regime_spec(name)
     fam, iface, sched, hz, obj = s["family"], s["iface"], s["schedule"], s["horizon"], s["objective"]
-    print(f"\n=== {name}: {fam.size()} laws x {len(seeds)} seeds ===")
+    # The banner reports the size of the space EVERY reference searches. It said fam.size() while the
+    # comparators searched three families, which is exactly the kind of stale launch banner that hid
+    # the asymmetry documented below.
+    n_laws = sum(f.size() for f in s["families"].values())
+    print(f"\n=== {name}: {n_laws} laws across {len(s['families'])} families x {len(seeds)} seeds ===")
     sys.stdout.flush()
 
-    frozen = calibrate(fam, system_factory=s["pre"], action_interface=iface, objective=obj,
-                       schedule=sched, seeds=seeds, horizon=hz, metric="loss")
-    oracle = calibrate(fam, system_factory=s["shocked"], action_interface=iface, objective=obj,
-                       schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
+    # ALL FOUR REFERENCES SEARCH THE SAME POLICY VOCABULARY. This is load-bearing and was wrong for
+    # several revisions: ``frozen`` and ``oracle`` searched the single flagship family (192 laws)
+    # while ``best_fixed`` and ``switching`` searched all three (456). The papers' caption claims the
+    # references "differ only in what they were allowed to know", and under the old asymmetry that
+    # was false — the frozen rule was also handicapped in what it was allowed to SAY, over 42% of the
+    # space its comparators got. Every ratio with ``frozen`` in the numerator (staleness, robustness
+    # headroom) was therefore inflated by an unknown amount of pure vocabulary difference.
+    #
+    # Adaptation headroom, L(best_fixed)/L(switching), was never affected: both sides always used
+    # calibrate_families. That is why the asymmetry survived so long — it left the headline number
+    # alone and moved the two numbers around it.
+    frozen_name, frozen = calibrate_families(
+        s["families"], system_factory=s["pre"], action_interface=iface, objective=obj,
+        schedule=sched, seeds=seeds, horizon=hz, metric="loss")
+    oracle_name, oracle = calibrate_families(
+        s["families"], system_factory=s["shocked"], action_interface=iface, objective=obj,
+        schedule=sched, seeds=seeds, horizon=hz, metric="post_loss")
     # The non-adaptive ceiling, over the full horizon, chosen with hindsight.
     best_fixed_name, best_fixed = calibrate_families(
         s["families"], system_factory=s["shocked"], action_interface=iface, objective=obj,
@@ -175,9 +195,9 @@ def run(name: str, seeds: list[int]) -> dict:
 
     d = diagnose(fl, bl, sl)
     h_full, h_vs_fixed = d["staleness"], d["adaptation_headroom"]
-    print(f"  frozen      : {frozen.best_laws}")
+    print(f"  frozen      : {frozen.best_laws}   (pre-break only, '{frozen_name}')")
     print(f"  best_fixed  : {best_fixed.best_laws}   (hindsight, whole horizon, '{best_fixed_name}')")
-    print(f"  oracle(post): {oracle.best_laws}")
+    print(f"  oracle(post): {oracle.best_laws}   ('{oracle_name}')")
     print(f"  switching   : {pre_laws}")
     print(f"                ->  {post_laws}   at t={s['shock_step']}")
     print(f"  full-horizon loss: frozen={fl:.4f}  best_fixed={bl:.4f}  switching={sl:.4f}")
@@ -199,11 +219,12 @@ def run(name: str, seeds: list[int]) -> dict:
         "verb": fam.verb,
         "switch_step": s["shock_step"],
         "frozen": {"expr": frozen.best_expr, "laws": frozen.best_laws,
-                   "params": frozen.best_params, "loss": fl, "post_loss": fl_post},
+                   "params": frozen.best_params, "loss": fl, "post_loss": fl_post,
+                   "family": frozen_name},
         "best_fixed": {"expr": best_fixed.best_expr, "laws": best_fixed.best_laws,
                        "params": best_fixed.best_params, "loss": bl, "family": best_fixed_name},
         "oracle": {"expr": oracle.best_expr, "laws": oracle.best_laws,
-                   "params": oracle.best_params, "post_loss": ol_post},
+                   "params": oracle.best_params, "post_loss": ol_post, "family": oracle_name},
         "switching": {"pre_expr": pre_laws[fam.verb], "post_expr": post_laws[fam.verb],
                       "pre_laws": pre_laws, "post_laws": post_laws, "loss": sl},
         "headroom": h_full,               # == staleness, kept for artifact compatibility
@@ -215,6 +236,8 @@ def run(name: str, seeds: list[int]) -> dict:
             "wide_families": {n: f.template for n, f in s["families"].items()},
             "horizon": hz, "decide_every": sched.n if hasattr(sched, "n") else None,
             "primary_metric": "loss (full horizon)",
+            "vocabulary_symmetric": True,   # all four references search s["families"]
+            "search_size": sum(f.size() for f in s["families"].values()),
             "calibrated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         },
     }

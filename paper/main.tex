@@ -9,9 +9,11 @@
 \providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
 \providecommand{\MDEFraction}{?}\providecommand{\MDEWorst}{?}\providecommand{\MDEMemory}{?}
 % Overrides the "pending" defaults once scripts/make_tables.py has real numbers to state.
+\newcommand{\FreshnessGateRef}{(\cref{sec:ctx-outcome})}
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
 \IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
 \IfFileExists{generated/library_facts.tex}{\input{generated/library_facts}}{}
+\IfFileExists{generated/lockin_facts.tex}{\input{generated/lockin_facts}}{}
 
 \title{\bfseries When Does Adaptation Have Room to Matter?\\
 \large Measuring adaptation headroom, and attributing it to harness components,\\
@@ -91,13 +93,25 @@ from the outside the two are indistinguishable from a genuine null.
 
 \paragraph{Contributions.}
 \begin{enumerate}[leftmargin=1.4em]
-\item \textbf{A decomposition of what a stale rule costs, computed before any agent is run}
-(\cref{sec:headroom,sec:decomposition}). Three references calibrated in one shared vocabulary---the
+\item \textbf{A measurement that prices a distinction control theory already draws}
+(\cref{sec:headroom,sec:decomposition}). Fault-tolerant control has long separated \emph{passive}
+schemes, which hold one fixed controller made robust to a presumed fault class, from \emph{active}
+ones, which detect the fault and reconfigure \citep{zhang2008reconfigurable}; that the choice between
+them depends on the fault set, rather than one dominating, is the field's own conclusion
+\citep{jiang2012comparative}. We do not claim the distinction. We claim a way to \emph{price} it
+before committing to either, in a setting where the controller is an institution and the fault is a
+policy instrument losing efficacy. Three references calibrated in one shared vocabulary---the
 pre-break optimum held fixed, the best \emph{fixed} rule in hindsight, and the best clairvoyant
-\emph{switch}---factor staleness exactly into an adaptation headroom and a robustness headroom, and
-place any controller on a normalized scale between the last two. Because it is computed first, it
-makes the severity of a designed shock an auditable choice rather than a researcher degree of
-freedom.
+\emph{switch}---factor staleness exactly into a robustness headroom (what the best passive scheme
+recovers) and an adaptation headroom (what only reconfiguration recovers), and place any controller
+on a normalized scale between the last two. The factorization is exact and multiplicative, so the two
+cannot be traded off rhetorically. Because it is computed before any agent runs, it also makes the
+severity of a designed shock an auditable choice rather than a researcher degree of freedom.
+
+What is genuinely new is the empirical answer in this domain, and it is the uncomfortable one: the
+active term---the entire justification for building adaptive institutions---is the smaller of the two
+almost everywhere we look, and in some worlds is exactly zero while the passive term is large. An
+authority evaluated there registers as rigid while facing no adaptive problem at all.
 
 \item \textbf{Two components whose value reverses between environments}
 (\cref{sec:crossworld}). Running the same factorial in a second world, \emph{both} channels that do
@@ -116,8 +130,12 @@ monetary economy, an opinion polity, a fishery, a supply chain, a stock-flow-con
 economy and five epidemic configurations---we find that feedback policies absorb shocks to the state
 dynamics, so those regimes are near-null by construction, but cannot absorb shocks to instrument
 efficacy. Adaptation headroom is a narrow band in both the severity of the break and the price of
-intervention, non-monotone in each, and \emph{scarce}: only $\libOverEleven{}$ of $\libWorlds{}$
-worlds clear $1.1\times$. We report the near-null worlds rather than discarding them, and retain two
+intervention, and non-monotone in each. It is also \emph{bounded}: the largest adaptation headroom
+anywhere in the library is $\libMaxAdapt\times$, so even a clairvoyant re-legislator recovers at most
+$\libMaxRecovered\%$ of the incumbent rule's cost. We deliberately do not report what share of worlds
+has headroom---we chose the library's contents, so no such share estimates anything, and the number
+moves from $\libFracRows$ to $\libFracBest$ depending on whether one counts rows or distinct worlds
+(\cref{tab:library}). We report the near-null worlds rather than discarding them, and retain two
 as declared negative controls---including the one that settles the shock family our own taxonomy had
 never measured.
 
@@ -395,9 +413,28 @@ seed set to all of them.
 
 \input{generated/library_table}
 
-\Cref{tab:library} is the claim in its general form. Across \libWorlds{} worlds only
-\libOverEleven{} clear $1.1\times$ adaptation headroom and \libOverTwelve{} clears $1.2\times$.
-Scarcity is the rule, not an artifact of one pathogen.
+\Cref{tab:library} is the claim in its general form, and stating it correctly requires resisting the
+obvious summary. The tempting sentence---``only $\libFracRows$ worlds clear $1.1\times$''---is not
+one we can defend. Five of the ten rows are the same \textsc{sir} world at different severities and
+instrument prices, three of which return exactly $1.000$ because the break provably cannot move that
+world's optimum; counting them as separate worlds pads the denominator with near-nulls drawn from a
+single model, and it pads it in the direction of our own thesis. De-padding does not rescue the
+statistic, it exposes it: the share clearing $1.1\times$ is $\libFracRows$ over rows, $\libFracBest$
+taking each distinct world at its best configuration, and $\libFracMedian$ taking each at its median.
+A quantity that ranges from $30\%$ to $60\%$ across three defensible conventions is not a finding.
+And it could not be one even if the conventions agreed, because we selected the worlds: there is no
+sampling frame over ``economies'', so no fraction computed here estimates a population quantity.
+
+Two statements survive every convention. The first is a \emph{bound}: the largest adaptation headroom
+anywhere in the library is $\libMaxAdapt\times$ (\libBestWorld), so across every world, shock and
+price we calibrated, a clairvoyant re-legislator recovers at most $\libMaxRecovered\%$ of what the
+incumbent rule costs. The second is sharper, and the padded denominator was hiding it. Within the
+\emph{single} epidemic world, holding the mechanics fixed and moving only transmissibility and the
+price of intervention, adaptation headroom runs from exactly $\libEpiMin\times$ to
+$\libEpiMax\times$---from no adaptive problem whatsoever to the second-largest value in the library.
+Headroom is therefore a property of the \emph{(world, shock, price)} triple, not of the world. That
+is why ``how many worlds have headroom'' is not merely hard to estimate but ill-posed, and why
+\cref{fig:surface} reports the epidemic as a surface rather than as five rows.
 
 Two entries deserve comment because they are declared nulls rather than failures, and reporting them
 is the point of building a library instead of a flagship. The fiscal world's optimum is
@@ -463,7 +500,8 @@ keeps enacting maximal lockdown and gets a \emph{worse} epidemic for it, because
 quarter of what it used to. Cumulative cost on seed \DivergenceSeed: frozen \FrozenCost, best fixed
 law \BestFixedCost, clairvoyant switch \SwitchCost{} (these numbers are emitted by the figure code,
 not transcribed). The bottom two panels carry the substantive point: the clairvoyant response is
-\emph{not} to withdraw but to \emph{substitute}---vaccination is held at its maximum throughout while
+to withdraw the \emph{broken} instrument while holding the surviving one steady---vaccination is at
+its maximum in both legs of the clairvoyant law, byte-identical, while
 lockdown is dropped to zero at the break.}
 \label{fig:divergence}
 \end{figure}
@@ -916,6 +954,75 @@ something that forces reconsideration---and the $\text{outcome} \times \text{mem
 the only manipulation we measured that restores churn, working by \emph{adding a channel} rather than
 by editing memory.
 
+\paragraph{``Recall itself'' still covers two claims. A fourth arm separates them.}
+The sentence above hides an ambiguity with opposite design consequences. Under \emph{anchoring}, any
+concrete exemplar of a policy pulls the agent toward it, and precedent is unusable across a break in
+any form. Under \emph{commitment}, what binds is specifically being shown \emph{one's own} prior
+decisions, and precedent remains usable provided the agent did not author it. Presentation repairs
+cannot tell these apart, because all three showed the agent its own history.
+
+We therefore ran a fourth arm that holds retrieval, ranking, phrasing and episode count fixed and
+changes only \emph{whose} episodes are in the bank. The agent is given eight episodes recorded from a
+different authority governing a different realization of the same world, and never sees its own. The
+prediction was registered before the arm ran: under commitment, churn rises materially toward the
+no-memory arm's $0.847$; under anchoring it stays near $0.082$.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+precedent shown & churn & loss & $\Rreg$ \\
+\midrule
+none & $0.837$ & $25.860$ & $1.030$ \\
+the agent's own & $0.068$ & $26.737$ & $1.212$ \\
+\textbf{another authority's} & $\mathbf{0.632}$ & $\mathbf{25.616}$ & $\mathbf{0.995}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Commitment. Foreign precedent reproduces only $27\%$ of own-precedent's suppression; the
+authorship residual is the other $73\%$, and all three pairwise contrasts survive Holm correction
+($p_{\text{adj}} \le 0.009$, $n=10$ paired seeds). On loss, foreign precedent removes the entire harm
+own precedent causes ($\Delta = -1.121$, CI $[-2.906, -0.351]$, $p = 0.025$) and is the only memory
+arm that reaches the best fixed rule. It does \emph{not} beat the no-memory arm
+($\Delta = -0.244$, $p = 0.61$), so the claim is that foreign precedent is harmless where own
+precedent is harmful, not that it helps.
+
+Three alternative readings were tested and all fail. \textbf{(i)~Retrieval similarity.} Own memory
+draws from the agent's own trajectory, so it might simply return closer precedent. Measured directly
+with the same component and a scripted policy, foreign precedent is retrieved $7.9\times$
+\emph{closer}, not further---the endemic equilibrium makes different realizations traverse nearly the
+same states. The confound runs backwards. \textbf{(ii)~Bank composition.} The bank the arm actually
+received is eight episodes from a \emph{single} donor run, so it is already a one-authority design
+rather than a pooled crowd. \textbf{(iii)~Bank repetitiveness.} The donor's eight episodes are eight
+different laws while own memory fills with the agent's converged history, so perhaps repetition is
+what anchors---which predicts late-onset lock-in. \Cref{fig:lockin-onset} shows the onset is
+immediate: with a bank of \emph{one} episode the own-memory arm already revises at
+$\lockinOnsetOwn$ against $\lockinOnsetBare$ with no memory, and by two episodes it is zero and stays
+zero for ten consecutive decisions. A one-episode bank cannot be repetitive.
+
+\begin{figure}[t]\centering
+\includegraphics[width=\linewidth]{figures/lockin_onset}
+\caption{\textbf{Precedent locks a policy in immediately, and only foreign precedent releases the
+lock.} Left: share of runs revising the law in force at each decision, aligned to the instrument
+break at decision \lockinBreak{}. Own precedent (red) suppresses revision from the first episode and
+holds it at zero through the break. Right: revision rate before versus after the break. Only the
+foreign arm responds ($\lockinForeignPre \to \lockinForeignPost$, $\lockinForeignDelta$,
+$p_{\text{Holm}} = \lockinForeignP$). The no-memory arm does not respond
+($\lockinBareDelta$, $p = \lockinBareP$) because it revises constantly regardless, and the own-memory
+arm does not respond ($\lockinOwnDelta$, $p = \lockinOwnP$) because it is frozen. Note what this
+means for the run-level averages above: they cannot distinguish an institution that is stable because
+nothing has happened from one that is stable because it cannot move. \emph{This break-alignment was
+not pre-registered and is reported as exploratory}; the confirmatory claim is the churn contrast.}
+\label{fig:lockin-onset}
+\end{figure}
+
+The design implication is more specific than ``memory hurts'', and more usable. What an institution
+must not do is consult its own back-catalogue when the question is whether the standing rule still
+works. Consulting a comparable authority's back-catalogue costs nothing and---on the exploratory
+break-alignment---is the only configuration we measured that is stable while the world is stable and
+revises when the world breaks. That is the behaviour the responsiveness literature asks for, and it
+is obtained here by changing the \emph{author} of the precedent rather than the amount of it.
+
 \paragraph{Relation to what is known about agent memory.} That memory systems underperform their
 promise is not news: \citet{jiang2026anatomy} survey the field and attribute the gap to benchmark
 saturation, metric validity, backbone dependence and latency, and the surrounding literature
@@ -1193,10 +1300,28 @@ flattened every contrast would discard one the data does.}
 
 A code-emitting regent that beats a reference confined to one functional form may simply have
 written a shape the reference could not express, which is a statement about our choice of
-$\policyfam$ and not about adaptation. We therefore re-calibrate the oracle over a union of
-families---threshold, proportional, and threshold-with-floor---including the form the regent actually
-converged on, and re-report $\Rreg$ against both the narrow institutional family and the widened
-one. \Cref{tab:arms} carries both.
+$\policyfam$ and not about adaptation. We answer this by construction rather than by reporting a
+second column: \emph{every} reference in this paper---frozen, best-fixed, post-break oracle and
+clairvoyant switch alike---is calibrated over the union of three families (threshold, proportional,
+and threshold-with-floor), which includes the form the regent actually converged on. The $\Rreg$
+in \cref{tab:arms} is therefore already the widened one.
+
+That is the conservative direction, and it is worth being explicit about why. Widening the reference
+search can only lower the anchors' loss, which can only \emph{raise} an arm's $\Rreg$. Reporting the
+narrow institutional anchor instead would make every arm in \cref{tab:arms} look better, not worse,
+so no claim here rests on the choice. What the widened anchor costs us is a different question we do
+not answer: whether a regent beats the \emph{rule-maker}, in the rule-maker's own restricted
+vocabulary, is a distinct and legitimately interesting comparison, and we do not report it.
+
+Vocabulary symmetry across the references is a separate matter and was, for several revisions of this
+paper, violated. The frozen rule was calibrated over the single threshold family ($192$ laws) while
+its comparators searched all three ($456$), so the frozen rule was handicapped not only in what it
+was allowed to know but in what it was allowed to say, and every ratio with it in the numerator was
+inflated by an unmeasured amount of pure vocabulary difference. Adaptation headroom was never
+affected---both of its terms always used the wide search---which is precisely why the asymmetry
+survived scrutiny for so long: it left the headline number alone and moved the two numbers beside it.
+The calibration reported here searches the same $456$ laws for all four references, and the artifact
+records which family each reference selected.
 
 \subsection{The negative control}
 
@@ -1223,8 +1348,10 @@ sentence of the prompt is worth more than any harness channel we measured. It is
 also a warning about the genre: a scaffold ablation run on an agent that has not been told its
 objective is partly measuring how well each scaffold helps it guess.
 
-\paragraph{A narrow band, found by search.} Across the ten worlds we calibrated, three clear
-$1.1	imes$ adaptation headroom and one clears $1.2	imes$. We reached the operating points by
+\paragraph{A narrow band, found by search.} Adaptation headroom clears $1.1\times$ in
+$\libFracRows$ of the configurations we calibrated, and nowhere exceeds $\libMaxAdapt\times$
+(\cref{sec:library} explains why we report that bound rather than the share). We reached the
+operating points by
 measuring rather than tuning---the severity surface was computed before any treatment arm ran, and
 the epidemic point sits inside the usable band rather than at its maximum---but a reader should still
 weigh that the headline regimes are survivors of a search, and that the worlds which did not survive
