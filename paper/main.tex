@@ -75,10 +75,11 @@ itself be searched or evolved \citep{hu2024adas,zhang2024aflow,zhang2025dgm}.
 Both literatures are, right now, being asked hard questions about their evidence.
 \citet{wang2026rethinking} report that automatic harness evolution does not reliably beat
 budget-matched test-time scaling and generalizes poorly, in part because it is evaluated on the same
-benchmark used to search. \citet{chen2026agentspec} find that scaffold performance is dominated by
-component \emph{interaction}, which invalidates the one-at-a-time ablations most papers report. And
-across LLM social simulation, \citet{ye2026trails} show headline conclusions moving by up to
-$76$ percentage points under minor perturbations that were never audited.
+benchmark used to search. \citet{chen2026agentspec} find that scaffold performance is governed by component compatibility
+and \emph{interaction} rather than by isolated module strength; if that holds here, the
+one-at-a-time ablations most papers report cannot be read as component values. And across LLM social
+simulation, \citet{ye2026trails} show a simulation's cooperation rate moving by up to $76$
+percentage points under an unaudited change to persona format and game-instruction framing.
 
 We think a more basic problem sits underneath these. Studies of adaptation to a changing world
 report the adapting agent's performance against a non-adapting baseline, and treat the difference as
@@ -601,10 +602,12 @@ it can do is the one the world requires.
 So the component's value is not a property of the component. It is a property of the match between
 the failure mode a channel can reveal and the failure mode the world actually produces. That has a
 direct consequence for the practice this paper is about: \emph{a harness tuned on one environment
-carries no guarantee into another, and can carry a liability}. \citet{wang2026rethinking} report
-exactly this empirically---that automatically evolved harnesses generalize poorly and do not reliably
-beat budget-matched test-time scaling---and our measurement supplies a mechanism for it, together
-with the diagnostic that predicts the sign in advance.
+carries no guarantee into another, and can carry a liability}. \citet{wang2026rethinking} report the
+\emph{within-benchmark} version of this: evolved harnesses that gain on the tasks they were searched
+on transfer near-zero to held-out tasks in the same benchmark, averaging $+0.6$ points. Ours is the
+cross-environment version, where the transfer is not merely absent but signed the other way---and the
+measurement supplies a mechanism for both, together with a diagnostic that predicts the sign in
+advance.
 
 Two caveats we would rather state than have found. The monetary outcome arm collapses on $3.8\%$ of
 its decisions against the no-harness arm's $1.0\%$ (\cref{sec:collapse}), so it carries the same
@@ -1172,10 +1175,10 @@ instrument failure. Nothing here is a public-health recommendation, and the caut
 inference, which biases the panel toward small and mid-tier models. That cuts against us for the
 capability-substitution question and in our favour for cost, and we flag it rather than dress it up.
 
-\paragraph{Robustness auditing is partial.} \citet{ye2026trails} argue for perturbation audits at
-persona, protocol, and environment level. We audit the environment level (the headroom surface) and
-the protocol level (budget matching, factorial structure, the five validity gates), and do not vary
-prompt phrasing systematically---which, given that a single added paragraph about the objective
+\paragraph{Robustness auditing is partial.} \citet{ye2026trails} argue for perturbation audits at the
+agent, interaction and system levels. We audit the system level (the headroom surface) and the
+interaction level (budget matching, factorial structure, the five validity gates), and do not vary
+the agent-level prompt phrasing systematically---which, given that a single added paragraph about the objective
 moved the result by more than any component, is the audit this study most obviously still owes.
 
 \paragraph{What we found by auditing ourselves, and what that implies about the rest.} Every
