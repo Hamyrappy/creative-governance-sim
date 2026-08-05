@@ -425,14 +425,32 @@ def odd(calib: dict) -> str:
     pre, shocked = R.EPIDEMIC_PRE, R.EPIDEMIC_SHOCKED
     ep = calib.get("epidemic", {})
     shock = shocked.get("shock_params", {})
-    return f"""\\noindent Following the ODD convention, with the parameter values read directly from
-the pinned configuration in \\texttt{{govsim/domains/scalar/regimes.py}} rather than transcribed.
+    # The element names below are ODD's 2010 revision ("Entities, state variables and scales" was
+    # "State variables and scales" in 2006), and the Purpose block follows the 2020 second update,
+    # which renames it "Purpose and patterns" and makes the realism criterion a REQUIRED element
+    # rather than a disclaimer. Cited here rather than in the body because this is the artifact that
+    # actually follows the protocol.
+    return f"""\\noindent Following the ODD protocol \\citep{{grimm2006odd,grimm2010oddupdate,grimm2020odd}},
+with the decision-making elements reported in the manner of ODD+D \\citep{{muller2013oddd}}, and with
+the parameter values read directly from the pinned configuration in
+\\texttt{{govsim/domains/scalar/regimes.py}} rather than transcribed.
 
-\\subsection*{{Purpose}}
+\\subsection*{{Purpose and patterns}}
 To determine which class of structural break a standing feedback rule can absorb, how much
 adaptation is worth in each case, and which informational channel allows a rule-writing authority to
 detect a break it cannot observe directly. The model is an instrument for isolating that mechanism;
 it is not intended to forecast any real epidemic or to evaluate any real restriction policy.
+
+\\emph{{Patterns.}} ODD's second update asks for the criteria under which the model is realistic
+enough for its stated purpose, so we state them rather than leaving realism implicit. The model is
+adequate for this purpose if: (i) a threshold rule tuned before a break remains near-optimal after a
+shock to the \\emph{{state}} and demonstrably not after a shock to the \\emph{{instrument}} --- the
+qualitative asymmetry the paper is about; (ii) the disease is endemic, so that ``wait it out'' is not
+a winning policy and the governance problem does not dissolve; and (iii) the optimum is interior in
+the intervention-price parameter, bracketed by the do-nothing and maximal-intervention references, so
+that a shock can move it at all. Each is checked directly rather than assumed: (i) by the calibrated
+headroom table, (ii) by the waning-immunity and importation terms below, (iii) by the two corner
+reference arms. We claim no realism beyond these three.
 
 \\subsection*{{Entities, state variables, and scales}}
 One governed population and one governing authority. The population is described by the shares
