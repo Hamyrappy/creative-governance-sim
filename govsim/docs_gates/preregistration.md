@@ -255,3 +255,36 @@ prevent.
   warns when the winning pre-leg comes from the last quarter of the shortlist. A weak switching
   reference *understates* adaptation headroom, so every previously reported number was a slight
   underestimate — the conservative direction, and corrected rather than left standing.
+
+- **2026-08-05 — PRE-REGISTERED DIRECTIONAL PREDICTION: the semantic-obfuscation control.**
+  Recorded *before* the arm was run, and before any of its calls were made.
+  The monetary regent scores 3890.5 against a frozen reference of 2927.8 and a clairvoyant 1871.4 —
+  worse than every scripted arm including do-nothing (R ≈ 3.0). Its decomposition is specific: it
+  achieves the **lowest mandate burden of any arm** (607.8 vs the clairvoyant's 806.8) and pays
+  13 131 in rate cost against 4 259, holding the post-break rate at 9.51 where the clairvoyant sits
+  at 1.53. It writes 123 distinct, recognizable Taylor rules with gains of 1.5–3.0 while the
+  calibrated optimum sets that gain to **zero**. The mandate warns, in every prompt, that the rate is
+  charged "whether or not the rate reaches the economy".
+  **Two explanations fit that table and a loss column cannot separate them:** (a) a domain PRIOR
+  overriding an explicit instruction, or (b) the monetary control problem simply being harder than
+  the epidemic one.
+  `disguised_llm_bare` separates them: byte-identical dynamics, break, loss and numbers (verified —
+  the three disguised reference arms reproduce 2674.8488 / 3412.8344 / 13738.4441 exactly), with
+  every economic name removed at the `observe()` boundary.
+  **Prediction: the disguised arm scores LOWER (better) than `monetary_llm_bare`'s 3890.5.**
+  If it does not, explanation (a) is refuted and will be reported as refuted. The failure mode to
+  guard against is running this control, finding nothing, and writing it up as "the finding is robust
+  to surface framing" — which inverts the meaning of the result. The disguise is deliberately
+  shallow, so a positive result is a **lower bound** on how much the prior explains.
+
+- **2026-08-05 — THE OUTCOME-CHANNEL TERMS OF THE EPIDEMIC FACTORIAL ARE HELD AS CONTAMINATED.**
+  Deliberation collapse (`completion_tokens == 0`) strikes only the outcome-bearing arms: 7.8% /
+  5.8% / 4.0% / 3.8% against ≤ 0.2% for every arm without it, and 100% of all no-action decisions in
+  the sweep were collapses rather than ordinary truncation. Because a collapsed decision leaves the
+  standing law in force, those arms are measurably *stickier* than their labels claim.
+  Consequence: the `memory` main effect (+0.630, p_holm = 0.002) is reported as a result — the memory
+  arms collapse on **0.0%** of decisions — while the `outcome` main effect and the `outcome × memory`
+  interaction are reported as **provisional pending a repair run** under the re-ask mitigation. The
+  churn analysis is reported under the conservative convention (a collapsed decision counts as a
+  non-revision), under which the outcome effect falls from +0.230 to +0.190 while `memory` and the
+  interaction are unchanged to two decimals.
