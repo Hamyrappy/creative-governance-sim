@@ -9,13 +9,17 @@ before averaging. $^{\dagger}$the critic arm is not budget-matched.}
 \toprule
 arm & $n$ & $L$ & sd & $\Rreg$ \\
 \midrule
-\textit{best fixed law in hindsight} & --- & 27.114 & --- & \textit{1.000} \\
-\textit{clairvoyant switch} & --- & 23.736 & --- & \textit{0.000} \\
+\textit{best fixed law in hindsight} & --- & 25.229 & --- & \textit{1.000} \\
+\textit{clairvoyant switch} & --- & 21.267 & --- & \textit{0.000} \\
 \midrule
-no harness & 20 & 26.477 & 5.542 & \textbf{0.812} \\
-trace & 20 & 26.477 & 5.542 & \textbf{0.812} \\
-outcome & 20 & 26.475 & 5.257 & \textbf{0.811} \\
-memory & 20 & 26.585 & 5.120 & \textbf{0.843} \\
+no harness & 20 & 24.968 & 4.606 & \textbf{0.934} \\
+trace & 20 & 24.874 & 4.615 & \textbf{0.910} \\
+outcome & 20 & 25.748 & 5.016 & \textbf{1.131} \\
+memory & 20 & 26.081 & 5.089 & \textbf{1.215} \\
+trace + outcome & 20 & 25.597 & 5.137 & \textbf{1.093} \\
+trace + memory & 20 & 26.081 & 5.089 & \textbf{1.215} \\
+outcome + memory & 20 & 25.819 & 5.137 & \textbf{1.149} \\
+all three & 20 & 25.725 & 4.996 & \textbf{1.125} \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -1,4 +1,21 @@
 \begin{table}[t]\centering\small
-\caption{Harness component attribution.}\label{tab:factorial}
-\emph{\textcolor{red}{Pending: the analysis artifact does not yet contain this table (factorial).}}
+\caption{\textbf{Factorial attribution of the harness.} $\pm1$ contrast coding with contrasts
+formed within each seed, so world variance cancels. A \emph{negative} effect lowers post-break
+loss, i.e.\ the component helped. Interactions are estimated, not assumed to be zero; $p$ is a
+two-sided bootstrap value and $p_{\text{Holm}}$ corrects across the whole family of seven
+terms.}
+\label{tab:factorial}
+\begin{tabular}{@{}l c r c r r c@{}}
+\toprule
+term & order & effect & 95\% CI & $p$ & $p_{\text{Holm}}$ & significant \\
+\midrule
+memory & 1 & +0.630 & $[+0.354, +0.901]$ & 0.0003 & 0.0021 & \textbf{yes} \\
+outcome & 1 & +0.221 & $[-0.147, +0.595]$ & 0.2698 & 1.0000 & no \\
+trace & 1 & -0.085 & $[-0.265, +0.034]$ & 0.4169 & 1.0000 & no \\
+outcome:memory & 2 & -0.530 & $[-0.869, -0.180]$ & 0.0089 & 0.0534 & no \\
+trace:outcome & 2 & -0.038 & $[-0.124, +0.035]$ & 0.3868 & 1.0000 & no \\
+trace:memory & 2 & +0.038 & $[-0.049, +0.147]$ & 0.4914 & 1.0000 & no \\
+trace:outcome:memory & 3 & -0.009 & $[-0.070, +0.055]$ & 0.7866 & 1.0000 & no \\
+\bottomrule
+\end{tabular}
 \end{table}

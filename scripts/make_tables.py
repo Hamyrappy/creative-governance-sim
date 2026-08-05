@@ -277,9 +277,15 @@ def results_prose(a: dict, calib: dict) -> str:
         f"rule in this regime. Of {len(arms)} arms, {len(beat_fixed)} beat that non-adaptive ceiling "
         f"after Holm correction; the full harness reaches $\\Rreg={num(full.get('R'), 2)}$ against "
         f"$\\Rreg={num(bare.get('R'), 2)}$ with no harness. "
-        + (f"The factorial attributes the gain to {', '.join(esc(t) for t in helped)}"
-           + (f", with {', '.join(esc(t) for t in hurt)} hurting" if hurt else "")
-           + "." if helped else
+        # Same branching bug as the body prose: keyed on ``helped`` alone, a significant HARMFUL
+        # term produced "no harness term survives correction" in the abstract while the results
+        # table showed one at p_Holm = 0.002.
+        + ((f"The factorial attributes the gain to {', '.join(esc(t) for t in helped)}"
+            if helped else "The factorial attributes the difference to ")
+           + (("" if helped else "")
+              + (f"{', ' if helped else ''}{', '.join(esc(t) for t in hurt)}, which makes the "
+                 f"regent \\emph{{worse}}" if hurt else ""))
+           + "." if sig else
            "No harness term survives correction, which is itself the result: at this effect size "
            "the components are not separably attributable.")
     )
@@ -315,12 +321,20 @@ def results_prose(a: dict, calib: dict) -> str:
            "still sees the current state at each review, so it can respond to prevalence even "
            "though it cannot learn that its instrument stopped working."),
         "",
-        (f"The factorial (\\cref{{tab:factorial}}) attributes the difference to "
-         f"{', '.join(esc(t) for t in helped)}"
-         + (f"; {', '.join(esc(t) for t in hurt)} made things worse" if hurt else "")
-         + f". Terms not listed did not survive Holm correction across the family of "
-           f"{len(fac)} effects."
-         if helped else
+        # Branch on ANY surviving term, not only on helpful ones. An earlier version tested
+        # ``helped`` — significant AND effect < 0 — so a component that significantly HURT fell
+        # through to the "nothing survives" branch, and the prose asserted that no term survived
+        # correction directly beside a table showing one at p_Holm = 0.002. The assumption that a
+        # significant component must be a beneficial one is exactly the bias this study exists to
+        # avoid: the clearest result here is a channel that makes the regent worse.
+        ((f"The factorial (\\cref{{tab:factorial}}) attributes the difference to "
+          + (f"{', '.join(esc(t) for t in helped)}, which helped" if helped else "")
+          + ("; " if helped and hurt else "")
+          + (f"{', '.join(esc(t) for t in hurt)}, which made the regent \\emph{{worse}}"
+             if hurt else "")
+          + f". Terms not listed did not survive Holm correction across the family of "
+            f"{len(fac)} effects.")
+         if sig else
          f"No term in the factorial survives Holm correction across the family of {len(fac)} "
          f"effects. We report that as the result rather than as a preliminary: with a "
          f"{num(ep.get('headroom_vs_best_fixed'), 2)}$\\times$ ceiling and 20 seeds, the design is "
