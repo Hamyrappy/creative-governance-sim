@@ -261,6 +261,72 @@ class EpisodicMemory(HarnessComponent):
         return math.sqrt(sum((a[k] - b[k]) ** 2 for k in shared))
 
 
+class ContrastiveMemory(EpisodicMemory):
+    """``EpisodicMemory``, but presenting a CHOICE rather than a precedent.
+
+    This component is a designed response to a measured failure, and it exists to test whether that
+    failure's diagnosis is actionable.
+
+    THE MEASUREMENT. Plain ``EpisodicMemory`` is the only channel in our factorial that significantly
+    hurts (loss $+0.630$, $p_{\\text{Holm}}=0.002$), and the mechanism is not what one would guess.
+    We checked the obvious story — that retrieval serves stale pre-break precedent — and it is false:
+    only 39.6% of episodes retrieved after a structural break were recorded before it, against a
+    chance baseline near 69%, so retrieval is if anything biased toward *recent* precedent. What
+    memory does is suppress revision itself. Policy churn falls from 0.850 to 0.082 and the number of
+    distinct policies from 14.4 to 2.1: shown what it did before, the agent does it again.
+
+    THE DESIGN. The parent renders every episode in the second person and in the past tense — "when
+    [state] *you did* [law] → outcome" — which is an invitation to imitate, and the model accepts it.
+    Three changes, each aimed squarely at that:
+
+    1. **Rank by outcome, not by similarity alone.** The retrieved set is sorted best-first, so the
+       ordering carries information about quality instead of proximity.
+    2. **Name the spread.** The best and worst retrieved outcomes are stated explicitly, so the
+       agent sees that similar situations produced *different* results — the fact that makes the
+       choice a choice.
+    3. **Drop the second person.** Episodes are rendered as "a law of the form X scored Y", so the
+       precedent is evidence about laws rather than a record of the agent's own commitments.
+
+    Nothing is hidden that the parent shows, and no extra information is added: the same k episodes,
+    the same states, the same laws, the same scores. Only the framing differs. That is deliberate —
+    if it changes behaviour, the effect is attributable to presentation rather than to content, and a
+    component that added information could not support that claim.
+
+    PREDICTION, recorded before running: churn rises materially above plain memory's 0.082. If it
+    does not, the framing account of the lock-in is wrong and the cause lies in the retrieval itself.
+    """
+
+    name = "contrastive_memory"
+
+    def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
+        if not self.episodes:
+            return
+        nearest = sorted(self.episodes, key=lambda ep: self._distance(view.vars, ep["state"]))
+        chosen = nearest[: self.k]
+        if not chosen:
+            return
+        # Best first. The parent's ordering is by similarity, which tells the agent which precedent
+        # is most APPLICABLE and says nothing about which is most successful.
+        chosen = sorted(chosen, key=lambda ep: -ep["score"])
+        lines = []
+        for ep in chosen:
+            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items()
+                              if k not in self._NON_STATE_KEYS and not self.is_scorer_only(k))
+            acts = "; ".join(f"{a['verb']}:{a['expr']}" for a in ep["actions"])
+            # Third person, present tense, about the LAW. Not "you did".
+            lines.append(f"- in a comparable situation [{state}], a law of the form [{acts}] "
+                         f"scored {ep['score']:.4g}")
+        if len(chosen) > 1:
+            best, worst = chosen[0]["score"], chosen[-1]["score"]
+            if best != worst:
+                lines.append(
+                    f"  (comparable situations have produced outcomes from {worst:.4g} to "
+                    f"{best:.4g}; the difference is what the law chosen made, so these are options "
+                    f"to weigh rather than a precedent to follow)"
+                )
+        scratch["memory"] = "\n".join(lines)
+
+
 class RolloutProbe(HarnessComponent):
     """Variance-aware rollout selection (H2: experimentation > reasoning).
 

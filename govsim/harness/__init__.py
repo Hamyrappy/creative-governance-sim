@@ -20,6 +20,7 @@ and a one-at-a-time sweep would not show it.
 from govsim.harness.components import (
     ContextualOutcomeFeedback,
     Critic,
+    ContrastiveMemory,
     EpisodicMemory,
     OutcomeFeedback,
     RolloutProbe,
@@ -27,4 +28,4 @@ from govsim.harness.components import (
 )
 
 __all__ = ["TraceFeedback", "OutcomeFeedback", "ContextualOutcomeFeedback",
-           "EpisodicMemory", "RolloutProbe", "Critic"]
+           "EpisodicMemory", "ContrastiveMemory", "RolloutProbe", "Critic"]

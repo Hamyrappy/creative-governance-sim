@@ -71,7 +71,8 @@ from govsim.domains.scalar import (
 from govsim.domains.scalar import regimes as R
 from govsim.experiments import register
 from govsim.harness import (
-    ContextualOutcomeFeedback, Critic, EpisodicMemory, OutcomeFeedback, TraceFeedback,
+    ContextualOutcomeFeedback, ContrastiveMemory, Critic, EpisodicMemory, OutcomeFeedback,
+    TraceFeedback,
 )
 from govsim.regents import LLMRegent, OPRORegent, SwitchingRegent
 
@@ -292,6 +293,38 @@ def epidemic_llm_ctx_outcome() -> Experiment:
         falsification="the paired CI of (ctx_outcome - outcome) on full-horizon loss includes 0",
         metadata={"role": "treatment", "factors": ["ctx_outcome"], "budget_matched": True,
                   "control_arm": "epidemic_llm_outcome"},
+    )
+
+
+@register("epidemic_llm_contrastive")
+def epidemic_llm_contrastive() -> Experiment:
+    """Episodic memory reframed as a CHOICE rather than a precedent, at identical information.
+
+    The measured problem this answers: plain ``EpisodicMemory`` is the only channel in the factorial
+    that significantly hurts (+0.630 loss, p_Holm=0.002), and the mechanism is lock-in rather than
+    misinformation. Policy churn falls from 0.850 to 0.082 and distinct policies from 14.4 to 2.1 —
+    shown what it did before, the regent does it again. The obvious alternative explanation, that
+    retrieval serves stale pre-break precedent, was tested and is false: only 39.6% of episodes
+    retrieved post-break predate it, against a chance baseline near 69%.
+
+    ``ContrastiveMemory`` retrieves the SAME episodes and reports the SAME scores, ranked best-first,
+    in the third person, with the spread between outcomes named. Nothing is added and nothing is
+    withheld, so any difference is attributable to framing rather than to content.
+
+    Its control is ``epidemic_llm_memory``, so the contrast isolates *presentation* rather than
+    *recall*. PREDICTION, recorded before the arm was run: churn rises materially above 0.082."""
+    max_tokens, extra = _llm_opts()
+    return _epidemic_experiment(
+        "epidemic_llm_contrastive",
+        LLMRegent(llm=_client(), model=_model(), temperature=0.0, max_tokens=max_tokens, extra=extra),
+        Harness([ContrastiveMemory(k=4)]),
+        hyp_id="H3c-contrastive-memory",
+        claim="presenting the same retrieved precedents as ranked options rather than as the "
+              "agent's own past commitments restores policy revision and recovers the loss that "
+              "episodic memory costs",
+        falsification="the paired CI of (contrastive - memory) on full-horizon loss includes 0",
+        metadata={"role": "treatment", "factors": ["contrastive"], "budget_matched": True,
+                  "control_arm": "epidemic_llm_memory"},
     )
 
 
