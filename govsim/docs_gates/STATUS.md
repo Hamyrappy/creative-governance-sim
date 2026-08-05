@@ -67,7 +67,7 @@ wrong numbers:
   post-shock comparison by emptying it. Now `+inf`, and the disease is endemic so it cannot be
   outlasted.
 
-## Four validity gates — run these before believing any LLM-arm table
+## Five validity gates — run these before believing any LLM-arm table
 
 Every one of them caught a defect in this project that had already produced a clean, plausible,
 publishable-looking number. They are automatic now (`scripts/analyze_matrix.py`,
@@ -79,6 +79,33 @@ publishable-looking number. They are automatic now (`scripts/analyze_matrix.py`,
 | **channel liveness** | a channel that fires but carries no information; rank-correlates what it reported against what it should track | all three channels dead: trace never fired; outcome and memory both reported a **clock** (`cum_cost` read undifferenced) |
 | **anchor consistency** | stored reference runs enacting laws from a superseded calibration | a store held a single-lever law two calibrations old; R moved 0.81 → 1.32 and the headline contrast flipped sign |
 | **headroom ≥ 1** for the switching reference | a "clairvoyant" adaptor a fixed policy can beat is impossible, so it is a free self-check on the reference search | composed (pre,post) legs gave 0.92× before the pair was searched jointly |
+| **model responsiveness** | the four gates above certify the APPARATUS, none certifies the SUBJECT. A model can pass all four, emit one constant on every decision, and produce a flat ablation that reads as "these components do not help" — a statement about the harness derived from a fact about the model | `qwen3.5:0.8b`: memory live on **100%** of prompts, **400/400 identical decisions**, six arms agreeing to four decimals. `gemma-3-27b` on the same worlds/seeds: TV **0.38**, top-policy share **50%** |
+
+**The fifth gate is two-stage on purpose.** `TraceFeedback` reports rejected actions; when the agent
+emits only valid ones it has nothing to say, and that arm *should* score identically to bare —
+calling that a null about the component is backwards, because the component was never on trial. So
+stage 1 asks whether the channel altered the prompt at all (measured by diffing prompts per
+`(seed, step)`, never by grepping for a header string, which goes stale when wording changes); only
+a *live* channel is eligible to be called deaf. Below a 20% liveness floor the arm-level verdict is
+not identifiable and is reported `THIN` rather than `DEAF`.
+
+**Two distinct no-action failures, with OPPOSITE remedies.** The no-action gate says an arm is
+contaminated; it does not say why, and guessing wrong makes it worse.
+
+| | truncation | reasoning collapse |
+|---|---|---|
+| seen at | `max_tokens=1500` | `max_tokens=12000` |
+| signature | answer cut off mid-emission | `completion_tokens=0`, `total_tokens≈12862` |
+| text | partial action | pure `<thought>`, ending in a verbatim repetition loop |
+| fix | **raise** the cap | **raising the cap only buys more loop** — must re-ask |
+
+In the recorded sweep **100% of no-action decisions were collapses**, and they track exactly one
+factor: outcome present **7.8 / 5.8 / 4.0 / 3.8%**, outcome absent **≤ 0.2%**. `completion_tokens==0`
+predicts "produced no action" on **1003 of 1003** cached calls (against 6389/6433 the other way), so
+it is the signature to gate on. The mitigation re-asks with a nudge that says only *stop
+deliberating and answer* — never what to answer, or it becomes a treatment applied preferentially to
+the context-heavy arms — and its residual is reported (`deliberation_unrecovered`), because a live
+test recovered only 2 of 3.
 
 **Statistics, corrected the same way.** The percentile bootstrap under-covers at n=20 (measured
 0.921 vs nominal 0.95 ⇒ the "CI excludes 0" rule rejects at ~8%). BCa does not help — a symmetric
@@ -90,6 +117,51 @@ effect** with every null.
 was exhaustively optimized for `burden + λ·cost` — so the study was partly measuring
 mandate-guessing. `Objective.describe()` now reaches every prompt, and adding it moved the headline
 by more than any harness channel.
+
+
+## Measured results (2026-08-05)
+
+**Adaptation headroom is scarce across worlds, not just across configurations of one world.**
+Decomposing all ten library worlds (`scripts/decompose_library.py`), only **3 of 10** clear 1.1x and
+**1 clears 1.2x**. `monetary` leads at **1.359x** adaptation (against the epidemic flagship's 1.199x)
+with 26.3% relative adaptation budget vs the epidemic's 15.7% — ~1.7x more resolving power from the
+*world* rather than from more seeds. Two declared nulls are reported rather than dropped: `fiscal` is
+*arithmetically* inert (optimum is tau*=0 and the shock multiplies the rate), and `supply_chain`
+settles `DELAY`, the one family the taxonomy had never measured, in the negative.
+
+**Episodic memory causes policy lock-in — the headline harness result.** On the completed 2^3
+factorial it is the only term surviving Holm correction on loss (**+0.630**, p_Holm=0.002), and the
+mechanism is not misinformation:
+
+| harness | churn | distinct policies/run |
+|---|---|---|
+| none | 0.850 | 14.4 |
+| trace | 0.855 | 14.5 |
+| outcome | 0.774 | 8.2 |
+| **memory** | **0.082** | **2.1** |
+| outcome+memory | 0.641 | 7.2 |
+
+Factorial on churn, all at p_Holm=0.0007: memory **-0.430**, outcome **+0.190**, outcome x memory
+**+0.338**. Precedent tells the authority what it did; monitoring tells it that what it did stopped
+working. Precedent alone is a machine for continuity.
+
+*The obvious explanation was tested and refuted*: only **39.6%** of episodes retrieved post-break
+predate it, against a chance baseline near **69%**. Memory does not serve stale precedent — it
+suppresses revision as such.
+
+*And churn is a diagnostic, not a target*: between arms corr(churn, loss) = **-0.82**, but under
+two-way fixed effects it is **-0.11** (n=160), indistinguishable from zero. The arm-demeaned-only
+figure is **+0.203**, the opposite sign, and is a seed-difficulty artifact.
+
+**A domain prior can override an explicit mandate.** On `monetary` the regent is worse than every
+scripted reference including do-nothing (R ~ 3.0), while attaining the **lowest mandate burden of any
+arm** — it stabilizes better than the clairvoyant and pays 3x for it, holding the post-break rate at
+9.51 where the clairvoyant sits at 1.53. It writes 123 distinct, competent Taylor rules; the
+calibrated optimum sets that feedback gain to **zero**. The mandate warns in every prompt that the
+rate is charged "whether or not the rate reaches the economy". Two controls are running to separate
+prior from difficulty: `disguised_llm_bare` (identical dynamics, de-economized names) and
+`epidemic_llm_contrastive` (identical retrieved episodes, reframed as options rather than
+precedent). Both predictions are pre-registered in `preregistration.md`.
 
 ## Gate docs
 
