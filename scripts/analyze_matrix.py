@@ -544,14 +544,6 @@ def main() -> int:
         worst = max(worst, rate)
         flag = "  <-- CONTAMINATED" if rate > 0.02 else ""
         print(f"  {name:<40} {empty:>4}/{tot:<5} {100 * rate:>5.1f}%{flag}")
-    if worst > 0.02:
-        print("\n  [!!] At least one arm silently failed to act on >2% of its decisions. A decision")
-        print("       that emits nothing leaves the PREVIOUS law in force, so that arm is not the")
-        print("       treatment it is labelled as. This failure correlates with the treatment —")
-        print("       harness channels lengthen the prompt and invite longer reasoning — so the")
-        print("       ablation would be measuring truncation. Raise GOVSIM_LLM_MAX_TOKENS and re-run")
-        print("       before believing anything below.")
-
     # ---- 1b-ii. HOW the arms failed to act: truncation, or deliberation collapse? --------------
     # Reported next to the no-action rate because it decomposes it, and because the remedies are
     # opposite: truncation wants a bigger token budget, collapse wants a re-ask at a SMALLER one.
@@ -565,6 +557,20 @@ def main() -> int:
         na = action_rates.get(name, {}).get("empty", 0)
         share = f"{100 * c / na:.0f}% of its no-action" if na else "—"
         print(f"  {name:<40} {c:>4}/{tot:<5} {100 * c / tot:>5.1f}%   ({share})")
+
+    if worst > 0.02:
+        print("\n  [!!] At least one arm silently failed to act on >2% of its decisions. A decision")
+        print("       that emits nothing leaves the PREVIOUS law in force, so that arm is not the")
+        print("       treatment it is labelled as. This failure correlates with the treatment —")
+        print("       harness channels lengthen the prompt and invite longer reasoning — so the")
+        print("       ablation is partly measuring which channel makes the model stop answering.")
+        print("       READ THE COLLAPSE TABLE BELOW BEFORE CHOOSING A REMEDY: the two causes want")
+        print("       OPPOSITE fixes, and applying the wrong one makes it worse.")
+        print("         * mostly NOT collapses  -> ordinary truncation. Raise GOVSIM_LLM_MAX_TOKENS.")
+        print("         * mostly collapses      -> the model burned the whole budget reasoning and")
+        print("           emitted nothing. A LARGER budget only buys more loop. Re-run with the")
+        print("           re-ask mitigation (it is on by default; a cached collapse is re-issued in")
+        print("           `cache` mode) and report the residual `deliberation_unrecovered`.")
 
     # ---- 1c. VALIDITY GATE: did the harness change BEHAVIOUR, or only the prompt? --------------
     print("\n=== validity: policy responsiveness to harness content ===")
