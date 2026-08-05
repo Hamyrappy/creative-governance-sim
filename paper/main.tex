@@ -533,6 +533,78 @@ score, and flagging the same law scoring differently in comparable conditions, i
 design idea and the naive channel is its control---but it was built for a cause that turned out not
 to exist, and we say so rather than quietly recasting it as the fix.
 
+\subsection{What episodic memory actually does: it stops the institution revising}
+\label{sec:churn}
+
+The loss factorial reports one effect that survives correction across the family: episodic memory
+\emph{hurts}, by $+0.630$ loss units ($95\%$ CI $[+0.354, +0.901]$, $p_{\text{Holm}}=0.002$). That is
+worth pausing on, because memory is the component a designer would expect to help most across a
+structural break, and because the responsiveness gate (\cref{sec:responsiveness}) confirms the model
+is genuinely reading it---the memory arms shift their enacted-policy distribution substantially
+against the no-harness control ($\mathrm{TV}=0.39$).
+
+A loss number does not say what went wrong, so we measured the behaviour directly. \emph{Policy
+churn} is the share of review points at which the enacted law differs from the one already in force:
+$0$ means the authority legislated once and never revisited, $1$ means it rewrote the statute every
+period. The result is not subtle:
+
+\begin{center}\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+harness & churn & distinct policies per run \\
+\midrule
+no harness & $0.850$ & $14.4$ \\
+failure trace only & $0.855$ & $14.5$ \\
+outcome feedback only & $0.774$ & $8.2$ \\
+\textbf{episodic memory only} & $\mathbf{0.082}$ & $\mathbf{2.1}$ \\
+outcome $+$ memory & $0.641$ & $7.2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Given its own past decisions, the agent stops revising. It changes policy at $8\%$ of review points
+instead of $85\%$, and spends the run cycling between roughly two laws instead of fourteen. Episodic
+memory does not supply \emph{bad} information---we checked the obvious alternative and it is not
+supported: only $39.6\%$ of the episodes retrieved after the break were recorded before it, against a
+chance baseline near $69\%$, so retrieval is if anything biased \emph{towards} post-break precedent.
+What memory does is suppress revision as such. Shown what it did before, the model does it again.
+
+The factorial on churn is unambiguous, and the interaction is the interesting part:
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+term & effect on churn & $95\%$ CI & $p_{\text{Holm}}$ \\
+\midrule
+memory & $-0.430$ & $[-0.469, -0.389]$ & $0.0007$ \\
+outcome & $+0.190$ & $[+0.125, +0.245]$ & $0.0007$ \\
+outcome $\times$ memory & $+0.338$ & $[+0.287, +0.387]$ & $0.0007$ \\
+trace (and all its interactions) & $\approx 0$ & --- & $\geq 0.95$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Memory suppresses revision; outcome feedback increases it; and outcome feedback applied \emph{to} a
+memory-equipped agent restores most of what memory removed. That interaction is mirrored in the loss
+factorial, where $\text{outcome} \times \text{memory}$ is $-0.530$---the two components partially
+cancel, for a reason the churn measurement makes concrete. Precedent tells the authority what it did;
+monitoring tells it that what it did is no longer working. The first alone produces lock-in, and the
+second is what breaks it.
+
+These numbers are computed with a collapsed decision counted as a \emph{non-revision} rather than
+dropped, which is both the causally correct reading---an empty decision leaves the standing law in
+force---and the conservative one. Dropping them splices the sequence, so surviving neighbours sit
+further apart and are likelier to differ, inflating churn precisely in the arms that collapse most.
+Under the permissive convention the outcome main effect rises from $+0.190$ to $+0.230$ while memory
+and the interaction are unchanged to two decimals; we report the conservative convention throughout
+and both in the artifact.
+
+\begin{takeaway}
+Institutional memory did not mislead the authority; it stopped it from reconsidering. Across a
+structural break that is the more expensive failure, and a component evaluated only on end-task loss
+would have been recorded as ``unhelpful'' rather than as ``induces lock-in''.
+\end{takeaway}
+
 \subsection{A channel can harm without misinforming: deliberation collapse}
 \label{sec:collapse}
 
@@ -585,6 +657,17 @@ without giving it a single false piece of information}. Everything the outcome c
 true. The harm was in the shape of the question it opened, not in the content of the answer. Ablation
 studies that report only end-task loss cannot distinguish that from a component whose information is
 wrong or useless, and the three call for entirely different fixes.
+
+The phenomenon itself is known. \citet{cuadron2025overthinking} analyse $4{,}018$ agent trajectories
+on software-engineering tasks and name precisely this behaviour \emph{analysis paralysis}---models
+favouring extended internal reasoning over environmental interaction---reporting that selecting the
+lower-overthinking solution improves performance by nearly $30\%$ at $43\%$ lower cost. What we add
+is not the phenomenon but its \emph{attribution and its consequence for measurement}. They treat
+overthinking as a performance and efficiency problem to be mitigated; we find that it is induced
+differentially by an identifiable \emph{scaffold component}, and that this makes it a threat to the
+validity of the very ablations used to evaluate such components. A study measuring only end-task
+performance would have reported that outcome feedback is harmful, which is true, while attributing it
+to the informational content of the channel, which is wrong.
 
 There is also a suggestive interaction we flag rather than claim, because the eighth cell of the
 factorial had not completed at the time of writing: adding episodic memory to the outcome channel

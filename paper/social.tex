@@ -286,6 +286,64 @@ that stopped working is to reach for the one that still does, not to stop govern
 \label{fig:divergence}
 \end{figure}
 
+\section{Precedent without evaluation produces lock-in}
+\label{sec:lockin-social}
+
+Before turning to which channel lets an authority \emph{detect} instrument failure, we report the
+clearest behavioural finding in the study, because it concerns a piece of institutional machinery
+that is usually assumed benign.
+
+We gave the rule-writing authority an institutional memory: at each review it is shown the most
+similar past situations it has faced, what rule it enacted then, and how that turned out. This is
+precedent, in the ordinary administrative sense. It is the channel one would expect to help most
+across a structural break, since a break is exactly the situation in which the past is informative
+about what no longer works.
+
+It was the only channel that made the authority measurably \emph{worse}, and the reason is not that
+it supplied bad precedent. We measured how often the authority actually revised the law in force:
+
+\begin{center}\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+what the authority could see & revisions per review & distinct rules per run \\
+\midrule
+nothing & $0.85$ & $14.4$ \\
+compliance reporting only & $0.86$ & $14.5$ \\
+outcome monitoring only & $0.77$ & $8.2$ \\
+\textbf{precedent only} & $\mathbf{0.08}$ & $\mathbf{2.1}$ \\
+precedent $+$ outcome monitoring & $0.64$ & $7.2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+An authority shown its own precedents stops revising: it changes the law at $8\%$ of reviews instead
+of $85\%$, and spends the whole run alternating between about two rules rather than exploring
+fourteen. We checked the obvious explanation---that precedent drawn from before the break actively
+misleads---and it is not supported: only $39.6\%$ of the precedents retrieved after the break dated
+from before it, against a chance baseline near $69\%$. Retrieval was, if anything, biased towards
+recent cases. The mechanism is simpler and less comfortable. Shown what it did last time, the
+authority does it again. Precedent does not have to be wrong to be harmful; it only has to be
+\emph{available}.
+
+The remedy is visible in the same table, and it is specific. Adding outcome monitoring to a
+precedent-equipped authority restores most of the revision it had suppressed ($0.08 \to 0.64$), and
+the interaction is statistically the largest term in our design ($+0.338$, $95\%$ CI
+$[+0.287, +0.387]$, $p_{\text{Holm}}=0.0007$). Precedent tells an institution what it did; evaluation
+tells it that what it did has stopped working. The first alone is a machine for continuity. Only the
+pair is a machine for learning.
+
+\begin{takeaway}
+Institutional memory did not misinform our authority---it stopped it from reconsidering. Precedent
+and evaluation are complements, and precedent deployed without evaluation is worse than no
+institutional memory at all.
+\end{takeaway}
+
+This is a claim about a simulated authority, and we are careful not to inflate it into a claim about
+courts or bureaucracies. What the model licenses is narrower and still useful: it identifies a
+mechanism---availability of one's own past decisions suppressing revision---that is measurable, that
+has a measurable antidote, and that would be invisible to any evaluation reporting only whether the
+polity did well.
+
 \section{What must an institution see?}
 \label{sec:channels-social}
 
