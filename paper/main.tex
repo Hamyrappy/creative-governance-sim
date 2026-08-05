@@ -661,6 +661,34 @@ Under the permissive convention the outcome main effect rises from $+0.190$ to $
 and the interaction are unchanged to two decimals; we report the conservative convention throughout
 and both in the artifact.
 
+\paragraph{Churn is a diagnostic, not a target.} Across the eight arms, mean churn and mean loss
+correlate at $r=-0.82$: the conditions that revise more do better. It would be easy, and wrong, to
+read that as ``make the agent revise more and it will improve''. Decomposing the same $8\times20$
+panel says otherwise:
+
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+& $\mathrm{corr}(\text{churn}, \text{loss})$ \\
+\midrule
+between arms ($n=8$ arm means) & $-0.820$ \\
+arm-demeaned only & $+0.203$ \\
+seed-demeaned only & $-0.438$ \\
+\textbf{two-way fixed effects} ($n=160$) & $\mathbf{-0.112}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Once both arm and seed effects are removed the residual association is $-0.11$, indistinguishable
+from zero at this sample size. Within a given harness condition, a run that happened to revise more
+did not thereby do better. The arm-demeaned figure of $+0.203$ is the artifact one would expect from
+seed difficulty---a harsher epidemic raises loss and makes the agent flail---and it reverses sign
+under the correct specification, which is why we report all four rather than the one that suits the
+story.
+
+So churn measures what the harness did to the institution, and lock-in is a real and costly state.
+But revision is not itself the good; it is the capacity for revision that the memory channel removed.
+
 \begin{takeaway}
 Institutional memory did not mislead the authority; it stopped it from reconsidering. Across a
 structural break that is the more expensive failure, and a component evaluated only on end-task loss
