@@ -72,7 +72,7 @@ from govsim.domains.scalar import regimes as R
 from govsim.experiments import register
 from govsim.harness import (
     ContextualOutcomeFeedback, ContrastiveMemory, Critic, EpisodicMemory, OutcomeFeedback,
-    TraceFeedback,
+    TraceFeedback, UnscoredMemory,
 )
 from govsim.regents import LLMRegent, OPRORegent, SwitchingRegent
 
@@ -324,6 +324,35 @@ def epidemic_llm_contrastive() -> Experiment:
               "episodic memory costs",
         falsification="the paired CI of (contrastive - memory) on full-horizon loss includes 0",
         metadata={"role": "treatment", "factors": ["contrastive"], "budget_matched": True,
+                  "control_arm": "epidemic_llm_memory"},
+    )
+
+
+@register("epidemic_llm_unscored")
+def epidemic_llm_unscored() -> Experiment:
+    """Episodic memory with the outcome scores deleted, and nothing else changed.
+
+    Successor to a failed intervention. ``ContrastiveMemory`` tested the theory that lock-in comes
+    from the FRAMING of precedent, and made it worse: churn 0.082 -> 0.021, distinct policies
+    2.05 -> 1.30. Ranking best-first and naming the spread does not present a choice, it presents a
+    WINNER, sharpening the imitation target that similarity-ordered memory leaves ambiguous.
+
+    So the driver may be the SCORE rather than the phrasing. This arm keeps the parent's retrieval,
+    episodes and second-person phrasing byte-for-byte and deletes only the ``-> outcome=X`` clause.
+    It carries strictly LESS information than its control, which is the point.
+
+    Its control is ``epidemic_llm_memory``. PREDICTION, recorded before running: churn rises above
+    0.082. A null says the harm is in recall itself and cannot be repaired by presentation."""
+    max_tokens, extra = _llm_opts()
+    return _epidemic_experiment(
+        "epidemic_llm_unscored",
+        LLMRegent(llm=_client(), model=_model(), temperature=0.0, max_tokens=max_tokens, extra=extra),
+        Harness([UnscoredMemory(k=4)]),
+        hyp_id="H3d-unscored-memory",
+        claim="the policy lock-in that episodic memory induces is carried by the outcome SCORES "
+              "attached to precedent, not by recall of the precedent itself",
+        falsification="the paired CI of (unscored - memory) on policy churn includes 0",
+        metadata={"role": "treatment", "factors": ["unscored"], "budget_matched": True,
                   "control_arm": "epidemic_llm_memory"},
     )
 

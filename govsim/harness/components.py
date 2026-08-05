@@ -327,6 +327,49 @@ class ContrastiveMemory(EpisodicMemory):
         scratch["memory"] = "\n".join(lines)
 
 
+class UnscoredMemory(EpisodicMemory):
+    """``EpisodicMemory`` with the outcome scores removed, and nothing else changed.
+
+    The successor to a failed intervention, and the reason it is worth running.
+
+    ``ContrastiveMemory`` was built on the theory that lock-in comes from the *framing* of precedent
+    — "when [state] **you did** [law]" reads as an invitation to imitate. It reranked best-first,
+    dropped the second person, and named the spread between outcomes. It made lock-in **worse**:
+    churn fell from 0.082 to 0.021 and distinct policies from 2.05 to 1.30.
+
+    That failure is informative. Ranking best-first and announcing the range does not present a
+    *choice*; it presents a **winner**. Plain similarity-ordered memory leaves the quality ordering
+    ambiguous, and sharpening it sharpened the imitation target. So the driver is not the second
+    person or the past tense — it is the **score**. An agent shown what a law achieved will reach for
+    the best-achieving one and stop looking.
+
+    This component tests that directly: identical retrieval, identical episodes, identical
+    second-person phrasing, with the ``→ outcome≈X`` clause deleted. It is strictly *less*
+    information than the parent, which is the point — if lock-in falls, the harm is carried by the
+    scores rather than by recall.
+
+    PREDICTION, recorded before running: churn rises above plain memory's 0.082. A null here would
+    say the harm is in recall itself, and that memory across a structural break cannot be repaired by
+    presentation at all.
+    """
+
+    name = "unscored_memory"
+
+    def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
+        if not self.episodes:
+            return
+        ranked = sorted(self.episodes, key=lambda ep: self._distance(view.vars, ep["state"]))
+        lines = []
+        for ep in ranked[: self.k]:
+            state = ", ".join(f"{k}={v:.4g}" for k, v in ep["state"].items()
+                              if k not in self._NON_STATE_KEYS and not self.is_scorer_only(k))
+            acts = "; ".join(f"{a['verb']}:{a['expr']}" for a in ep["actions"])
+            # Byte-identical to the parent's line MINUS the outcome clause. Keeping the rest exactly
+            # as it was is what makes the contrast attributable to the score and to nothing else.
+            lines.append(f"- when [{state}] you did [{acts}]")
+        scratch["memory"] = "\n".join(lines)
+
+
 class RolloutProbe(HarnessComponent):
     """Variance-aware rollout selection (H2: experimentation > reasoning).
 

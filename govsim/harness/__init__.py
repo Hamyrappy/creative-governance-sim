@@ -21,6 +21,7 @@ from govsim.harness.components import (
     ContextualOutcomeFeedback,
     Critic,
     ContrastiveMemory,
+    UnscoredMemory,
     EpisodicMemory,
     OutcomeFeedback,
     RolloutProbe,
@@ -28,4 +29,4 @@ from govsim.harness.components import (
 )
 
 __all__ = ["TraceFeedback", "OutcomeFeedback", "ContextualOutcomeFeedback",
-           "EpisodicMemory", "ContrastiveMemory", "RolloutProbe", "Critic"]
+           "EpisodicMemory", "ContrastiveMemory", "UnscoredMemory", "RolloutProbe", "Critic"]
