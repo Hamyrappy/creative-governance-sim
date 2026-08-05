@@ -407,3 +407,33 @@ prevent.
   traces, 0/400 disguised) while the pathology is intact — 100% state-feedback laws, the explicit
   price instruction still ignored, only 4.9% of the post-break rate gap to the clairvoyant closed,
   and 0 of 40 runs in either arm bringing the post-break rate below the best constant of 6.0.
+
+- **2026-08-05 — `UnscoredMemory` PREDICTION ALSO FAILED. THREE REPAIRS, THREE NULLS, ONE MECHANISM.**
+  Predicted above: with the outcome scores deleted, churn rises above plain memory's 0.082; a null
+  "says the harm is in recall itself and cannot be repaired by presentation at all." That is the
+  branch we landed on.
+
+  | variant | what changed vs plain memory | churn | distinct policies |
+  |---|---|---|---|
+  | no memory | — | **0.847** | 14.35 |
+  | `memory` | (control) | 0.082 | 2.05 |
+  | `contrastive` | best-first order, 3rd person, spread named | **0.021** | 1.30 |
+  | `unscored` | `→ outcome≈X` deleted | **0.050** | 1.75 |
+
+  `unscored − memory`: churn Δ = **−0.0316**, CI [−0.1030, +0.0098], p = 0.24, higher on **4/20** seeds.
+  Loss Δ = +0.1005, CI [−0.0996, +0.4589].
+
+  **Three independent interventions on the presentation of precedent — reordering by quality,
+  removing the second person, deleting the scores — none restored revision, and two made it worse.**
+  Every variant of memory collapses churn by an order of magnitude against the no-memory arm.
+
+  The surviving explanation is the one whose refutation condition was written down in advance:
+  **the lock-in is caused by recall itself**, not by how recall is framed, ordered, or scored.
+  Presenting an agent with its own prior decisions in *any* form suppresses revision.
+
+  Design consequence, and the reason this null is worth more than a successful repair would have
+  been: **this is not a prompt-engineering problem.** A harness that must preserve the capacity to
+  revise across a structural break cannot do it by rewording memory. It has to either withhold the
+  agent's own past actions, or pair recall with something that forces reconsideration — the
+  `outcome × memory` interaction (+0.338, p_Holm = 0.0007) is the only manipulation measured here that
+  restores churn, and it works by adding a channel rather than by editing memory.
