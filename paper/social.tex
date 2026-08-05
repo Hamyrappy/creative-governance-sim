@@ -1,12 +1,14 @@
 \documentclass[11pt]{article}
 \input{preamble}
+% Fallbacks FIRST, so the generated files below can \renewcommand them. The other order fails
+% silently in the worst way: \renewcommand on a not-yet-defined name errors, LaTeX carries on, and
+% the fallback's "?" ships in the PDF with only a warning in the log.
+\providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
+\providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
+\providecommand{\MDEFraction}{?}\providecommand{\MDEWorst}{?}\providecommand{\MDEMemory}{?}
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
 \IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
 \IfFileExists{generated/library_facts.tex}{\input{generated/library_facts}}{}
-% Fallbacks so the document still compiles before the figure code has run.
-\providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
-\providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
-\providecommand{\MDEFraction}{?}
 
 \title{\bfseries Rules That Stop Working\\
 \large Why feedback institutions survive shocks to the world but not shocks to their own

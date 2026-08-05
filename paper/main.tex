@@ -1,13 +1,17 @@
 \documentclass[11pt]{article}
 \input{preamble}
+% Fallbacks FIRST, so the generated files below can \renewcommand them. The other order looks
+% harmless and is not: the generated file loads before the fallback exists, \renewcommand errors on
+% an undefined command, and LaTeX carries on — leaving the fallback's "?" in the shipped PDF while
+% the build reports only a warning. That is exactly what happened to \MDEFraction, which printed as
+% "worth roughly ?%" in a compiled draft.
+\providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
+\providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
+\providecommand{\MDEFraction}{?}\providecommand{\MDEWorst}{?}\providecommand{\MDEMemory}{?}
 % Overrides the "pending" defaults once scripts/make_tables.py has real numbers to state.
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
 \IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
 \IfFileExists{generated/library_facts.tex}{\input{generated/library_facts}}{}
-% Fallbacks so the document still compiles before the figure code has run.
-\providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
-\providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
-\providecommand{\MDEFraction}{?}
 
 \title{\bfseries When Does Adaptation Have Room to Matter?\\
 \large Measuring adaptation headroom, and attributing it to harness components,\\
@@ -691,11 +695,19 @@ trace (and all its interactions) & $\approx 0$ & --- & $\geq 0.95$ \\
 \end{center}
 
 Memory suppresses revision; outcome feedback increases it; and outcome feedback applied \emph{to} a
-memory-equipped agent restores most of what memory removed. That interaction is mirrored in the loss
-factorial, where $\text{outcome} \times \text{memory}$ is $-0.530$---the two components partially
-cancel, for a reason the churn measurement makes concrete. Precedent tells the authority what it did;
-monitoring tells it that what it did is no longer working. The first alone produces lock-in, and the
-second is what breaks it.
+memory-equipped agent restores most of what memory removed. Precedent tells the authority what it
+did; monitoring tells it that what it did is no longer working. The first alone produces lock-in, and
+the second is what breaks it.
+
+Two limits on that last sentence, both of which cut against us. The same interaction appears in the
+\emph{loss} factorial at $-0.530$, which is tempting to cite as corroboration and which we do not:
+that term is below its own minimum detectable effect ($0.626$; see the per-term column of
+\cref{tab:factorial}) and does not survive Holm correction ($p=0.053$). And the arms carrying outcome
+feedback are the arms contaminated by deliberation collapse (\cref{sec:collapse}), so any term
+involving \texttt{outcome}---on churn as much as on loss---is confounded with an artificial
+stickiness the memory-only arms do not have. The \emph{direction} of the rescue is consistent across
+both metrics and both are consistent with the mechanism; neither is clean enough to carry it alone.
+What is clean is the memory main effect, on arms that collapse on $0.0\%$ of their decisions.
 
 These numbers are computed with a collapsed decision counted as a \emph{non-revision} rather than
 dropped, which is both the causally correct reading---an empty decision leaves the standing law in
@@ -960,9 +972,23 @@ treatment, and in the direction that manufactures a null.
 
 We report this because it is a general hazard for scaffold ablations, not a local mishap: any
 comparison between agents given different amounts of context is exposed to it, and it leaves no trace
-in a loss table. Our analysis now gates on the per-arm rate of decisions that produced no parseable
-action, refuses to interpret anything above $2\%$, and the reported factorial is a re-run with the
-budget raised until that rate is zero everywhere.
+in a loss table. Our analysis gates on the per-arm rate of decisions that produced no parseable
+action and refuses to interpret anything above $2\%$.
+
+\textbf{The factorial reported here does not clear that gate, and we state so rather than qualifying
+it away.} Raising the token budget fixed the original truncation, but a second failure mode appeared
+at the larger budget (\cref{sec:collapse}) which a larger budget cannot fix. The residual rates are
+$7.8\%$, $5.8\%$, $4.0\%$ and $3.8\%$ --- every one of them an arm carrying outcome feedback, against
+$\leq 0.2\%$ for every arm without it. Because a failed decision leaves the standing law in force,
+the outcome-carrying arms are subject to an artificial stickiness that the outcome-absent arms are
+not, at roughly a $47\times$ differential.
+
+The consequence for what may be read off \cref{tab:factorial} is specific. \textbf{Every term
+involving \texttt{outcome} --- the main effect, and the $\text{outcome} \times \text{memory}$
+interaction --- is confounded with that differential and is not interpretable under our own gate.} We
+leave the terms in the table because suppressing them would be worse, and we do not build on them.
+The \texttt{memory} main effect and the \texttt{trace} terms are unaffected: those arms collapse on
+$0.0\%$ and $0.2\%$ of decisions respectively.
 
 \paragraph{What a null is allowed to claim.} We report, alongside every non-result, the smallest
 effect this design could have detected. ``No component helped'' means one thing if a $5\%$
@@ -998,12 +1024,17 @@ tables below are generated from the analysis artifact and are empty until it exi
 \begin{figure}[t]\centering
 \includegraphics[width=0.78\linewidth]{generated/fig_regret_by_arm}
 \caption{\textbf{Every harness configuration, against what the design could resolve.} Bars are
-normalized regret; the shaded band is the minimum detectable effect around the no-harness arm. It is
-wide enough to swallow the entire distance from the arms to the non-adaptive ceiling, which is the
-honest reading of this experiment: the configurations are indistinguishable from one another
-\emph{and} the design could not have separated them unless a component were worth roughly $\MDEFraction\%$ of
-everything adaptation is worth here. Reporting the bar ordering without the band would invite a
-conclusion the data does not carry.}
+normalized regret; the shaded band is the minimum detectable effect around the no-harness arm, drawn
+at the \emph{largest} per-term value ($\MDEWorst$ loss units, $\MDEFraction\%$ of everything
+adaptation is worth here) because the design must resolve whichever term is under discussion. The
+band is wide enough to swallow the distance from the arms to the non-adaptive ceiling: \emph{no
+configuration is separated from that ceiling}, which is the honest reading of the headline
+comparison. It does \emph{not} follow that the configurations are indistinguishable from each other.
+Four arms differ from the no-harness control at raw $p<0.01$ on a paired test---memory $+1.114$,
+trace$+$memory $+1.114$, outcome$+$memory $+0.852$, all-three $+0.758$---and the factorial resolves
+the memory main effect against its own $\MDEMemory$-unit threshold. Reporting the bar ordering
+without the band would invite a conclusion the data does not carry; reporting the band as though it
+flattened every contrast would discard one the data does.}
 \label{fig:regret}
 \end{figure}
 

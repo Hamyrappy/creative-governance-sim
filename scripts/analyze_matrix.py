@@ -617,6 +617,27 @@ def main() -> int:
             # overstated the detectable effect by roughly 2x, which is conservative — it can only
             # cause us to under-claim — but a power statement that is wrong in the safe direction
             # is still wrong, and it understates the design's own resolving power.
+            # ONE MDE PER TERM. An earlier version took `per_seed[0]` — the first factor-labelled
+            # term in insertion order, which is `trace`, the one channel this study reports as
+            # inert and therefore the one with the smallest paired variance. Its MDE was then
+            # quoted for the whole design, understating what the reported terms actually require by
+            # up to 2.4x: trace 0.29, memory 0.51, outcome 0.68, outcome:memory 0.63. That matters
+            # because `outcome:memory` (-0.530) sits BELOW its own MDE, and a mechanism claim was
+            # being rested on it.
+            per_term: dict[str, dict] = {}
+            for term, v in (factorial or {}).items():
+                if v.get("per_seed"):
+                    per_term[term] = minimum_detectable_effect(
+                        v["per_seed"], n_comparisons=len(factorial))
+            if per_term:
+                print(f"\n=== power: minimum detectable effect PER TERM ({METRIC}) ===")
+                print(f"{'term':<24}{'sd':>8}{'MDE':>9}{'effect':>10}  resolvable?")
+                for term, m in sorted(per_term.items(), key=lambda kv: -kv[1]["mde"]):
+                    eff = (factorial.get(term) or {}).get("effect")
+                    ok = "yes" if eff is not None and abs(eff) >= m["mde"] else "NO — below its own MDE"
+                    print(f"{term:<24}{m['sd']:>8.3f}{m['mde']:>9.3f}"
+                          f"{(f'{eff:+.3f}' if eff is not None else '     —'):>10}  {ok}")
+
             if factorial:
                 per_seed = [v for k, v in factorial.items()
                             if k in FACTORS and v.get("per_seed")]
@@ -630,7 +651,11 @@ def main() -> int:
             mde = minimum_detectable_effect(diffs, n_comparisons=n_terms)
             budget = fm - om
             print(f"\n=== power: what this design could have detected ({METRIC}) ===")
-            print(f"  per-seed sd of (arm - best_fixed) = {mde['sd']:.4f}   se = {mde['se']:.4f}   n = {mde['n']}")
+            # Labelled for what it IS. The old label said "sd of (arm - best_fixed)", which this
+            # has never been — it is the paired sd of the FIRST factorial contrast.
+            print(f"  headline MDE uses the '{(list(per_term) or ['n/a'])[0]}' contrast: "
+                  f"sd = {mde['sd']:.4f}   se = {mde['se']:.4f}   n = {mde['n']}")
+            print(f"  (read the PER-TERM table above before quoting a single number)")
             print(f"  minimum detectable effect at alpha={mde['alpha_effective']:.4f} "
                   f"(Bonferroni over {n_terms} terms), power {mde['power']:.0%}: "
                   f"{mde['mde']:.4f} {METRIC} units")
@@ -719,6 +744,8 @@ def main() -> int:
             # no-action decision was a deliberation collapse rather than plain truncation, and the
             # two call for opposite fixes.
             "collapse_rates": collapse_rates,
+            "mde_per_term": {k: {kk: vv for kk, vv in v.items() if kk != "per_seed"}
+                             for k, v in per_term.items()},
             "cross_model": cross,
         }, indent=2), encoding="utf-8")
         print(f"\nwrote {args.json}")
