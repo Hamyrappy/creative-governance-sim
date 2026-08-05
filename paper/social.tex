@@ -62,7 +62,15 @@ non-compliance are, in a precise and measurable sense, blind to instrument failu
 Institutions govern through standing rules. A central bank follows a reaction function, a health
 authority a threshold for restrictions, a regulator a trigger for intervention. Writing the rule
 down is the point: it makes the state's behaviour predictable, reviewable, and contestable in a way
-that discretionary case-by-case action is not.
+that discretionary case-by-case action is not---the constraint \emph{is} the product
+\citep{north1990institutions}, and the classical argument for issuing a standing rule at all is that
+the commitment is worth more than the flexibility it costs \citep{kydland1977rules}.
+
+The institutional literature has a name for what happens next: \emph{drift}, in which a rule is left
+formally intact while the environment moves out from under it and its impact quietly collapses
+\citep{hacker2004privatizing,mahoney2010gradual}. Drift is this paper's object, and the model below is
+a drift generator with a known ground truth---the rule is untouched, the world moves, and we can
+price exactly what the rule's survival cost.
 
 The standard worry about such rules is that they go stale, and the canonical statement of the worry
 is Lucas's: a relation estimated under one policy regime need not survive the introduction of
@@ -87,20 +95,33 @@ cannot be: we need to know how well the \emph{best available} rule would have pe
 break in order to say whether an authority's response was good, and no observed polity provides
 that. Our claim is not that the simulation predicts what any real health authority would do
 \citep[a claim that would require far more than statistical realism;][]{li2026statistical}, but that
-it isolates a mechanism and bounds it.
+it isolates a mechanism and bounds it---the exploratory, mechanism-isolating use that a recent review
+of the LLM-versus-human comparison evidence argues is currently the defensible one
+\citep{anthis2025position}.
 
 The policy-maker in our model is a large language model. We use it not as a claim about how humans
-reason but as a convenient generator of \emph{written rules}: it must express its policy as a short
-executable expression, which means every decision it takes leaves an inspectable artifact and its
-revision history is measurable. Where prior work has language models set a tax rate or fill in a
-fixed policy schema \citep{wang2025taxagent,li2023econagent,decurto2026narratives}, here the object
-the authority produces is the rule itself. That is what makes questions like ``did the institution
-revise its policy, and in which direction'' answerable at all.
+reason---the silicon-sampling programme, which asks whether a language model can stand in for a human
+population \citep{argyle2023out}, is not what we are doing---but as a convenient generator of
+\emph{written rules}: it must express its policy as a short executable expression, which means every
+decision it takes leaves an inspectable artifact and its revision history is measurable. Where prior
+work has language models set a tax rate, fill in a fixed policy schema
+\citep{wang2025taxagent,li2023econagent,decurto2026narratives}, or take repeated \emph{actions} on a
+shared resource and be scored on whether the resource survives \citep{piatti2024govsim}, here the
+object the authority produces is the rule itself---a structured statement with a condition and a
+prescribed aim \citep{crawford1995grammar}, not a scalar. That is what makes questions like ``did the
+institution revise its policy, and in which direction'' answerable at all.
 
 \section{The model}
 \label{sec:model-social}
 
-A full ODD-style specification is in \cref{app:odd}; the essentials follow.
+A full specification following the ODD protocol
+\citep{grimm2006odd,grimm2010oddupdate,grimm2020odd} is in \cref{app:odd}; the verification and
+calibration evidence is documented separately, in the manner of TRACE \citep{grimm2014trace}. The
+essentials follow.\footnote{We use \emph{feedback} throughout in the control-theoretic sense: a
+standing rule keyed to a measured indicator. This is not policy feedback in the political-science
+sense, in which an enacted policy reshapes the coalitions and interests that later act on it
+\citep{pierson2000increasing}. Our authority faces no constituency and no switching cost, which is
+what makes the lock-in reported in \cref{sec:lockin-social} a narrower and stranger finding.}
 
 \paragraph{The governed system.} A population is partitioned into susceptible, infectious, and
 recovered shares \citep{kermack1927contribution}. Immunity wanes and a small number of cases arrive
@@ -164,6 +185,14 @@ now than it was. But it does not say what to do about it. The adaptation term is
 having written a different rule in the first place---by a legislature, not a regulator, and before
 the fact rather than after.
 
+Neither term is our invention, and the second in particular has a home. It is the institutional
+counterpart of choosing a rule to perform acceptably across a set of models rather than optimally
+within one \citep{hansen2008robustness}, and of the finding inside monetary policy proper that a rule
+tuned to a single model does poorly in the others \citep{levin1999robustness}. What the factorization
+adds is that the two are separately \emph{measurable} in a given polity, before any authority is
+observed---which is what lets one ask which of the two remedies a particular break actually calls
+for.
+
 We measure two cases where these separate completely, and they separate along different axes. Under
 \emph{total} instrument failure at the baseline price, the stale rule costs $1.18\times$ and the
 adaptation headroom is $1.01\times$. Holding the break at its baseline severity and raising the
@@ -218,6 +247,11 @@ the feedback structure that was protective before is now actively harmful: preva
 rule restricts harder, so the polity pays more for a fraction of the effect. The correct response is
 to \emph{stop}, which is precisely the response the rule's own logic forbids.
 
+The distinction between uncertainty about the \emph{state} and uncertainty about the \emph{policy
+multiplier} has a fifty-year pedigree in policy design, and so does its normative implication: an
+authority whose instrument has weakened should attenuate \citep{brainard1967uncertainty}. What we add
+is the observation that a feedback rule keyed to the state does the opposite automatically.
+
 \begin{takeaway}
 Feedback rules are robust to shocks in the governed system and fragile to shocks in the governing
 instrument. The robustness and the fragility have the same cause.
@@ -230,7 +264,9 @@ A reasonable objection to everything above is that it describes a pathogen. Comp
 a particular structure, and a finding that depends on it is epidemiology rather than political
 science. We therefore repeated the identical measurement on a library of polities with nothing
 mechanically in common: a central bank governing by policy rate, a platform governing discourse by
-content moderation, a fishing community governing a stock by quota and reserve, a firm governing
+content moderation, a fishing community governing a stock by quota and reserve---the common-pool setting in which
+rules-in-use, monitoring and rule revision are themselves the object of analysis
+\citep{ostrom1990governing}---a firm governing
 inventory by order quantity, and a treasury governing demand by tax and transfer. Each receives the
 same kind of break---its principal instrument quietly loses efficacy---and each is scored against
 three references calibrated in its own institutional vocabulary.
@@ -247,7 +283,10 @@ about the rule.
 This is an uncomfortable finding for a literature that treats responsiveness as an unqualified
 institutional virtue, and we think it is the more useful one. It says that the case for adaptive
 governance is not general; it is conditional on a property of the domain that can be measured in
-advance, cheaply, without observing any government at all.
+advance, cheaply, without observing any government at all. Monetary policy reached a version of this
+conclusion by a different route: a rule chosen for robustness across models often beats one optimized
+within the model believed at the time \citep{levin1999robustness}. What we add is the measurement, in
+domains where no such literature exists to consult.
 
 Two of the polities are worth naming because they fail in instructive ways. The treasury cannot host
 the experiment at all: in its configuration the optimal tax rate is zero---the economy reaches
@@ -262,7 +301,9 @@ running a library instead of a flagship.
 The polity with the most to gain from attentiveness is the central bank, and the \emph{shape} of the
 three institutions is the substance. The incumbent rule leans hard against inflation from a high
 neutral rate. The best possible \emph{fixed} answer to a collapse in monetary transmission is to stop
-leaning altogether and hold a constant rate---an institution that abandons feedback. The clairvoyant
+leaning altogether and hold a constant rate---an institution that abandons feedback, structurally the
+same move as switching to a rule that does not depend on the quantity that moved
+\citep{orphanides2002robust}. The clairvoyant
 authority does neither: it keeps leaning, at half the strength, while moving its whole rate path down
 to the zero lower bound. What adaptation buys here is not a change in the \emph{rule} but a change in
 the \emph{level} at which the rule operates, and no re-tuning of the incumbent's thresholds can
@@ -297,7 +338,8 @@ our first reading of it was wrong in a way worth setting out, because the correc
 Recall the structure: transmission of the policy rate to the economy collapses at the break, so a
 point of interest rate buys a fraction of the behavioural response it used to buy while costing what
 it always cost. The clairvoyant institution cuts to near the zero lower bound and holds there. The
-incumbent Taylor rule, which leans against inflation, instead sees prices drifting and raises rates.
+incumbent Taylor rule \citep{taylor1993discretion}, which leans against inflation, instead sees prices
+drifting and raises rates.
 
 Our language-model authority did worse than the incumbent rule. It set an average post-break rate of
 $9.51$, against the frozen rule's $7.40$ and the clairvoyant's $1.53$, for a total loss of $3891$
@@ -307,9 +349,17 @@ the neutral rate and never acts.
 The revealing number is not the loss but its decomposition. This authority achieved the \emph{best
 inflation and output stabilization of any arm in the experiment}, outperforming the clairvoyant
 institution on the mandate's first objective. It simply spent three times as much doing so, holding a
-restrictive stance long after restriction had stopped restricting anything. Its instructions stated,
-at every review, that the rate's cost is charged ``whether or not the rate reaches the economy''. It
-read that and leaned harder.
+restrictive stance long after restriction had stopped restricting anything.
+
+This is superstitious learning in Levitt and March's sense \citep{levitt1988organizational}: the
+authority receives compelling evidence that its actions are working---the objective it can watch is
+moving in the right direction---while the break has severed the connection between action and outcome
+that the evidence is being read against.
+
+Its instructions stated, at every review, that the rate's cost is charged ``whether or not the rate
+reaches the economy''. It read that and leaned harder. That is the exact inverse of the classical
+prescription for a weakened instrument \citep{brainard1967uncertainty}, which makes the behaviour a
+departure from a stated benchmark rather than a deviation from an ad hoc one.
 
 \subsection{The explanation we expected, and why it is wrong}
 
@@ -374,11 +424,20 @@ Before turning to which channel lets an authority \emph{detect} instrument failu
 clearest behavioural finding in the study, because it concerns a piece of institutional machinery
 that is usually assumed benign.
 
+Political science has a name for arrangements that survive past their usefulness because operating
+them raises the cost of switching \citep{pierson2000increasing}. What follows is a stripped-down
+instance: no coalition, no sunk cost, no constituency---only the availability of the institution's own
+past decisions---and it is sufficient. The nearest survey of this machinery in the artificial-agent
+literature reports neither the degradation nor the mechanism we find \citep{jiang2026anatomy}.
+
 We gave the rule-writing authority an institutional memory: at each review it is shown the most
 similar past situations it has faced, what rule it enacted then, and how that turned out. This is
-precedent, in the ordinary administrative sense. It is the channel one would expect to help most
-across a structural break, since a break is exactly the situation in which the past is informative
-about what no longer works.
+precedent, in the ordinary administrative sense. The implementation is the standard one---a memory
+stream of past episodes, retrieved by similarity to the current situation and inserted into
+deliberation \citep{park2023generative}---which matters for how the result reads: what follows is a
+failure mode of the widely adopted memory architecture, not of a bespoke one. It is the channel one
+would expect to help most across a structural break, since a break is exactly the situation in which
+the past is informative about what no longer works.
 
 It was the only channel that made the authority measurably \emph{worse}, and the reason is not that
 it supplied bad precedent. We measured how often the authority actually revised the law in force:
@@ -404,7 +463,12 @@ misleads---and it is not supported: only $39.6\%$ of the precedents retrieved af
 from before it, against a chance baseline near $69\%$. Retrieval was, if anything, biased towards
 recent cases. The mechanism is simpler and less comfortable. Shown what it did last time, the
 authority does it again. Precedent does not have to be wrong to be harmful; it only has to be
-\emph{available}.
+\emph{available}---a competency trap in Levitt and March's sense \citep{levitt1988organizational},
+and the reason we ruled out the misleading-precedent explanation before reaching for it.
+
+The collapse from fourteen distinct rules to two is a collapse in exploration, and March's account
+predicts its consequence precisely: exploitation refines faster and pays sooner, and is
+self-destructive when the environment moves \citep{march1991exploration}.
 
 The remedy is visible in the same table, and it is specific. Adding outcome monitoring to a
 precedent-equipped authority restores most of the revision it had suppressed ($0.08 \to 0.64$), and
@@ -412,6 +476,14 @@ the interaction is statistically the largest term in our design ($+0.338$, $95\%
 $[+0.287, +0.387]$, $p_{\text{Holm}}=0.0007$). Precedent tells an institution what it did; evaluation
 tells it that what it did has stopped working. The first alone is a machine for continuity. Only the
 pair is a machine for learning.
+
+In Argyris and Sch\"on's vocabulary, precedent alone supports single-loop learning---error correction
+\emph{within} the standing rule, the thermostat's kind of learning---while the question of whether the
+standing rule should still be in force is double-loop and requires the evaluation channel
+\citep{argyris1978organizational}. That their own worked example of single-loop learning is a
+thermostat, which is precisely a threshold feedback rule, is not a coincidence we can take credit
+for; but our two behavioural measures, revisions per review and distinct rules per run, are an
+operationalization of double-loop capacity.
 
 One caution, which we state because the obvious policy reading of the table above is wrong. Across
 the eight informational regimes, more revision goes with lower loss ($r = -0.82$), and it would be
@@ -421,10 +493,13 @@ association between how often \emph{a given run} revised and how well it did fal
 at this sample size is indistinguishable from nothing. An authority that happened to legislate more
 often within a fixed informational setting did not thereby govern better.
 
-So revision is not the good thing. What the memory channel removed was the \emph{capacity} for
-revision---the institution stopped being the kind of thing that could change its mind---and that is
-what cost it. Prescribing ``revise more often'' would be treating a symptom that is not, on its own,
-the mechanism.
+So revision is not the good thing, and there is a principled case for an authority that declines to
+revise precisely when circumstances appear to warrant it \citep{kydland1977rules}. What separates our
+case from that one is that we measured the headroom first: adaptation here is worth $1.19\times$, so
+revision \emph{was} warranted, and the failure to revise is a failure rather than a commitment. What
+the memory channel removed was the \emph{capacity} for revision---the institution stopped being the
+kind of thing that could change its mind---and that is what cost it. Prescribing ``revise more
+often'' would be treating a symptom that is not, on its own, the mechanism.
 
 \begin{takeaway}
 Institutional memory did not misinform our authority---it stopped it from reconsidering. Precedent
@@ -444,18 +519,30 @@ polity did well.
 If instrument failure is the case that matters, the design question becomes concrete: what
 information does an authority need in order to detect one? We equip the rule-writing authority with
 different channels and vary them factorially. Each is a recognizable piece of institutional
-machinery:
+machinery.
+
+The two are not more and less of one thing called monitoring. Behn separates the \emph{control}
+purpose of performance measurement---did subordinates do what was specified---from the \emph{learn}
+purpose---why is performance what it is---and shows that the two demand different measures
+\citep{behn2003measure}. We treat them as separate factors for that reason, and the factorial is what
+turns the distinction into a testable one. It also sharpens our own earlier complaint: on Behn's
+account ``better monitoring'' is not one lever, so a reform package that bundles them is not one
+reform.
+
 
 \begin{description}[leftmargin=0em,style=nextline]
 \item[Compliance reporting] The authority learns when its instructions were rejected or
 malformed---the analogue of an enforcement or legal-validity channel. It reports on the
-\emph{form} of the rule and says nothing about its consequences. An authority issuing valid rules
-receives, correctly, no information from it at all.
+\emph{form} of the rule and says nothing about its consequences: a procedural agency in Wilson's
+typology, where outputs are observable and outcomes are not \citep{wilson1989bureaucracy}. An
+authority issuing valid rules receives, correctly, no information from it at all.
 \item[Outcome monitoring] The authority learns what its currently standing rule actually achieved
 over the last review period, and retains the preceding entries. This is monitoring and evaluation in
 the ordinary administrative sense. It is the only channel in which an unobservable instrument
 failure leaves any trace, and the trace is indirect: two consecutive reviews reading ``same policy,
-worse result''.
+worse result''. Monitoring of the resource itself, and not only of the appropriators, is the feature
+Ostrom found in long-enduring commons institutions and the one our compliance channel deliberately
+omits \citep{ostrom1990governing}.
 \item[Institutional memory] Retrieved precedent---the most similar past situations and what was done
 then. Valuable for recurring problems and, across a structural break, potentially misleading, since
 the most similar past situation may belong to a regime that no longer exists.
@@ -550,7 +637,7 @@ can is the one that asks what the policy achieved. The channel that cannot---and
 build first---is the one that asks whether the policy was obeyed.
 
 \appendix
-\section{Model specification (ODD-style)}
+\section{Model specification (ODD)}
 \label{app:odd}
 \input{generated/odd}
 
