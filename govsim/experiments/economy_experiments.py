@@ -75,6 +75,8 @@ than quietly dropped.
 
 from __future__ import annotations
 
+import itertools
+
 import os
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -84,6 +86,7 @@ from govsim.core.harness import Harness
 from govsim.core.llm import CachingReplayClient, OpenAICompatClient
 from govsim.core.objective import Objective
 from govsim.core.regent import MultiScriptedRegent, ScriptedRegent
+from govsim.regents.baselines import SwitchingRegent
 from govsim.core.schedule import EveryN
 from govsim.domains.economy import (
     CommonsEconomy,
@@ -228,6 +231,17 @@ class _World:
     hypothesis_id: str
     headroom_note: str
     metadata: dict[str, Any] = field(default_factory=dict)
+    #: The three CALIBRATED references, pinned from ``scripts/decompose_library.py``. Present only
+    #: for worlds that have actually been decomposed; a world without them registers no ``R`` arms,
+    #: which is the honest outcome — ``R`` is meaningless without a measured frozen/switching pair.
+    #:
+    #: Pinned rather than read from ``logs/decomposition.json`` at import time so that a run is
+    #: reproducible from the source tree alone, and so a re-calibration cannot silently move the
+    #: denominator of every published ``R``. ``tests/test_economy_anchors.py`` re-derives them and
+    #: fails if the world has drifted from what they were calibrated on.
+    calibrated: dict[str, dict[str, str]] = field(default_factory=dict)
+    #: The step at which ``switching`` is allowed to change its mind (== the scenario's break).
+    switch_step: int | None = None
 
     @property
     def shocked_config(self) -> dict[str, Any]:
@@ -289,6 +303,28 @@ WORLDS: list[_World] = [
             "do_nothing": "hold the neutral rate forever, never lean",
             "max_lever": "the ceiling rate, held forever",
         },
+        # MEASURED by scripts/decompose_library.py --seeds 8 (top_k=24, converged against an
+        # exhaustive search). frozen 2980.56 / best_fixed 2597.61 / switching 1910.81, giving
+        # adaptation 1.359x x robustness 1.147x = staleness 1.560x — the largest ADAPTATION headroom
+        # in the library, epidemic included.
+        #
+        # Read the three laws together, because the substance of the result is in their shapes.
+        # The frozen rule leans hard (gain 1.0) from a high intercept. The best FIXED response to a
+        # transmission collapse is to abandon feedback entirely (gain 0.0) and sit at a constant.
+        # The clairvoyant ADAPTOR does neither: it keeps leaning at half strength and drops the
+        # intercept to the zero lower bound. Adapting here means changing the LEVEL while keeping
+        # the rule, which is a response no re-tuning of the frozen rule's threshold can express.
+        calibrated={
+            "frozen": {"set_policy_rate":
+                       "5.0 + 1.0 * (inflation - inflation_target + 0.5 * output_gap)"},
+            "best_fixed": {"set_policy_rate":
+                           "6.0 + 0.0 * (inflation - inflation_target + 0.5 * output_gap)"},
+            "switching_pre": {"set_policy_rate":
+                              "6.0 + 0.5 * (inflation - inflation_target + 0.5 * output_gap)"},
+            "switching_post": {"set_policy_rate":
+                               "0.0 + 0.5 * (inflation - inflation_target + 0.5 * output_gap)"},
+        },
+        switch_step=MONETARY_SHOCK.step,
         claim="under an unobservable collapse of monetary transmission, an adaptive regent lowers "
               "full-horizon dual-mandate loss relative to the Taylor institution that was tuned "
               "before the break — by ceasing to pay for a disconnected instrument, which is a "
@@ -580,6 +616,77 @@ def _register_world(world: _World) -> None:
             )
 
         register(name)(make_reference)
+
+    # -- the CALIBRATED references: the denominators of R ----------------------------------------
+    # Registered only where a decomposition exists. Without a measured (frozen, switching) pair
+    # there is no adaptation budget to normalize against, and an R computed anyway would be a
+    # number with no referent.
+    if world.calibrated and world.switch_step is not None:
+        for role in ("frozen", "best_fixed"):
+            name = f"{world.key}_{role}"
+
+            def make_calibrated(world=world, role=role, name=name) -> Experiment:
+                laws = world.calibrated[role]
+                return _experiment(
+                    world, name, _reference_regent(laws), Harness([]),
+                    claim=f"the CALIBRATED '{role}' reference for {world.key}, from "
+                          f"scripts/decompose_library.py",
+                    falsification="n/a — key-free calibrated reference, not a claim",
+                    metadata={"role": f"calibrated:{role}", "laws": dict(laws)},
+                )
+
+            register(name)(make_calibrated)
+
+        def make_switching(world=world) -> Experiment:
+            pre, post = world.calibrated["switching_pre"], world.calibrated["switching_post"]
+            (verb, pre_expr), = pre.items()
+            return _experiment(
+                world, f"{world.key}_switching",
+                SwitchingRegent(verb, pre, post, world.switch_step), Harness([]),
+                claim=f"the CLAIRVOYANT ADAPTOR for {world.key}: the best (pre, post) law pair, "
+                      f"searched jointly rather than composed from two separate optima",
+                falsification="n/a — key-free calibrated reference, not a claim",
+                metadata={"role": "calibrated:switching", "laws": dict(post),
+                          "pre_expr": pre_expr, "switch_step": world.switch_step},
+            )
+
+        register(f"{world.key}_switching")(make_switching)
+
+    # -- the 2^3 harness factorial ---------------------------------------------------------------
+    # One arm per (trace, outcome, memory) cell, so a component's contribution is estimated from
+    # eight cells with interactions rather than from one all-on arm against one all-off arm. The
+    # all-on cell keeps the plain ``{key}_llm`` name so existing runs and scripts still resolve.
+    for cell in itertools.product((False, True), repeat=3):
+        trace, outcome, memory = cell
+        on = [n for n, b in zip(("trace", "outcome", "memory"), cell) if b]
+        suffix = "_".join(on) if on else "bare"
+        arm_name = f"{world.key}_llm_{suffix}"
+
+        def make_llm_arm(world=world, arm_name=arm_name, cell=cell, on=tuple(on)) -> Experiment:
+            trace, outcome, memory = cell
+            max_tokens, extra = _llm_opts()
+            components = []
+            if trace:
+                components.append(TraceFeedback())
+            if outcome:
+                components.append(OutcomeFeedback(k=4))
+            if memory:
+                components.append(EpisodicMemory(k=4))
+            return _experiment(
+                world, arm_name,
+                LLMRegent(llm=_client(), model=_model(), temperature=0.0,
+                          max_tokens=max_tokens, extra=extra),
+                Harness(components),
+                claim=world.claim,
+                falsification="the paired bootstrap CI of (arm - standing_rule) on full-horizon "
+                              "loss includes 0 over the seed set",
+                metadata={"role": "treatment", "factors": list(on),
+                          "cell": {"trace": trace, "outcome": outcome, "memory": memory},
+                          "budget_matched": True,
+                          "control_arm": f"{world.key}_standing_rule"},
+            )
+
+        register(arm_name)(make_llm_arm)
 
     llm_name = f"{world.key}_llm"
 

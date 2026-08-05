@@ -61,6 +61,19 @@ GROUPS = {
     "epidemic-critic": ["epidemic_llm_critic"],
     # The contextualization contrast: the naive channel is the control for the fixed one.
     "epidemic-ctx": ["epidemic_llm_outcome", "epidemic_llm_ctx_outcome"],
+    # The MONETARY world: adaptation headroom 1.359x (measured, 8 seeds; 1.358x re-derived at 20),
+    # the largest in the library. Its adaptation budget is 26.3% of the best-fixed reference against
+    # the epidemic's 15.7%, so the same seed count resolves an effect ~1.7x smaller here — which is
+    # the binding constraint on the epidemic result, not the effect size.
+    "monetary": (["monetary_frozen", "monetary_best_fixed", "monetary_switching"]
+                 + [f"monetary_llm_{s}" for s in
+                    ("bare", "trace", "outcome", "memory", "trace_outcome", "trace_memory",
+                     "outcome_memory", "trace_outcome_memory")]),
+    "monetary-refs": ["monetary_frozen", "monetary_best_fixed", "monetary_switching",
+                      "monetary_standing_rule", "monetary_do_nothing", "monetary_max_lever"],
+    "monetary-factorial": [f"monetary_llm_{s}" for s in
+                           ("bare", "trace", "outcome", "memory", "trace_outcome",
+                            "trace_memory", "outcome_memory", "trace_outcome_memory")],
     "scalar": ["scalar_frozen", "scalar_oracle", "scalar_llm_full"],
     # The severity-tracking check: same three rungs, harsher break.
     "severe": ["severe_frozen", "severe_best_fixed", "severe_switching",
