@@ -345,3 +345,30 @@ prevent.
   the measured rate was 21.8 and the retry budget was exhausted. Concurrency is now one gemma sweep
   at a time. This is logged because it silently truncates a sweep rather than failing loudly at the
   start, and a partially-completed arm is exactly the kind of artifact that gets analysed by mistake.
+
+- **2026-08-05 — OUTCOME OF THE PRE-REGISTERED `ContrastiveMemory` PREDICTION: IT FAILED, AND IN THE
+  OPPOSITE DIRECTION.**
+  Predicted above: churn rises materially above plain memory's 0.082, and loss falls below the memory
+  arm's. Measured, paired on 20 shared seeds:
+
+  | arm | churn | distinct policies/run | loss |
+  |---|---|---|---|
+  | no harness | 0.847 | 14.35 | 24.968 |
+  | `memory` | 0.082 | 2.05 | 26.081 |
+  | **`contrastive`** | **0.021** | **1.30** | 26.249 |
+
+  Churn Δ (contrastive − memory) = **−0.0605**, 95% CI **[−0.1494, −0.0181]**, Wilcoxon p = 0.0229,
+  bootstrap p = 0.0873. Loss Δ = **+0.1675**, CI [+0.0154, +0.6361]. The two tests disagree on
+  significance for churn; the point estimate and the interval both sit on the *wrong side of zero*.
+  **Reframing precedent as a ranked choice made lock-in WORSE, not better** — the agent ended up
+  cycling through 1.3 distinct policies per run instead of 2.05.
+  Channel liveness was verified before interpreting: the contrastive marker appears in **380 of 400**
+  prompts, so the component was live and this is not a silent no-op. 390 of the 400 calls were cache
+  hits recorded by the first (quota-killed) attempt, which had made most of its calls before dying
+  without committing its rows.
+  **What this buys, which a confirmation would not have.** The framing account is wrong in a specific
+  and useful way. Ranking best-first and naming the spread does not present a *choice*; it presents a
+  **winner**, and sharpens the imitation target that plain similarity-ordered memory leaves ambiguous.
+  So the driver of lock-in is not the second person or the past tense — it is **scored precedent**.
+  That yields a sharper, cheap, falsifiable successor: *memory with the scores removed should lock in
+  less than memory with them*. Recorded here before running it.
