@@ -106,8 +106,9 @@ the other, and realized-outcome feedback recovers $975$ on $20/20$ seeds where e
 All four contrasts are significant, and the memory pair is uncontaminated---those arms produce an
 action on every decision in both worlds. A component's value is therefore not a property of the
 component but of the match between what it does and what the world's failure mode requires. That
-supplies a mechanism for the reported poor generalization of automatically evolved harnesses, and a
-diagnostic that predicts the sign before the sweep is run.
+supplies a mechanism for the reported poor generalization of automatically evolved harnesses. We do
+\emph{not} claim to predict the sign in advance: with two worlds we can describe what separates them,
+not validate a predictor.
 
 \item \textbf{A structural result about which shocks are worth studying}
 (\cref{sec:which-shocks,sec:library}). Measuring across ten worlds with unrelated mechanics---a
@@ -598,6 +599,17 @@ that pull against each other---it informs, and it suppresses revision---and whic
 depends on how hard the second bites. Where lock-in is catastrophic the informational value cannot
 pay for it; where lock-in is mild, it can.
 
+\emph{Why} it bites harder in one world than the other we do not know, and we would rather leave that
+open than furnish a plausible story. The obvious candidate is state recurrence: an endemic epidemic
+settles toward an equilibrium, so successive decisions are taken in near-identical states, retrieval
+returns near-identical precedent, and repeating it exactly is easy; a monetary economy under a
+demand process keeps moving. Measured as the mean nearest-neighbour distance between decision states,
+normalized per world, the epidemic is indeed the more recurrent ($0.372$ against $0.452$). But that
+is a $20\%$ difference in the proposed mediator against a ninefold difference in the outcome, from
+$n=2$ worlds, which is not evidence for a mediator---it is a hypothesis with a direction. Settling it
+needs worlds chosen to vary recurrence while holding the rest fixed, which is a study we have not
+run.
+
 Both differences are significant on a paired bootstrap ($p=0.0001$ and $p=0.0195$), and they point in
 opposite directions. In the monetary world realized-outcome feedback is not a marginal improvement:
 it recovers $975$ loss units, unanimously across seeds, cutting normalized regret from $R\approx3.0$
@@ -642,8 +654,8 @@ carries no guarantee into another, and can carry a liability}. \citet{wang2026re
 \emph{within-benchmark} version of this: evolved harnesses that gain on the tasks they were searched
 on transfer near-zero to held-out tasks in the same benchmark, averaging $+0.6$ points. Ours is the
 cross-environment version, where the transfer is not merely absent but signed the other way---and the
-measurement supplies a mechanism for both, together with a diagnostic that predicts the sign in
-advance.
+measurement supplies a mechanism for both. What it does not yet supply is a way to predict the sign
+in advance; \cref{sec:crossworld} says what we can and cannot establish about that from two worlds.
 
 Two caveats we would rather state than have found. The monetary outcome arm collapses on $3.8\%$ of
 its decisions against the no-harness arm's $1.0\%$ (\cref{sec:collapse}), so it carries the same
