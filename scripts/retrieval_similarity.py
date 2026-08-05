@@ -108,13 +108,21 @@ def main() -> int:
     args = ap.parse_args()
 
     trajectories = {s: _trajectory(s) for s in range(args.seeds)}
+
+    # THE BANK THE ARM ACTUALLY RECEIVED, not a reconstruction of it. The first version of this
+    # probe pooled every other seed's full trajectory — 180 episodes — while `_donor_bank` truncates
+    # the pool to k=8 and, because the pool is ordered by donor seed, those 8 all come from ONE
+    # donor run. A 180-episode bank has combinatorially closer nearest neighbours than an 8-episode
+    # one, so the reconstruction would have reported a similarity advantage the real arm never had.
+    # Importing the experiment's own loader is the only version of this that cannot drift.
+    from govsim.experiments.governance_experiments import FOREIGN_DONOR_SEEDS, _donor_bank
+    donor = _donor_bank(FOREIGN_DONOR_SEEDS)
+    origins = sorted({e.get("_donor_seed") for e in donor})
+    print(f"donor bank: {len(donor)} episodes from seed(s) {origins}\n")
+
     rows = []
     print(f"{'seed':>5}{'own':>12}{'foreign':>12}{'ratio':>9}")
     for s in range(args.seeds):
-        # The donor bank this seed would actually receive: episodes from OTHER seeds only.
-        donor = [_episode(st_, -float(i))
-                 for other, traj in trajectories.items() if other != s
-                 for i, st_ in enumerate(traj)]
         own = _retrieval_distances(trajectories[s], "own", donor)
         foreign = _retrieval_distances(trajectories[s], "foreign", donor)
         if not own or not foreign:

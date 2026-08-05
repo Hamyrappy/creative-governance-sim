@@ -54,6 +54,17 @@ harness channels (failure trace, realized-outcome feedback, episodic memory) at 
 language-model call budget on $20$ paired seeds. Coverage of that design is reported as a generated
 fact rather than asserted (\cref{sec:results}).
 \ResultsAbstractSentence
+The harmful channel is episodic memory, and it is harmful in a specific way: it does not misinform
+the regent, it stops it revising, collapsing the rate at which the enacted law changes from $0.85$ to
+$0.08$. Three pre-registered repairs to how precedent is presented all failed. A fourth arm replaces
+the regent's own episodes with a different regent's, holding the retrieval rule, ranking, phrasing
+and episode count fixed, and recovers most of the lost revision ($0.63$) while removing the entire
+loss penalty. The mechanism is not that the regent recognises the precedent as somebody else's---the
+prompt attributes the donor's decisions to the regent either way---but that precedent drawn from
+one's \emph{own} trajectory is retrieved from $2.4\times$ nearer the current situation. In a world
+that recurs, similarity-ranked recall of one's own history returns something close to a copy of the
+last decision, and a near-copy is repeated. That makes the load-bearing design choice the
+\emph{retrieval rule}, not the existence of the memory.
 We release the environment, the calibration procedure, the pre-registration, and the recorded
 model-call tapes that make every run replayable without an API key.
 \end{abstract}
@@ -954,18 +965,19 @@ something that forces reconsideration---and the $\text{outcome} \times \text{mem
 the only manipulation we measured that restores churn, working by \emph{adding a channel} rather than
 by editing memory.
 
-\paragraph{``Recall itself'' still covers two claims. A fourth arm separates them.}
-The sentence above hides an ambiguity with opposite design consequences. Under \emph{anchoring}, any
-concrete exemplar of a policy pulls the agent toward it, and precedent is unusable across a break in
-any form. Under \emph{commitment}, what binds is specifically being shown \emph{one's own} prior
-decisions, and precedent remains usable provided the agent did not author it. Presentation repairs
-cannot tell these apart, because all three showed the agent its own history.
+\paragraph{``Recall itself'' still covers several claims. A fourth arm separates them.}
+The sentence above hides an ambiguity. Under \emph{anchoring}, any concrete exemplar of a policy
+pulls the agent toward it, and precedent is unusable across a break in any form. Under
+\emph{commitment}, what binds is specifically being shown one's own prior decisions, and precedent
+remains usable provided the agent did not author it. Under \emph{proximity}, neither authorship nor
+exemplars as such matter: what binds is that similarity-ranked retrieval over one's own trajectory
+returns a near-copy of the previous decision, and a near-copy is repeated. Presentation repairs
+cannot separate these, because all three retrieved the agent's own history by similarity.
 
-We therefore ran a fourth arm that holds retrieval, ranking, phrasing and episode count fixed and
-changes only \emph{whose} episodes are in the bank. The agent is given eight episodes recorded from a
-different authority governing a different realization of the same world, and never sees its own. The
-prediction was registered before the arm ran: under commitment, churn rises materially toward the
-no-memory arm's $0.847$; under anchoring it stays near $0.082$.
+We therefore ran a fourth arm that holds the retrieval rule, ranking, phrasing and episode count
+fixed and changes only \emph{which} episodes are in the bank. The agent is given eight episodes
+recorded from a different regent governing a different realization of the same world, and never sees
+its own.
 
 \begin{center}\small
 \begin{tabular}{@{}lrrr@{}}
@@ -974,31 +986,70 @@ precedent shown & churn & loss & $\Rreg$ \\
 \midrule
 none & $0.837$ & $25.860$ & $1.030$ \\
 the agent's own & $0.068$ & $26.737$ & $1.212$ \\
-\textbf{another authority's} & $\mathbf{0.632}$ & $\mathbf{25.616}$ & $\mathbf{0.995}$ \\
+\textbf{another regent's} & $\mathbf{0.632}$ & $\mathbf{25.616}$ & $\mathbf{0.995}$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\noindent Commitment. Foreign precedent reproduces only $27\%$ of own-precedent's suppression; the
-authorship residual is the other $73\%$, and all three pairwise contrasts survive Holm correction
-($p_{\text{adj}} \le 0.009$, $n=10$ paired seeds). On loss, foreign precedent removes the entire harm
-own precedent causes ($\Delta = -1.121$, CI $[-2.906, -0.351]$, $p = 0.025$) and is the only memory
-arm that reaches the best fixed rule. It does \emph{not} beat the no-memory arm
-($\Delta = -0.244$, $p = 0.61$), so the claim is that foreign precedent is harmless where own
-precedent is harmful, not that it helps.
+\noindent Substituting the bank recovers most of the suppressed revision and removes the entire loss
+penalty. All three pairwise churn contrasts survive Holm correction ($p_{\text{adj}} \le 0.009$,
+$n=10$ paired seeds), and on loss the foreign arm beats own memory by $1.121$
+(CI $[-2.906, -0.351]$, $p = 0.025$), reaching $\Rreg < 1$---the only memory arm that matches the
+best fixed rule. It does \emph{not} beat the no-memory arm ($\Delta = -0.244$, $p = 0.61$), so the
+claim is that foreign precedent is harmless where own precedent is harmful, not that it helps.
 
-Three alternative readings were tested and all fail. \textbf{(i)~Retrieval similarity.} Own memory
-draws from the agent's own trajectory, so it might simply return closer precedent. Measured directly
-with the same component and a scripted policy, foreign precedent is retrieved $7.9\times$
-\emph{closer}, not further---the endemic equilibrium makes different realizations traverse nearly the
-same states. The confound runs backwards. \textbf{(ii)~Bank composition.} The bank the arm actually
-received is eight episodes from a \emph{single} donor run, so it is already a one-authority design
-rather than a pooled crowd. \textbf{(iii)~Bank repetitiveness.} The donor's eight episodes are eight
-different laws while own memory fills with the agent's converged history, so perhaps repetition is
-what anchors---which predicts late-onset lock-in. \Cref{fig:lockin-onset} shows the onset is
-immediate: with a bank of \emph{one} episode the own-memory arm already revises at
-$\lockinOnsetOwn$ against $\lockinOnsetBare$ with no memory, and by two episodes it is zero and stays
-zero for ten consecutive decisions. A one-episode bank cannot be repetitive.
+\paragraph{The mechanism is proximity, not authorship, and we can say so because the agent was not
+told.} It is tempting to read the table as commitment: the agent stops deferring to a record that is
+not its own. That reading is unavailable here, and the reason is a property of the implementation
+rather than an inference. \texttt{ForeignMemory} inherits its rendering from the parent component, so
+the donor's episodes reach the prompt in the parent's wording---\texttt{when [state] you did
+[law] $\to$ outcome$\approx$}$s$. The agent is told the donor's decisions are its own. It has no
+signal of authorship at all, so authorship cannot be what changed.
+
+What did change is measurable. Replaying the world with the same component and the bank the arm
+actually received, precedent from the agent's own trajectory is retrieved from a mean standardized
+distance of $0.157$; the donor's from $0.374$, a factor of $2.4$ further. An endemic epidemic recurs,
+so an agent searching its own file for the most similar past situation finds, in effect, the state it
+was in one decision ago and the law it wrote then. The donor's file cannot supply that.
+
+We report this correction rather than the cleaner story because we made the mistake and it is
+instructive. Our first version of this measurement reconstructed the donor bank by pooling every
+other seed's full trajectory---$180$ episodes---and found foreign precedent retrieved $7.9\times$
+\emph{closer}, which would have refuted the proximity account outright. The arm's real bank is eight
+episodes, and a $180$-episode bank has combinatorially nearer neighbours than an eight-episode one.
+The reconstruction was measuring the reconstruction. Reading the bank from the experiment's own
+loader reverses the sign of the finding.
+
+Proximity also survives the check that killed a related hypothesis elsewhere in this paper. We
+previously ruled out state recurrence as an explanation for the cross-world difference in lock-in by
+showing that turning recurrence across its entire feasible range moves retrieved-precedent distance
+only $21\%$, far too little to carry an eightfold effect. That argument does not apply here: this
+manipulation moves retrieval distance by $138\%$, which is the right order to matter.
+
+\paragraph{What the arm does establish.} Two things, independent of mechanism. First, \emph{onset}:
+\cref{fig:lockin-onset} shows the suppression arrives with the agent's \emph{first} own episode---
+revision $\lockinOnsetOwn$ against $\lockinOnsetBare$ with no memory---and is total at two, holding
+at zero for ten consecutive decisions. Any account requiring the bank to accumulate before it binds
+is ruled out; a one-episode bank has no accumulation to offer, and under the proximity account it
+does not need any, because that one episode is the immediately preceding decision. Second,
+\emph{break response}: only the foreign arm raises its revision rate when the instrument fails
+($\lockinForeignPre \to \lockinForeignPost$, $\lockinForeignDelta$,
+$p_{\text{Holm}} = \lockinForeignP$). The no-memory arm does not respond
+($\lockinBareDelta$, $p = \lockinBareP$) because it revises constantly regardless; the own-memory arm
+does not respond ($\lockinOwnDelta$, $p = \lockinOwnP$) because it is frozen. The run-level averages
+above cannot distinguish an institution that is stable because nothing has happened from one that is
+stable because it cannot move, which is a caution about the churn statistic and not only about this
+arm. \emph{The break-alignment was not pre-registered and is reported as exploratory}; the
+confirmatory claim is the churn contrast.
+
+\paragraph{The design implication, correspondingly narrowed.} If proximity is what binds, the
+load-bearing choice is not whether the agent has a memory but how the memory is \emph{searched}.
+Similarity-ranked retrieval is the default in every episodic-memory component we are aware of, and in
+a recurrent environment it is precisely the retrieval rule that returns a near-copy of the last
+decision at the moment the question is whether the last decision still works. Sourcing precedent from
+elsewhere is one way to break that; deliberately retrieving \emph{dissimilar} or older precedent
+would be another, and we have not tested it. We flag the untested alternative rather than let the
+one arm we ran stand in for a design principle.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\linewidth]{figures/lockin_onset}
@@ -1006,22 +1057,12 @@ zero for ten consecutive decisions. A one-episode bank cannot be repetitive.
 lock.} Left: share of runs revising the law in force at each decision, aligned to the instrument
 break at decision \lockinBreak{}. Own precedent (red) suppresses revision from the first episode and
 holds it at zero through the break. Right: revision rate before versus after the break. Only the
-foreign arm responds ($\lockinForeignPre \to \lockinForeignPost$, $\lockinForeignDelta$,
-$p_{\text{Holm}} = \lockinForeignP$). The no-memory arm does not respond
-($\lockinBareDelta$, $p = \lockinBareP$) because it revises constantly regardless, and the own-memory
-arm does not respond ($\lockinOwnDelta$, $p = \lockinOwnP$) because it is frozen. Note what this
-means for the run-level averages above: they cannot distinguish an institution that is stable because
-nothing has happened from one that is stable because it cannot move. \emph{This break-alignment was
-not pre-registered and is reported as exploratory}; the confirmatory claim is the churn contrast.}
+foreign arm responds ($\lockinForeignDelta$, $p_{\text{Holm}} = \lockinForeignP$); the no-memory arm
+does not ($\lockinBareDelta$, $p = \lockinBareP$) because it revises constantly regardless, and the
+own-memory arm does not ($\lockinOwnDelta$, $p = \lockinOwnP$) because it is frozen. The
+break-alignment is exploratory, not pre-registered.}
 \label{fig:lockin-onset}
 \end{figure}
-
-The design implication is more specific than ``memory hurts'', and more usable. What an institution
-must not do is consult its own back-catalogue when the question is whether the standing rule still
-works. Consulting a comparable authority's back-catalogue costs nothing and---on the exploratory
-break-alignment---is the only configuration we measured that is stable while the world is stable and
-revises when the world breaks. That is the behaviour the responsiveness literature asks for, and it
-is obtained here by changing the \emph{author} of the precedent rather than the amount of it.
 
 \paragraph{Relation to what is known about agent memory.} That memory systems underperform their
 promise is not news: \citet{jiang2026anatomy} survey the field and attribute the gap to benchmark

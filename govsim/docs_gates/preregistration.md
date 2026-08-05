@@ -581,3 +581,49 @@ prevent.
   releases on a break; own precedent buys stability that does not, and no precedent buys no
   stability at all.** This was not predicted and is labelled exploratory; the confirmatory claim
   remains the pre-registered churn contrast.
+
+- **2026-08-05 — RETRACTION WITHIN THE SAME DAY: the H3e result is real, the MECHANISM I attributed
+  to it was not.** The entry above concluded COMMITMENT — that being shown one's *own* prior
+  decisions is what suppresses revision. That conclusion shipped into both abstracts, a figure
+  caption and a full commit before two checks killed it. Recorded in full because the error is more
+  instructive than the finding.
+
+  **Defect 1 — the agent was never told whose decisions it was reading.** `ForeignMemory` subclasses
+  `EpisodicMemory` and does *not* override `on_observe`, so the donor's episodes reach the prompt in
+  the parent's wording: `when [state] you did [law] -> outcome≈s`. The donor's decisions are
+  attributed to the agent, in the second person. The agent has **no authorship signal at all**, so
+  authorship cannot be what changed. Any commitment/self-consistency reading is unavailable by
+  construction — and it was unavailable the whole time, in code I had read.
+
+  **Defect 2 — the similarity probe measured its own reconstruction.** `scripts/retrieval_similarity.py`
+  originally rebuilt the donor bank by pooling every other seed's full trajectory (180 episodes).
+  The arm actually receives `_donor_bank(...)[:8]` — **8 episodes, all from one donor seed (11)**. A
+  180-episode bank has combinatorially nearer neighbours than an 8-episode one, so the reconstruction
+  reported foreign precedent as **7.9x CLOSER**. Reading the bank from the experiment's own loader
+  reverses it: foreign precedent is **2.38x FURTHER** (own 0.157, foreign 0.374). The confound I had
+  announced as "running backwards" runs forwards.
+
+  This also voids the defence I gave against it. The recurrence probe established that the distance
+  dial moves retrieval distance only 21% across its whole feasible range, too little to carry an 8x
+  effect. This manipulation moves it 138% — outside that probe's range entirely, so that argument
+  does not transfer.
+
+  **What survives, unchanged:** the churn contrast (0.837 / 0.632 / 0.068, all Holm-corrected), the
+  loss result (foreign removes own-memory's entire penalty, does not beat bare), the onset (lock-in
+  at bank size ONE, total at two), and the break response (only the foreign arm revises more after
+  the break). None of these depend on the mechanism.
+
+  **What replaces it:** PROXIMITY. Similarity-ranked retrieval over one's own trajectory, in a world
+  that recurs, returns a near-copy of the immediately preceding decision, and a near-copy is
+  repeated. This also explains the onset result without any extra assumption: a one-episode own bank
+  holds *the last decision*, the nearest precedent obtainable. Stated as the papers' current reading,
+  not as established — the arm confounds proximity with bank contents, and the clean test is below.
+
+  **NEXT, PRE-REGISTERED:** a `DistantMemory` arm — the agent's own episodes, retrieved by *inverse*
+  similarity (or with the nearest k excluded), holding the bank, the phrasing and the count fixed.
+  Proximity predicts churn rises toward the foreign arm's 0.632. Any surviving own-record effect
+  predicts it stays near 0.068. This is the arm that would settle it and it has not been run.
+
+  **Process note.** Both defects were found by asking what the arm *actually received* rather than
+  what it was designed to receive. Neither was visible in any summary statistic; both were visible in
+  eight lines of a printed bank and one missing method override.

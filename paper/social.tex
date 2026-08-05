@@ -55,9 +55,15 @@ channels, and vary them factorially: a compliance channel reporting rule violati
 channel reporting the realized performance of the policy actually in force, and an institutional
 memory of precedents. \ResultsAbstractSentence
 
-The design implication is specific. Auditing whether a rule was followed cannot reveal that the rule
-has stopped working; only evaluating what the rule achieved can. Institutions built to detect
-non-compliance are, in a precise and measurable sense, blind to instrument failure.
+Two design implications follow, and both are specific. Auditing whether a rule was followed cannot
+reveal that the rule has stopped working; only evaluating what the rule achieved can, so institutions
+built to detect non-compliance are, in a precise and measurable sense, blind to instrument failure.
+And the paralysis institutional memory induces is a property of \emph{how the record is searched},
+not of having one: given an equivalent record of a comparable authority's decisions, retrieved and
+presented identically, our polity revises nearly ten times as often, pays none of the penalty, and is
+the only configuration we measured that revises \emph{more} once the instrument breaks. The
+difference is that a body searching its own file for the most similar past case finds something very
+close to what it did last time, and does it again.
 \end{abstract}
 
 \section{The problem: when is a rule stale?}
@@ -534,23 +540,21 @@ the memory channel removed was the \emph{capacity} for revision---the institutio
 kind of thing that could change its mind---and that is what cost it. Prescribing ``revise more
 often'' would be treating a symptom that is not, on its own, the mechanism.
 
-\subsection{Whose precedent? A second remedy, and a sharper mechanism}
+\subsection{Not whether the authority remembers, but how it searches}
 \label{sec:foreign-social}
 
-``Availability of one's own past decisions'' is how we have described the mechanism, but the
-experiment above cannot actually justify the possessive. Two readings fit it equally. Under the
-first, any concrete example of a policy anchors the authority, and consulting precedent is simply
-unsafe across a structural break. Under the second, what binds is specifically the authority's own
-record: a body that has ruled once is under pressure to rule consistently, and precedent written by
-somebody else carries no such pressure. Institutional theory has long distinguished these---the
-second is what makes \emph{stare decisis} a doctrine about a court's own prior holdings rather than
-about exposure to legal reasoning in general---but our data could not separate them, because in every
-regime tested the authority was reading its own file.
+``Availability of its own past decisions'' is how we described the mechanism, and the experiment
+above cannot justify the possessive. Three readings fit it. Under the first, any concrete example of
+a policy anchors the authority, and consulting precedent is unsafe across a structural break at all.
+Under the second, what binds is specifically the authority's own record: a body that has ruled once
+is under pressure to rule consistently. Under the third, neither the exemplar nor its authorship
+matters---what binds is that an authority searching its own file for the \emph{most similar} past
+case finds, in a world that keeps returning to the same state, almost exactly the case it decided
+last time, and decides it the same way.
 
 So we ran one further regime in which the file belongs to somebody else. The authority is given eight
 recorded decisions of a different authority, governing a different realization of the same epidemic,
-retrieved and presented exactly as its own would have been, and it never sees its own record. Nothing
-else changes: same retrieval rule, same ranking, same phrasing, same number of precedents.
+retrieved and presented exactly as its own would have been, and it never sees its own record.
 
 \begin{center}\small
 \begin{tabular}{@{}lrrr@{}}
@@ -564,44 +568,58 @@ its own record & $\mathbf{0.07}$ & $26.74$ & $1.21$ \\
 \end{tabular}
 \end{center}
 
-The possessive was carrying the whole mechanism. Precedent from elsewhere reproduces barely a quarter
-of the paralysis that the authority's own record produces, and it removes the entire cost: an
-authority reading another's file governs as well as one with no memory at all ($\Delta = -1.12$
-against its own record, $95\%$ CI $[-2.91, -0.35]$, $p = 0.025$), and is the only memory-equipped
-regime we ran that matches the best standing rule. We are careful about the direction of this claim:
-reading another's file does not beat having no memory ($p = 0.61$). It is harmless where one's own
-file is harmful.
+Substituting the file recovers most of the lost revision and removes the entire cost: an authority
+reading another's file governs as well as one with no memory at all ($\Delta = -1.12$ against its own
+record, $95\%$ CI $[-2.91, -0.35]$, $p = 0.025$), and is the only memory-equipped regime we ran that
+matches the best standing rule. Reading another's file does not \emph{beat} having no memory
+($p = 0.61$); it is harmless where one's own file is harmful.
 
-We also checked the two explanations that would deflate this. The first is that an authority's own
-record is simply \emph{closer} to its current situation, so it retrieves more relevant material and
-imitates it for good reason. Measured directly, the donor's decisions are retrieved from
-$7.9\times$ \emph{nearer} the current state, not further---an endemic epidemic puts every authority
-in much the same place---so the comparison runs against the finding rather than for it. The second is
-that a growing own-record becomes repetitive and it is the repetition that anchors. That predicts
-paralysis should set in gradually. It sets in at the first precedent: with a single decision on file
-the authority's revision rate has already fallen by $60\%$, and with two it is zero and stays zero
-for ten consecutive reviews. One decision cannot be a rut.
+\paragraph{Why this is not \emph{stare decisis}.} The tempting institutional reading is the second
+one---that a body feels bound by its own holdings and not by a foreign jurisdiction's---and we cannot
+have it, for a reason worth stating plainly because it is the sort of thing a model can hide. Our
+authority is never told whose decisions it is reading. The donor's record is presented in the same
+words as its own would be, in the second person, as though the authority had taken those decisions
+itself. It has no signal of authorship, so authorship cannot be doing the work.
 
-\paragraph{What this changes.} It converts a discouraging finding into an actionable one. ``Do not
-give an institution a memory'' is not advice anybody can take; institutions have memories whether or
-not we design them. ``Do not let the body reviewing a rule consult its own prior rulings on that
-rule---give it a comparable jurisdiction's instead'' describes arrangements that exist in the world,
-in comparative regulatory review, peer-jurisdiction benchmarking, and the practice of staffing a
-review panel with people who did not write the thing under review. Our measurement says that
-arrangement is not merely fairer in appearance; in this model it is the difference between an
-institution that can change its mind and one that cannot.
+What differs, and what we can measure, is distance. Replaying the world with the same retrieval
+machinery, an authority searching its own file finds precedent at a mean standardized distance of
+$0.16$ from its current situation; searching the donor's file it finds precedent at $0.37$, well over
+twice as far. An endemic epidemic returns again and again to the same neighbourhood, so ``the most
+similar past case'' in one's own file is, in practice, the case decided one review ago. The donor's
+file cannot supply that, and the authority is thrown back on judging the situation.
+
+We report this as a correction because our first attempt at the measurement said the opposite. It
+reconstructed the donor's file by pooling every other run's full history---$180$ cases rather than
+the eight the authority actually received---and a larger file naturally contains nearer matches. That
+version found foreign precedent \emph{closer}, which would have ruled the distance account out.
+Reading the file the experiment actually used reverses the sign. We record the error because the
+corrected result is the one that changes the policy advice, and because a reconstruction that
+flatters the hypothesis is exactly the failure this paper is about.
+
+\paragraph{What this changes.} The advice is no longer ``do not give an institution a memory'', which
+nobody can act on, nor ``do not let a body read its own file'', which we cannot support. It is
+narrower and more actionable: \emph{the retrieval rule is the policy instrument}. A review body that
+pulls the most closely analogous prior case will, in a stable environment, pull its own most recent
+decision and reaffirm it---and it will do so most reliably at exactly the moment the environment has
+stopped being stable. Sourcing precedent from a comparable jurisdiction is one way to break that
+loop, and it corresponds to arrangements that exist: peer-jurisdiction benchmarking, comparative
+regulatory review, staffing a review panel with people who did not write the thing under review.
+Deliberately retrieving \emph{less} similar or older precedent from one's own file would be another,
+and we have not tested it; we name it so the single arm we ran is not mistaken for a general
+principle.
 
 There is a further observation we report as exploratory, because we did not predict it. Timing the
 revisions against the moment the instrument breaks separates the three regimes in a way the averages
 above conceal. The authority with no memory revises constantly and does not revise \emph{more} after
 the break---it was never tracking anything. The authority reading its own record does not revise more
-either---it is frozen. Only the authority reading another's record changes behaviour at the break,
-and it roughly doubles its revision rate ($\lockinForeignPre \to \lockinForeignPost$,
-$p_{\text{Holm}} = \lockinForeignP$). That is the profile institutional design actually asks for:
-stability while the world is stable, revision when it is not. It is worth stating plainly that the
-run-level averages in our tables cannot distinguish that profile from mere inertia, and that a
-literature scoring institutions on how often they change things would place the first two regimes at
-opposite extremes while missing that neither is responsive to anything.
+either---it is frozen. Only the authority reading another's record changes behaviour at the break, and
+roughly doubles its revision rate ($\lockinForeignPre \to \lockinForeignPost$,
+$p_{\text{Holm}} = \lockinForeignP$). That is the profile institutional design asks for: stability
+while the world is stable, revision when it is not. It is worth stating plainly that the run-level
+averages in our tables cannot distinguish that profile from mere inertia, and that a literature
+scoring institutions on how often they change things would place the first two regimes at opposite
+extremes while missing that neither is responsive to anything.
+
 
 \begin{takeaway}
 Institutional memory did not misinform our authority---it stopped it from reconsidering. Precedent
