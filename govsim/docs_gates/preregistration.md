@@ -437,3 +437,38 @@ prevent.
   agent's own past actions, or pair recall with something that forces reconsideration — the
   `outcome × memory` interaction (+0.338, p_Holm = 0.0007) is the only manipulation measured here that
   restores churn, and it works by adding a channel rather than by editing memory.
+
+- **2026-08-05 — HARNESS STATE LEAKED BETWEEN SEEDS. Every stateful-channel arm to date is affected.**
+  Found while building `ForeignMemory` and checking whether a donor bank could be varied per seed.
+  `Runner.run` executes `[self._run_seed(exp, seed) for seed in exp.seeds]` against the **same**
+  `Experiment` object, and nothing reset the harness. Measured directly on three seeds of a
+  20-decision world: `EpisodicMemory` finished holding **60 episodes instead of 20**, and
+  `OutcomeFeedback` **57 log entries instead of 19**.
+
+  Consequence: the arms were not independent replications. The agent at seed 19 could retrieve
+  precedent recorded in nineteen *other world realisations*, and the outcome channel could report
+  scores earned in runs the current world never saw. A paired seed design assumes a fresh draw per
+  seed and every statistic downstream assumes it too.
+
+  **Impact assessment, run before deciding what to re-do.** The headline lock-in result survives, and
+  this was checked rather than hoped: churn shows **no trend in seed index** (corr = +0.051 for the
+  memory arm, +0.065 for bare), and **seed 0 — which begins with an empty bank — is already maximally
+  locked at churn 0.000**. So lock-in is a within-run phenomenon that appears on the very first seed,
+  not an artifact of accumulation. Arms with no stateful component (`bare`, `trace`) are unaffected
+  entirely.
+
+  **Still to re-run under the fix:** every arm carrying `memory` or `outcome` (6 of the 8 factorial
+  cells, plus `contrastive`, `unscored`). Their prompts will differ, so the content-addressed cache
+  will miss and they cost full API budget. Until then their point estimates are provisional; the
+  qualitative memory result is not.
+
+  Fixed by `HarnessComponent.reset()`, fanned out by `Harness.reset()` and called by
+  `Runner._run_seed` before each seed. `ForeignMemory` overrides it to **restore** its donor bank
+  rather than clear it — inheriting the parent's clear would have left that arm with no memory from
+  the second seed onward, silently a no-harness control wearing a memory label. 9 tests pin all of
+  this, because the bug is invisible in the outputs: every arm still produced 20 plausible losses.
+
+  An earlier attempt to detect this from the recorded prompts gave 7.1% "foreign episodes" for seed 0,
+  which is impossible since seed 0 runs first — the matcher was comparing differently-formatted
+  floats. That measurement was discarded rather than reported, and the defect was confirmed by
+  instrumenting the component directly instead.

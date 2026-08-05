@@ -43,6 +43,23 @@ class HarnessComponent:
     name: str = "component"
     enabled: bool = True
 
+    def reset(self) -> None:
+        """Clear any state carried between decisions, called by the Runner BEFORE each seed.
+
+        Load-bearing, and its absence was a real defect. ``Runner.run`` executes every seed against
+        the SAME ``Experiment`` object, so a component that accumulates — an episode bank, a score
+        log — carried its contents from one run into the next. Measured on three seeds of a 20-decision
+        world: ``EpisodicMemory`` finished holding 60 episodes instead of 20 and ``OutcomeFeedback``
+        57 log entries instead of 19.
+
+        That is not merely untidy. It means the arms are not independent replications: the agent at
+        seed 19 retrieves precedent from nineteen *other world realisations*, and the outcome channel
+        reports scores earned in runs the current world never saw. A paired seed design assumes each
+        seed is a fresh draw, and the statistics downstream assume it too.
+
+        Components with no state need not override this.
+        """
+
     def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
         """Inject memory / trace / critic notes / inbox into ``scratch`` before the regent decides."""
 
@@ -69,6 +86,15 @@ class Harness:
 
     def _active(self) -> list[HarnessComponent]:
         return [c for c in self.components if c.enabled]  # <- the entire ablation switch
+
+    def reset(self) -> None:
+        """Clear every component's between-decision state. Called by the Runner before each seed.
+
+        Disabled components are reset too: ``enabled`` is the ablation switch, and a component
+        toggled back on mid-study must not wake up holding another run's history.
+        """
+        for c in self.components:
+            c.reset()
 
     def act(self, regent: "Any", view: Observation, space: ActionSpace, scratch: dict) -> list[ActionRequest]:
         active = self._active()

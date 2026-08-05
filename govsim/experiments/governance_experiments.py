@@ -72,7 +72,7 @@ from govsim.domains.scalar import regimes as R
 from govsim.experiments import register
 from govsim.harness import (
     ContextualOutcomeFeedback, ContrastiveMemory, Critic, EpisodicMemory, OutcomeFeedback,
-    TraceFeedback, UnscoredMemory,
+    ForeignMemory, TraceFeedback, UnscoredMemory,
 )
 from govsim.regents import LLMRegent, OPRORegent, SwitchingRegent
 
@@ -353,6 +353,67 @@ def epidemic_llm_unscored() -> Experiment:
               "attached to precedent, not by recall of the precedent itself",
         falsification="the paired CI of (unscored - memory) on policy churn includes 0",
         metadata={"role": "treatment", "factors": ["unscored"], "budget_matched": True,
+                  "control_arm": "epidemic_llm_memory"},
+    )
+
+
+#: Where ``scripts/build_donor_memory.py`` writes the per-seed foreign episode banks.
+DONOR_MEMORY_PATH = os.environ.get("GOVSIM_DONOR_MEMORY", "logs/donor_memory.json")
+
+
+def _donor_bank(seed: int) -> list[dict]:
+    """The episode bank for one seed, drawn from a DIFFERENT seed's recorded run.
+
+    Raises rather than returning empty. A missing or malformed bank would silently turn this arm
+    into a no-harness control while it still carried a memory label — the single most expensive
+    failure available here, because it produces a clean number for the wrong experiment.
+    """
+    import json
+    from pathlib import Path
+    path = Path(DONOR_MEMORY_PATH)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} not found. Build it first: "
+            f"uv run python scripts/build_donor_memory.py --store logs/runs_v3"
+        )
+    banks = json.loads(path.read_text(encoding="utf-8"))
+    bank = banks.get(str(seed)) or []
+    if not bank:
+        raise ValueError(f"donor bank for seed {seed} is empty in {path}")
+    if any(e.get("_donor_seed") == seed for e in bank):
+        raise ValueError(
+            f"donor bank for seed {seed} contains that seed's OWN episodes; the arm would not be "
+            f"foreign and the contrast it exists to make would be void"
+        )
+    return bank
+
+
+@register("epidemic_llm_foreign")
+def epidemic_llm_foreign() -> Experiment:
+    """Precedent from ANOTHER run, never the agent's own — separating anchoring from commitment.
+
+    Three presentation repairs failed to move memory's lock-in (churn 0.847 with no memory, 0.082
+    with it, 0.021 reranked, 0.050 unscored), leaving "recall itself" as the mechanism. That still
+    covers two claims with opposite design consequences: any concrete exemplar anchors the agent
+    (anchoring), or specifically being shown ONE'S OWN past decisions creates consistency pressure
+    (commitment).
+
+    This arm holds retrieval, ranking, phrasing and episode count fixed and changes only WHOSE
+    episodes are in the bank. PREDICTION, recorded before running: under commitment, churn rises
+    materially above 0.082 toward the no-memory arm's 0.847; under anchoring it stays near 0.082 and
+    precedent is unusable across a break in any form.
+
+    Its control is ``epidemic_llm_memory``."""
+    max_tokens, extra = _llm_opts()
+    return _epidemic_experiment(
+        "epidemic_llm_foreign",
+        LLMRegent(llm=_client(), model=_model(), temperature=0.0, max_tokens=max_tokens, extra=extra),
+        Harness([ForeignMemory(_donor_bank(0), k=4)]),
+        hyp_id="H3e-foreign-memory",
+        claim="the policy lock-in episodic memory induces comes from being shown the agent's OWN "
+              "prior decisions, not from exposure to concrete precedent as such",
+        falsification="the paired CI of (foreign - memory) on policy churn includes 0",
+        metadata={"role": "treatment", "factors": ["foreign"], "budget_matched": True,
                   "control_arm": "epidemic_llm_memory"},
     )
 

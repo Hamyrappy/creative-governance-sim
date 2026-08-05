@@ -91,6 +91,9 @@ class OutcomeFeedback(HarnessComponent):
         self.k = k
         self.log: list[tuple[str, float]] = []  # (law deployed, realized score)
 
+    def reset(self) -> None:
+        self.log.clear()
+
     def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
         realized = scratch.get("_last_realized_score")
         pending = scratch.pop("_pending_outcome_law", None)
@@ -143,6 +146,10 @@ class ContextualOutcomeFeedback(OutcomeFeedback):
         # Relative distance under which two states count as "comparable" for the repeat check.
         self.similar_within = similar_within
         self.log_ctx: list[tuple[str, float, dict]] = []  # (law, score, state at interval start)
+
+    def reset(self) -> None:
+        super().reset()
+        self.log_ctx.clear()
 
     def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
         realized = scratch.get("_last_realized_score")
@@ -233,6 +240,9 @@ class EpisodicMemory(HarnessComponent):
     def __init__(self, k: int = 3) -> None:
         self.k = k
         self.episodes: list[dict] = []
+
+    def reset(self) -> None:
+        self.episodes.clear()
 
     def on_observe(self, view: Observation, space: ActionSpace, scratch: dict) -> None:
         if not self.episodes:
@@ -368,6 +378,64 @@ class UnscoredMemory(EpisodicMemory):
             # as it was is what makes the contrast attributable to the score and to nothing else.
             lines.append(f"- when [{state}] you did [{acts}]")
         scratch["memory"] = "\n".join(lines)
+
+
+class ForeignMemory(EpisodicMemory):
+    """Precedent from ANOTHER authority's run, never from this one's own history.
+
+    Three presentation repairs failed to move the lock-in that episodic memory induces (churn 0.847
+    without memory, 0.082 with it, 0.021 reranked, 0.050 unscored), which leaves "recall itself" as
+    the mechanism. That phrase still hides two different claims, and they have opposite design
+    consequences:
+
+    (a) **Anchoring.** Any concrete exemplar of a policy, from anywhere, pulls the agent toward it.
+        Then no memory design helps and the component must be dropped across a structural break.
+    (b) **Commitment.** Specifically being shown *one's own* prior decisions creates consistency
+        pressure. Then precedent is usable — it just must not be the agent's own.
+
+    This component separates them. The retrieval, the ranking, the phrasing and the episode count are
+    the parent's; the only change is *whose* episodes are in the bank. It is loaded with a fixed set
+    recorded from a DIFFERENT run of the same world, and it never appends the current run's own
+    decisions, so the agent is shown competent, comparable precedent that it did not author.
+
+    PREDICTION, recorded before running: if (b), churn rises materially above 0.082 toward the
+    no-memory arm's 0.847. If (a), churn stays near 0.082 and the finding is that precedent is
+    unusable here in any form.
+
+    The donor bank is built by ``scripts/build_donor_memory.py`` from recorded runs, and each run is
+    given a donor from a *different* seed, so no agent ever sees its own trajectory.
+    """
+
+    name = "foreign_memory"
+
+    def __init__(self, episodes: list[dict], k: int = 3) -> None:
+        super().__init__(k=k)
+        if not episodes:
+            raise ValueError(
+                "ForeignMemory needs a donor episode bank; an empty one silently degrades this arm "
+                "into a no-harness control while still being labelled a memory arm."
+            )
+        # Deep-ish copy so a shared bank cannot be mutated by one arm and read by another.
+        self._bank = [dict(e) for e in episodes]
+        self.episodes = [dict(e) for e in self._bank]
+
+    def reset(self) -> None:
+        """Restore the donor bank rather than clearing it.
+
+        The parent's reset empties ``episodes``; here that would leave the arm with no memory at all
+        from the second seed onward, silently turning it into a no-harness control halfway through.
+        """
+        self.episodes = [dict(e) for e in self._bank]
+
+    def on_outcome(self, view: Observation, requests: list[ActionRequest], outcome: Outcome,
+                   scratch: dict) -> None:
+        """Deliberately a no-op: the bank stays foreign for the whole run.
+
+        Appending this run's own outcomes would reintroduce exactly the self-precedent the component
+        exists to remove, and would do it gradually — so the arm would be foreign-only early and
+        mostly self-precedent late, which is the worst of both and impossible to interpret.
+        """
+        return
 
 
 class RolloutProbe(HarnessComponent):

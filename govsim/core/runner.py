@@ -87,6 +87,11 @@ class Runner:
         return records
 
     def _run_seed(self, exp: Experiment, seed: int) -> RunRecord:
+        # Every seed runs against the SAME Experiment object, so any component that accumulates
+        # would otherwise carry one run's history into the next — episodes retrieved from other
+        # world realisations, outcome scores earned in runs this world never saw. A paired seed
+        # design assumes independent draws; this is what makes that true.
+        exp.harness.reset()
         system = exp.system_factory(seed)
         regents = exp.regents
         scratch: dict[str, dict] = {rid: {} for rid in regents}
