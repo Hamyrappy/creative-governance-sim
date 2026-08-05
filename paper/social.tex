@@ -2,6 +2,7 @@
 \input{preamble}
 \IfFileExists{generated/results_prose.tex}{\input{generated/results_prose}}{}
 \IfFileExists{generated/divergence_facts.tex}{\input{generated/divergence_facts}}{}
+\IfFileExists{generated/library_facts.tex}{\input{generated/library_facts}}{}
 % Fallbacks so the document still compiles before the figure code has run.
 \providecommand{\FrozenCost}{?}\providecommand{\BestFixedCost}{?}
 \providecommand{\SwitchCost}{?}\providecommand{\DivergenceSeed}{?}
@@ -218,6 +219,58 @@ to \emph{stop}, which is precisely the response the rule's own logic forbids.
 \begin{takeaway}
 Feedback rules are robust to shocks in the governed system and fragile to shocks in the governing
 instrument. The robustness and the fragility have the same cause.
+\end{takeaway}
+
+\subsection{Is this a fact about epidemics, or about institutions?}
+\label{sec:library-social}
+
+A reasonable objection to everything above is that it describes a pathogen. Compartmental models have
+a particular structure, and a finding that depends on it is epidemiology rather than political
+science. We therefore repeated the identical measurement on a library of polities with nothing
+mechanically in common: a central bank governing by policy rate, a platform governing discourse by
+content moderation, a fishing community governing a stock by quota and reserve, a firm governing
+inventory by order quantity, and a treasury governing demand by tax and transfer. Each receives the
+same kind of break---its principal instrument quietly loses efficacy---and each is scored against
+three references calibrated in its own institutional vocabulary.
+
+\input{generated/library_table}
+
+The result is that scarcity, not headroom, is the normal condition. Across \libWorlds{} polities only
+\libOverEleven{} leave adaptation worth more than a tenth of the incumbent rule's cost. For most of
+them, an authority that watched carefully and revised promptly would have been indistinguishable from
+one that legislated once and went home---not because attentiveness is worthless in general, but
+because in those worlds the better answer was available at the outset to anyone who thought harder
+about the rule.
+
+This is an uncomfortable finding for a literature that treats responsiveness as an unqualified
+institutional virtue, and we think it is the more useful one. It says that the case for adaptive
+governance is not general; it is conditional on a property of the domain that can be measured in
+advance, cheaply, without observing any government at all.
+
+Two of the polities are worth naming because they fail in instructive ways. The treasury cannot host
+the experiment at all: in its configuration the optimal tax rate is zero---the economy reaches
+potential from accumulated household balances, so taxation only distorts---and the shock enters as a
+collapse in \emph{compliance}, which multiplies the rate. A collapse in the enforcement of a tax
+nobody should be levying is arithmetically nothing. The firm is a genuine negative result about a
+whole family of shocks: a lengthened supply lead time, which one might expect to punish a stale
+ordering rule, is absorbed almost entirely, because an order-up-to rule with a free target answers a
+longer lag by simply holding more. Both are reported rather than dropped, which is the point of
+running a library instead of a flagship.
+
+The polity with the most to gain from attentiveness is the central bank, and the \emph{shape} of the
+three institutions is the substance. The incumbent rule leans hard against inflation from a high
+neutral rate. The best possible \emph{fixed} answer to a collapse in monetary transmission is to stop
+leaning altogether and hold a constant rate---an institution that abandons feedback. The clairvoyant
+authority does neither: it keeps leaning, at half the strength, while moving its whole rate path down
+to the zero lower bound. What adaptation buys here is not a change in the \emph{rule} but a change in
+the \emph{level} at which the rule operates, and no re-tuning of the incumbent's thresholds can
+express it. This is Lucas's critique of policy evaluation \citep{lucas1976critique} recovered as a
+measurement rather than argued as a principle.
+
+\begin{takeaway}
+The case for adaptive governance is domain-conditional, and the condition is measurable before any
+government is observed. In most of the polities we built, a better standing rule---not a more
+attentive authority---was what the situation called for.
 \end{takeaway}
 
 \begin{figure}[t]\centering
