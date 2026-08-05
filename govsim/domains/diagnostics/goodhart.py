@@ -23,7 +23,16 @@ very nearly a function of the lever alone (``p_target`` is 85% ``proxy_floor + p
 so *any* post-break spending buys measurement instead of welfare, whatever the regent believed it
 was doing. Attempts to sharpen this were tried and rejected: the correlation of effort against a
 sagging indicator does not isolate the chaser either (the reference policy scores −0.83 on it,
-because effort and the indicator both fall after the break for mechanical reasons).
+because effort and the indicator both fall after the break for mechanical reasons). RE-CONFIRMED
+independently, and a second candidate rejected with it. The effort/shortfall correlation gives the
+chaser −0.8427 and the reference −0.8415 — indistinguishable. ``mean |proxy − proxy_target|`` over
+the post-break window looked more promising, since holding the dashboard AT target while welfare
+collapses is what Goodharting actually is, and it does rank the chaser first (0.061 against the
+reference's 0.414, a 6.8x separation). It still fails the same way: a constant-maximum policy scores
+0.109 while spending MORE, so the statistic is once again ordered by effort with the chaser as an
+outlier rather than measuring the behaviour directly. Two independent statistics reproducing the
+same confound is evidence the confound is the world's, as stated above — not a search for a better
+formula that has not been run yet.
 So read the gap as *how much of the post-break budget went into inflating the indicator* — which is
 the substantive error — and pair it with ``post_effort`` and ``loss`` before describing a regent's
 reasoning. ``tests/test_diag_goodhart.py`` pins this boundary so the stronger claim cannot creep
