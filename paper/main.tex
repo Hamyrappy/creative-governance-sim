@@ -599,16 +599,30 @@ that pull against each other---it informs, and it suppresses revision---and whic
 depends on how hard the second bites. Where lock-in is catastrophic the informational value cannot
 pay for it; where lock-in is mild, it can.
 
-\emph{Why} it bites harder in one world than the other we do not know, and we would rather leave that
-open than furnish a plausible story. The obvious candidate is state recurrence: an endemic epidemic
+\emph{Why} it bites harder in one world than the other is a separate question, and we tested the
+obvious answer rather than asserting it. The candidate is state recurrence: an endemic epidemic
 settles toward an equilibrium, so successive decisions are taken in near-identical states, retrieval
-returns near-identical precedent, and repeating it exactly is easy; a monetary economy under a
-demand process keeps moving. Measured as the mean nearest-neighbour distance between decision states,
-normalized per world, the epidemic is indeed the more recurrent ($0.372$ against $0.452$). But that
-is a $20\%$ difference in the proposed mediator against a ninefold difference in the outcome, from
-$n=2$ worlds, which is not evidence for a mediator---it is a hypothesis with a direction. Settling it
-needs worlds chosen to vary recurrence while holding the rest fixed, which is a study we have not
-run.
+returns near-identical precedent, and repeating it exactly is easy; a monetary economy under a demand
+process keeps moving. Measured as the mean nearest-neighbour distance between decision states,
+normalized per world, the epidemic is indeed the more recurrent ($0.372$ against $0.452$).
+
+That is a hypothesis with a direction, not a mediator, and two worlds cannot settle it. But its
+middle link---does making states recur actually bring \emph{retrieved} precedent closer?---is a
+property of the retrieval component and the world, and needs no language model to measure. Sweeping a
+first-order plant's decay across its entire stable range, with the objective, horizon, cadence,
+retrieval component and policy all held fixed, moves the distance from the current state to the
+episodes \texttt{EpisodicMemory} actually returns by $21\%$
+(\texttt{scripts/recurrence\_probe.py}).\footnote{The correlation between the two quantities is
+$+0.99$ and should not be read as evidence: both are nearest-neighbour distances computed on the same
+standardized trajectory, so their agreement is close to definitional. The informative quantity is how
+far the dial can move retrieval at all.}
+
+A fifth is the wrong order of magnitude. The effect it would have to explain is an eightfold
+difference in how hard memory suppresses revision, and turning recurrence across its whole feasible
+range cannot produce that. So we report recurrence as \emph{ruled out} as the sole mechanism rather
+than as an open question---the link is real and far too weak---and we do not have a replacement. What
+would find one is a world in which the severity of memory-induced lock-in can be dialled directly,
+which is a design problem we have not solved.
 
 Both differences are significant on a paired bootstrap ($p=0.0001$ and $p=0.0195$), and they point in
 opposite directions. In the monetary world realized-outcome feedback is not a marginal improvement:
