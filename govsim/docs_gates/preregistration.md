@@ -210,3 +210,48 @@ prevent.
   `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite` contributing the no-harness arm only before
   exhausting their quota. Reported as a partial replication, and as a constraint on inference rather
   than a design choice.
+
+- **2026-08-05 — FIFTH VALIDITY GATE ADDED: model responsiveness.**
+  The four pre-registered gates certify the apparatus (channel liveness, no-action rate, anchor
+  consistency, run freshness). None of them certifies the *subject*, and we found a case where all
+  four pass and the ablation is still empty: a `qwen3.5:0.8b` regent emitted **one constant policy on
+  400 of 400 decisions** with episodic memory live in 100% of its prompts, leaving six arms agreeing
+  to four decimal places. The natural reading — "these components do not help" — would have been a
+  statement about the harness derived from a fact about the model.
+  The gate compares the distribution of *enacted policies* between each arm and the no-harness
+  control, and is deliberately two-stage: an arm whose prompt never changed (the trace channel, when
+  the agent emits only valid actions) is reported as SILENT, not as unread, because that component
+  was never on trial. Only a live channel is eligible to be called deaf. Both models agree the trace
+  channel is silent, which is the control showing the gate is not a proxy for model size.
+  Consequence for this study: **the `qwen3.5:0.8b` panel entry is reported as a capability floor, not
+  as a harness null.** No component effect is estimated from it.
+
+- **2026-08-05 — FLAGSHIP EXTENDED to the monetary world; the epidemic remains the pre-registered
+  primary.** Decomposing all ten library worlds by adaptation headroom (`scripts/decompose_library.py`)
+  put `monetary` at 1.359× against the epidemic flagship's 1.199×, with an adaptation budget of 26.3%
+  of the best-fixed reference against the epidemic's 15.7%. Since the epidemic design's stated limit
+  is that it resolves only components worth ≥23% of its budget, this is a ~1.7× improvement in power
+  from the *world* rather than from more seeds.
+  To keep this from becoming a post-hoc selection of the world that flatters the result, two commitments:
+  the epidemic factorial remains the pre-registered primary analysis and is reported in full whatever
+  it shows; and the monetary arms are reported as a **pre-specified replication at higher power**,
+  with the same metric, seeds, factor set and correction family fixed before any monetary LLM arm was
+  run. The three monetary anchors were calibrated and pinned (with a test re-deriving them) before
+  the first treatment arm executed.
+
+- **2026-08-05 — `headroom()` NOW RETURNS `nan`, NOT `inf`, WHEN A LOSS IS NON-POSITIVE.**
+  Several library objectives are net *welfare* measures, so a good policy legitimately scores below
+  zero and the ratio is undefined. Returning `inf` was not merely imprecise: it reads as enormous
+  headroom and sorts to the *top* of a higher-is-better ranking, which is exactly what it did —
+  `commons` ranked first in the library at `inf×`, above a world with a real 1.359×. `diagnose()` now
+  also reports absolute gaps and a `ratios_valid` flag, and the library ranking refuses to rank an
+  invalid ratio at all.
+
+- **2026-08-05 — `calibrate_switching` SHORTLIST WAS TRUNCATING THE CLAIRVOYANT REFERENCE.**
+  The `top_k=8` default cut off the best (pre, post) pair. The signature was a contradiction rather
+  than a small error: *enriching* the policy grid made the returned reference **worse** (1917.6 →
+  1950.3), which is impossible for a real search, because extra options can only help. Convergence
+  measured at `top_k` 16/32/exhaustive (1910.8 on both grids); the default is now 24 and the function
+  warns when the winning pre-leg comes from the last quarter of the shortlist. A weak switching
+  reference *understates* adaptation headroom, so every previously reported number was a slight
+  underestimate — the conservative direction, and corrected rather than left standing.
