@@ -180,3 +180,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 creative-governance-sim.code-workspace
+paper/figures/_preview_*
