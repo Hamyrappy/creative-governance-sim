@@ -99,13 +99,15 @@ place any controller on a normalized scale between the last two. Because it is c
 makes the severity of a designed shock an auditable choice rather than a researcher degree of
 freedom.
 
-\item \textbf{A component whose value reverses between environments}
-(\cref{sec:crossworld}). Running the same factorial in a second world, realized-outcome feedback
-recovers $975$ loss units on $20/20$ seeds in one and is the harmful channel in the other---both
-significant, opposite in sign. A component's value is therefore not a property of the component but
-of the match between the failure it can reveal and the failure the world produces. That supplies a
-mechanism for the reported poor generalization of automatically evolved harnesses, and a diagnostic
-that predicts the sign before the sweep is run.
+\item \textbf{Two components whose value reverses between environments}
+(\cref{sec:crossworld}). Running the same factorial in a second world, \emph{both} channels that do
+anything at all flip sign: episodic memory costs $1.11$ loss units in one world and recovers $371$ in
+the other, and realized-outcome feedback recovers $975$ on $20/20$ seeds where elsewhere it harms.
+All four contrasts are significant, and the memory pair is uncontaminated---those arms produce an
+action on every decision in both worlds. A component's value is therefore not a property of the
+component but of the match between what it does and what the world's failure mode requires. That
+supplies a mechanism for the reported poor generalization of automatically evolved harnesses, and a
+diagnostic that predicts the sign before the sweep is run.
 
 \item \textbf{A structural result about which shocks are worth studying}
 (\cref{sec:which-shocks,sec:library}). Measuring across ten worlds with unrelated mechanics---a
@@ -565,18 +567,36 @@ to exist, and we say so rather than quietly recasting it as the fix.
 \label{sec:crossworld}
 
 Running the harness factorial in a second world produces the sharpest result in this paper, and it is
-a result about harness research rather than about either world.
+a result about harness research rather than about either world. \emph{Both} channels that do anything
+at all reverse their sign between the two environments.
 
 \begin{center}\small
-\begin{tabular}{@{}lrrrr@{}}
+\begin{tabular}{@{}llrrrr@{}}
 \toprule
-world & no harness & outcome feedback & $\Delta$ & seeds helped \\
+channel & world & no harness & with channel & $\Delta$ & seeds helped \\
 \midrule
-monetary & $3890.53$ & $2915.74$ & $\mathbf{-974.79}$ $[-1218, -739]$ & $\mathbf{20/20}$ \\
-epidemic & $24.97$ & $25.75$ & $+0.78$ $[+0.11, +1.38]$ & $5/20$ \\
+\textbf{memory} & monetary & $3890.53$ & $3519.50$ & $\mathbf{-371.03}$ $[-674, -120]$ & $14/20$ \\
+\textbf{memory} & epidemic & $24.97$ & $26.08$ & $\mathbf{+1.11}$ $[+0.62, +1.67]$ & $3/20$ \\
+\addlinespace
+outcome & monetary & $3890.53$ & $2915.74$ & $-974.79$ $[-1218, -739]$ & $20/20$ \\
+outcome & epidemic & $24.97$ & $25.75$ & $+0.78$ $[+0.11, +1.38]$ & $5/20$ \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+All four contrasts are significant on a paired bootstrap ($p = 0.013$, $0.0009$, $0.0001$, $0.020$),
+and each channel points one way in one world and the other way in the other. \textbf{The memory rows
+are the cleanest evidence in the paper}: those arms produce a parseable action on every single
+decision in both worlds---$0.0\%$ collapse---so unlike the outcome rows they carry none of the
+contamination discussed in \cref{sec:collapse}.
+
+The churn measurement says why memory reverses, and the answer is not that it becomes a different
+component. It induces lock-in in \emph{both} worlds; what differs is how much. In the epidemic churn
+falls from $0.847$ to $0.082$ and the agent ends up cycling between two laws; in the monetary world
+it falls only from $0.937$ to $0.726$, leaving nine distinct rules per run. Precedent has two effects
+that pull against each other---it informs, and it suppresses revision---and which one dominates
+depends on how hard the second bites. Where lock-in is catastrophic the informational value cannot
+pay for it; where lock-in is mild, it can.
 
 Both differences are significant on a paired bootstrap ($p=0.0001$ and $p=0.0195$), and they point in
 opposite directions. In the monetary world realized-outcome feedback is not a marginal improvement:
@@ -614,8 +634,9 @@ no purchase, and where the same channel's measured effect is on churn rather tha
 instrument. One component, two worlds, two different jobs, and it is only worth having when the job
 it can do is the one the world requires.
 
-So the component's value is not a property of the component. It is a property of the match between
-the failure mode a channel can reveal and the failure mode the world actually produces. That has a
+So a component's value is not a property of the component. It is a property of the match between what
+a channel does and what the world's failure mode requires --- and \emph{both} channels we measured
+flip sign on that match, not merely change magnitude. That has a
 direct consequence for the practice this paper is about: \emph{a harness tuned on one environment
 carries no guarantee into another, and can carry a liability}. \citet{wang2026rethinking} report the
 \emph{within-benchmark} version of this: evolved harnesses that gain on the tasks they were searched
